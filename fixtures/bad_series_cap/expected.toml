@@ -1,0 +1,6 @@
+violations = ["decoupling.series"]
+same_net = [["J1.2", "U1.1"], ["J1.3", "U1.2"]]
+
+[pin_net]
+"J1.1" = "+3.3V"
+"U1.4" = "GND"
