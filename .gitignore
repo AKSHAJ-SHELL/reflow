@@ -1,2 +1,26 @@
-tools/*.jar
+# Python
 .venv/
+__pycache__/
+
+# Scratch experiments
+scratch/
+
+# Tools / builds
+tools/*.jar
+node_modules/
+*.zip
+
+# AI agent skill files installed by tsci init
+.claude/
+.agents/
+
+# KiCad local state
+*.lck
+*.kicad_prl
+fp-info-cache
+.history/
+*-backups/
+kicad/
+
+# macOS
+.DS_Store
