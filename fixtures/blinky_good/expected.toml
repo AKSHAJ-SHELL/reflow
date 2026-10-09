@@ -1,0 +1,11 @@
+# What the verifier should report for this board (filled in once rules exist)
+violations = []
+
+# Pins that must share a net (names don't matter)
+same_net = [["R1.2", "D1.2"]]
+
+# Pins you know the exact net for
+[pin_net]
+"J1.1" = "+5V"
+"J1.2" = "GND"
+"D1.1" = "GND"

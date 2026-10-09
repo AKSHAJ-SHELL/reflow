@@ -24,3 +24,4 @@ kicad/
 
 # macOS
 .DS_Store
+.pytest_cache/
