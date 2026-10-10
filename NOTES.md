@@ -44,3 +44,8 @@ Verify connectivity from the netlist, never from the picture (mine or an AI's).
 **Rule ideas (Block C):**
 - Two different power symbols must never resolve to the same net
 - Both pins of a 2-terminal part must be connected, and to *different* nets
+
+## 2026-10-10 — First rule: decoupling.series
+- bad_series_cap: KiCad ERC → [N] violations, none about C1/U1.8
+- OpenFlux decoupling.series → caught, with fix hint
+- sensor_good / blinky_good → no false positives
