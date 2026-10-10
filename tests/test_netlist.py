@@ -1,5 +1,5 @@
 import pytest
-
+from reflow.rules import run_all
 
 def test_annotated(board):
     """Every reference is real: no 'R?' and no duplicates."""
@@ -29,3 +29,13 @@ def test_hand_checked_nets(board):
     for group in exp.get("same_net", []):
         nets = {nl.net_of(*p.split(".")) for p in group}
         assert len(nets) == 1, f"{name}: {group} landed on {nets}"
+
+
+
+def test_violations_match(board):
+    name, nl, exp = board
+    if "violations" not in exp:
+        pytest.skip("no expected violations listed")
+    found = {v.rule_id for v in run_all(nl)}
+    assert found == set(exp["violations"]), f"{name}: got {found}"
+
