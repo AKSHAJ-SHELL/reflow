@@ -6,6 +6,7 @@ from pathlib import Path
 _TOKEN = re.compile(r'\(|\)|"(?:\\.|[^"\\])*"|[^\s()"]+')
 
 
+
 def parse_sexpr(text: str):
     stack = [[]]
     for tok in _TOKEN.findall(text):
@@ -44,6 +45,11 @@ class Pin:
     net: str
     pintype: str = ""
     function: str = ""
+
+    @property
+    def name(self) -> str:
+        suffix = f"_{self.pin}"
+        return self.function[: -len(suffix)] if self.function.endswith(suffix) else self.function
 
 
 @dataclass
@@ -115,4 +121,6 @@ def load_netlist(path) -> Netlist:
             if p.ref in components:
                 components[p.ref].pins[p.pin] = p
 
+
     return Netlist(components=components, nets=nets)
+
