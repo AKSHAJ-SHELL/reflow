@@ -53,6 +53,9 @@ def check(nl, pcb=None):
                              f"so one pin is on {far} and the other is on GND.",
                     refs=[cap_ref, ic.ref],
                     nets=[pin.net, far],
+                    why="A capacitor blocks DC, so the chip never gets steady power and won't "
+                        "turn on. Decoupling caps go in parallel, power to ground, to absorb fast "
+                        "current spikes at the chip.",
                 ))
             else:
                 out.append(Violation(
@@ -63,5 +66,7 @@ def check(nl, pcb=None):
                              f"other on GND, placed right next to {ic.ref}.",
                     refs=[ic.ref],
                     nets=[pin.net],
+                    why="A chip can draw a lot of current in a very short time. Without a capacitor "
+                        "to supply that current, the voltage drops and the chip may reset or misbehave.",
                 ))
     return out
