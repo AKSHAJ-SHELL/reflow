@@ -256,7 +256,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "Untitled.kicad_pro",
+    "filename": "bad_series_cap.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -429,7 +429,7 @@
         "uuid": "45ad29ec-c39d-42a1-95ee-3fee50b11d02"
       }
     ],
-    "used_designators": "#FLG1-2,R1-2,#PWR1-2,C1,J1,U1",
+    "used_designators": "#FLG1-2,R1-2,C1,#PWR1-2,J1,U1",
     "variants": []
   },
   "sheets": [
