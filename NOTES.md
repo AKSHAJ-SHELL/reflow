@@ -49,3 +49,17 @@ Verify connectivity from the netlist, never from the picture (mine or an AI's).
 - bad_series_cap: KiCad ERC → [N] violations, none about C1/U1.8
 - reflow decoupling.series → caught, with fix hint
 - sensor_good / blinky_good → no false positives
+## 2026-10-17 — Real-board gate: club MCP9808 → Pi Pico board
+- Cloned my original board (github.com/AKSHAJ-SHELL/mcp9808-breakout) into scratch/club
+- `reflow check` on the board as committed (series cap already fixed): **no issues** → no false positives on a real 13-component board
+- Fixtures added: `real_good` (real board, clean) + `real_series_cap` (same board, original September series-cap mistake put back)
+- `reflow check fixtures/real_series_cap` → **decoupling.series** caught, with why + fix
+- pytest: 33 passed (7 fixtures × 4 + 5 CLI tests)
+
+**Correction to my launch claim:** on the real board, KiCad ERC is NOT silent.
+- ERC: `[power_pin_not_driven] Input Power pin not driven by any Output Power pins` on U1 pin 8 (V_DD)
+- That's the series cap showing up indirectly: V_DD sits alone on its own net behind C1
+- ERC names the symptom, not the cause, and gives no fix. The common reaction is to drop a PWR_FLAG on the net, which silences ERC while the board stays dead (likely why the toy bad_series_cap fixture reports 0 errors)
+- Launch wording: "ERC says 'power pin not driven'; reflow says C1 is in series with the chip's power and how to fix it." Never claim "ERC is silent" for the real board.
+
+**Noise:** the Fontconfig warnings from kicad-cli are Homebrew fontconfig config noise, harmless. Hide with `2>/dev/null`.
