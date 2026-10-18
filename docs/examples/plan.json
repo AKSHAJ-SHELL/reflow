@@ -1,0 +1,14 @@
+{
+  "blocks": [
+    {"name": "sensor", "purpose": "MCP9808 with address straps and decoupling", "part_ids": ["p1", "p2"]},
+    {"name": "interface", "purpose": "I2C header with pull-ups", "part_ids": ["p3", "p4", "p5"]}
+  ],
+  "parts": [
+    {"id": "p1", "role": "temperature sensor", "category": "ic", "mpn": "MCP9808"},
+    {"id": "p2", "role": "decoupling cap for U1 VDD", "category": "capacitor", "value": "100nF", "package": "0402", "voltage": "10V"},
+    {"id": "p3", "role": "SDA pull-up", "category": "resistor", "value": "4.7k", "package": "0402", "tolerance": "1%"},
+    {"id": "p4", "role": "SCL pull-up", "category": "resistor", "value": "4.7k", "package": "0402", "tolerance": "1%"},
+    {"id": "p5", "role": "I2C header", "category": "connector", "notes": "1x4 2.54 mm pin header"}
+  ],
+  "nets": ["+3V3", "GND", "SDA", "SCL"]
+}

@@ -1,0 +1,18 @@
+{
+  "schematic": "avbotz_series_cap.kicad_sch",
+  "components": 13,
+  "nets": 7,
+  "errors": 1,
+  "warnings": 0,
+  "violations": [
+    {
+      "rule_id": "decoupling.series",
+      "severity": "error",
+      "message": "C1 sits in series between +3.3V and U1.8; U1 only gets power through a capacitor, which blocks DC.",
+      "why": "A capacitor blocks DC, so the chip never gets steady power and won't turn on. Decoupling caps go in parallel, power to ground, to absorb fast current spikes at the chip.",
+      "fix_hint": "Connect U1.8 directly to +3.3V, then rewire C1 so one pin is on +3.3V and the other is on GND.",
+      "refs": ["C1", "U1"],
+      "nets": ["Net-(U1-V_{DD})", "+3.3V"]
+    }
+  ]
+}

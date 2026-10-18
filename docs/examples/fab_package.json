@@ -1,0 +1,9 @@
+{
+  "gerbers_dir": "runs/x/out/gerbers",
+  "drill": "runs/x/out/board.drl",
+  "pos_csv": "runs/x/out/board-pos.csv",
+  "bom_csv": "runs/x/out/bom.csv",
+  "design_md": "runs/x/out/DESIGN.md",
+  "report_json": "runs/x/out/report.json",
+  "report_html": ""
+}

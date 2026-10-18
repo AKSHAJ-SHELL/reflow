@@ -1,0 +1,12 @@
+{
+  "run_id": "20261024-213000-mcp9808-breakout",
+  "status": "passed",
+  "attempts": [
+    {"attempt": 1, "compile_tries": 2, "compiled": true, "errors": 1, "warnings": 0, "rule_ids": ["decoupling.series"], "dir": "runs/20261024-213000-mcp9808-breakout/attempts/01"},
+    {"attempt": 2, "compile_tries": 1, "compiled": true, "errors": 0, "warnings": 0, "rule_ids": [], "dir": "runs/20261024-213000-mcp9808-breakout/attempts/02"}
+  ],
+  "best_attempt": 2,
+  "run_dir": "runs/20261024-213000-mcp9808-breakout",
+  "input_tokens": 9800,
+  "output_tokens": 2700
+}
