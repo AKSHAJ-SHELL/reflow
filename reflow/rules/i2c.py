@@ -1,5 +1,5 @@
-from openflux.violation import Violation
-from openflux.rules.decoupling import is_ground, other_pin_net
+from reflow.violation import Violation
+from reflow.rules.decoupling import is_ground, other_pin_net
 
 
 def find_i2c_nets(nl):

@@ -1,5 +1,5 @@
 import pytest
-from openflux.rules import run_all
+from reflow.rules import run_all
 
 def test_annotated(board):
     """Every reference is real: no 'R?' and no duplicates."""

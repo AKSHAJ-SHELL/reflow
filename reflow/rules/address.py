@@ -1,5 +1,5 @@
 import re
-from openflux.violation import Violation
+from reflow.violation import Violation
 
 ADDR_NAME = re.compile(r"A\d")          # also consider names containing ADDR / ADR
 

@@ -1,4 +1,4 @@
-from openflux.violation import Violation
+from reflow.violation import Violation
 
 GROUND_NAMES = {"GND", "VSS", "AGND", "DGND", "GNDA", "GNDD", "PGND"}
 

@@ -1,4 +1,4 @@
-"""`openflux check` — export a schematic's netlist with kicad-cli and run the rules."""
+"""`reflow check` — export a schematic's netlist with kicad-cli and run the rules."""
 import argparse
 import json
 import os
@@ -10,8 +10,8 @@ import textwrap
 from dataclasses import asdict
 from pathlib import Path
 
-from openflux.netlist import load_netlist
-from openflux.rules import run_all
+from reflow.netlist import load_netlist
+from reflow.rules import run_all
 
 MAC_KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
 SEVERITY_ORDER = {"error": 0, "warning": 1}
@@ -89,7 +89,7 @@ class Style:
 
 def render_human(sch: Path, netlist, violations, style: Style) -> str:
     width = max(shutil.get_terminal_size().columns, 40)
-    out = [f"openflux check {sch.name}", f"{len(netlist.components)} components, {len(netlist.nets)} nets", ""]
+    out = [f"reflow check {sch.name}", f"{len(netlist.components)} components, {len(netlist.nets)} nets", ""]
 
     rule_w = max((len(v.rule_id) for v in violations), default=0) + 3
     for v in violations:
@@ -136,10 +136,10 @@ def cmd_check(args) -> int:
         kicad_cli = find_kicad_cli()
         if kicad_cli is None:
             raise InputError("kicad-cli not found. Install KiCad 10 or set KICAD_CLI.")
-        with tempfile.TemporaryDirectory(prefix="openflux-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="reflow-") as tmp:
             netlist = load_netlist(export_netlist(kicad_cli, sch, Path(tmp) / "board.net"))
     except InputError as e:
-        print(f"openflux: {e}", file=sys.stderr)
+        print(f"reflow: {e}", file=sys.stderr)
         return 2
 
     violations = sort_violations(run_all(netlist))
@@ -156,7 +156,7 @@ def cmd_check(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="openflux", description="AI-assisted PCB verifier")
+    parser = argparse.ArgumentParser(prog="reflow", description="AI-assisted PCB verifier")
     sub = parser.add_subparsers(dest="command", required=True)
     check = sub.add_parser("check", help="check a KiCad schematic")
     check.add_argument("path", help=".kicad_sch, .kicad_pro, or project directory")

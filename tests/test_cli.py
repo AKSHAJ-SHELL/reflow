@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from openflux.cli import find_kicad_cli, main
+from reflow.cli import find_kicad_cli, main
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = ROOT / "fixtures"

@@ -1,7 +1,7 @@
 import os, subprocess, tomllib
 from pathlib import Path
 import pytest
-from openflux.netlist import load_netlist
+from reflow.netlist import load_netlist
 
 ROOT = Path(__file__).resolve().parents[1]
 KICAD_CLI = os.environ.get("KICAD_CLI", "kicad-cli")
