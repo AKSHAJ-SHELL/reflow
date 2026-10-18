@@ -1,0 +1,10 @@
+{
+  "ok": false,
+  "errors": [
+    {"message": "Unexpected token '<'", "line": 14, "column": 5, "file": "index.circuit.tsx"}
+  ],
+  "stderr_tail": "index.circuit.tsx:14:5 - error: Unexpected token '<'",
+  "kicad_sch": "",
+  "kicad_pcb": "",
+  "circuit_json": ""
+}

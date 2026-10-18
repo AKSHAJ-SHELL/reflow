@@ -27,3 +27,6 @@ kicad/
 .DS_Store
 .pytest_cache/
 .vscode/
+
+# reflow run folders
+runs/

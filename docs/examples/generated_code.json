@@ -1,0 +1,8 @@
+{
+  "attempt": 1,
+  "compile_try": 1,
+  "tsx": "export default () => (\n  <board width=\"25mm\" height=\"20mm\">\n    ...\n  </board>\n)\n",
+  "model": "provider/model-id",
+  "input_tokens": 3100,
+  "output_tokens": 900
+}

@@ -1,0 +1,11 @@
+{
+  "status": "partial",
+  "router": "tscircuit",
+  "tries": 3,
+  "routed_nets": 41,
+  "total_nets": 43,
+  "unrouted_nets": [],
+  "refused_nets": ["USB_D+", "USB_D-"],
+  "drc": {"errors": 0, "warnings": 2, "unconnected": 2, "report_path": "runs/x/route/drc.json"},
+  "kicad_pcb": "runs/x/route/board_partial.kicad_pcb"
+}

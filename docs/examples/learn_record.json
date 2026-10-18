@@ -1,0 +1,14 @@
+{
+  "interactions": [
+    {
+      "kind": "spot_bug",
+      "concept": "decoupling",
+      "rule_id": "decoupling.series",
+      "prompt": "The AI's first draft had one part that would stop U1 from ever powering on. Which part, and why?",
+      "user_answer": "C1, it's between 3.3V and VDD",
+      "correct": true,
+      "explanation": "A capacitor blocks DC, so the chip never gets steady power and won't turn on."
+    }
+  ],
+  "skipped_concepts": []
+}

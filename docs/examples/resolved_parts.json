@@ -1,0 +1,8 @@
+{
+  "resolved": [
+    {"request_id": "p2", "lcsc": "C1525", "mpn": "CL05B104KO5NNNC", "manufacturer": "Samsung", "package": "0402", "value": "100nF", "stock": 1000000, "basic": true, "unit_price_usd": 0.001, "source": "jlcsearch", "fetched_at": "2026-10-24T21:30:00Z"}
+  ],
+  "unresolved": [
+    {"request_id": "p5", "reason": "example only: no header matched the package filter"}
+  ]
+}
