@@ -1,4 +1,8 @@
-"""`reflow check` — export a schematic's netlist with kicad-cli and run the rules."""
+"""`reflow check` and the `reflow design` spec checkpoint.
+
+`design` loads a confirmed Spec and an optional Plan. It does not run the
+design loop, call a model, or re-prompt a planner (those stay with H-03).
+"""
 import argparse
 import json
 import os
@@ -10,6 +14,14 @@ import textwrap
 from dataclasses import asdict
 from pathlib import Path
 
+from reflow.checkpoint import (
+    CheckpointError,
+    load_plan,
+    load_spec,
+    reject_foreign_mpn,
+    require_confirmed,
+)
+from reflow.contracts import ContractError
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
 
@@ -155,6 +167,36 @@ def cmd_check(args) -> int:
     return 0
 
 
+def cmd_design(args, codegen=None) -> int:
+    """Accept a confirmed spec. Do not start codegen unless the caller injects it.
+
+    The injected callable is the seam for the human-owned loop. This command
+    does not call a model and does not invent a part number.
+    """
+    try:
+        if not args.spec:
+            raise InputError(
+                "reflow design needs --spec PATH to a confirmed Spec JSON; "
+                "the design loop is not part of this command (H-03)"
+            )
+        spec = load_spec(Path(args.spec))
+        if args.request is not None and args.request != spec.request:
+            raise InputError(f"request does not match Spec.request ({spec.request!r})")
+        require_confirmed(spec)
+        plan = None
+        if args.plan:
+            plan = load_plan(Path(args.plan))
+            reject_foreign_mpn(plan, spec)
+        if codegen is not None:
+            codegen(spec, plan)
+    except (InputError, CheckpointError, ContractError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    if codegen is None:
+        print("spec accepted; design loop not run (H-03)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reflow", description="AI-assisted PCB verifier")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -163,14 +205,32 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--json", action="store_true", help="print results as JSON")
     check.add_argument("--strict", action="store_true", help="exit 1 on warnings too")
     check.set_defaults(func=cmd_check)
+    design = sub.add_parser(
+        "design",
+        help="accept a confirmed spec and optional plan",
+        description=(
+            "Load a confirmed Spec JSON and, when given, a Plan JSON. "
+            "A non-empty part mpn must appear in Spec.named_parts. "
+            "Does not run the design loop."
+        ),
+    )
+    design.add_argument(
+        "request",
+        nargs="?",
+        help="board request; must match Spec.request when both are given",
+    )
+    design.add_argument("--spec", metavar="PATH", help="path to a Spec JSON file")
+    design.add_argument("--plan", metavar="PATH", help="path to a Plan JSON file")
     return parser
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, codegen=None) -> int:
     try:
         args = build_parser().parse_args(argv)
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 2
+    if args.command == "design":
+        return cmd_design(args, codegen=codegen)
     return args.func(args)
 
 
