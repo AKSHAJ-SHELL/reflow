@@ -1,3 +1,6 @@
-"""Part resolver package. catalog.py (AGENT) fetches candidates; the validity and
-ranking logic that turns a PartRequest into one ResolvedPart is HUMAN-owned (P-02)
-and is deliberately not stubbed here."""
+"""Part resolver package.
+
+``catalog.py`` fetches candidates and does not rank them.
+``resolver.py`` (P-02) checks package and provenance, then picks one part:
+JLCPCB basic, then higher stock, then lower price.
+"""
