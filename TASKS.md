@@ -34,14 +34,14 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| H-00 | Answer Q3–Q6 + COMPILE_CAP in DECISIONS.md | 06-harness-design | accepted decisions | each Q has one chosen option | — | HUMAN | todo (by Mon 10-19) |
-| H-01 | Harness skeleton: dataclasses + signatures, no bodies | contracts | `reflow/harness/*.py` | imports cleanly; signatures use contracts types | H-00, C-01 | HUMAN | todo |
-| H-02 | Context builder + Violation→`RetryFeedback` conversion | `VerifyReport`, `CompileResult` | `RetryFeedback` + rendered prompt text | output parses as `RetryFeedback`; contains no `why`; prompt within token budget | H-01 | HUMAN | todo |
-| H-03 | Core loop | everything above | `RunResult` | fake model + fake compiler: passes on attempt 2 → status passed, best_attempt 2 | H-02, M-01, K-01 | HUMAN | todo |
-| H-04 | Retry termination + best-attempt selection | attempt records | `RunResult.status`, `best_attempt` | table test of the Q3/Q5 scenarios | H-03 | HUMAN | todo |
+| H-00 | Answer Q3–Q6 + COMPILE_CAP in DECISIONS.md | 06-harness-design | accepted decisions | each Q has one chosen option | — | HUMAN | done (10-19) |
+| H-01 | Harness skeleton: dataclasses + signatures, no bodies | contracts | `reflow/harness/*.py` | imports cleanly; signatures use contracts types | H-00, C-01 | HUMAN | done (10-19) |
+| H-02 | Context builder + Violation→`RetryFeedback` conversion | `VerifyReport`, `CompileResult` | `RetryFeedback` + rendered prompt text | output parses as `RetryFeedback`; contains no `why`; prompt within token budget | H-01 | HUMAN | done (10-19) |
+| H-03 | Core loop | everything above | `RunResult` | fake model + fake compiler: passes on attempt 2 → status passed, best_attempt 2 | H-02, M-01, K-01 | HUMAN | done (10-19) |
+| H-04 | Retry termination + best-attempt selection | attempt records | `RunResult.status`, `best_attempt` | table test of the Q3/Q5 scenarios | H-03 | HUMAN | done (10-19) |
 | H-05 | Run folder I/O (+ resume if Q4=a) | `RunResult`, artifacts | `runs/<id>/...` per 02-architecture | kill mid-run → files from completed steps exist and parse | H-01 | AGENT | todo |
 | H-06 | Spec checkpoint + planner call (CLI side) | request | confirmed `Spec`, `Plan` | `Plan` parses strictly; `mpn` only from `named_parts` | M-01, H-08 | AGENT | todo |
-| H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | todo |
+| H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | done (10-19) |
 | H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | todo |
 
 ## Model + compiler (AGENT)
