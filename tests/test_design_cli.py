@@ -250,6 +250,83 @@ def test_bad_plan_json_exits_2(tmp_path, capsys):
     assert capsys.readouterr().err
 
 
+def test_fake_model_passes_on_the_scripted_second_attempt(tmp_path, capsys):
+    from reflow.contracts import (
+        CompileResult,
+        ResolvedPart,
+        ResolvedParts,
+        RunResult,
+        VerifyReport,
+    )
+    from reflow.llm import Completion
+    from reflow.violation import Violation
+
+    spec_path = _write(tmp_path / "spec.json", _spec_data())
+    plan_path = _write(tmp_path / "plan.json", _plan_data())
+    parts = ResolvedParts(
+        resolved=[ResolvedPart(
+            request_id="p1",
+            lcsc="C12345",
+            mpn="MCP9808",
+            manufacturer="Microchip",
+            package="soic8",
+            value="",
+            stock=10,
+            basic=True,
+            unit_price_usd=0.4,
+            source="jlcsearch",
+            fetched_at="2026-10-19T00:00:00Z",
+        )],
+        unresolved=[],
+    )
+    replies = [
+        "```tsx\nexport const step = 1\n```",
+        "```tsx\nexport const step = 2\n```",
+    ]
+
+    class ScriptedModel:
+        def __init__(self):
+            self.calls = 0
+
+        def complete(self, system, prompt, *, max_tokens=4096):
+            text = replies[self.calls]
+            self.calls += 1
+            return Completion(text=text, model="fake/model", input_tokens=4, output_tokens=3)
+
+    def compiler(tsx, workdir):
+        return CompileResult(True, [], "", "", "", "")
+
+    reports = [
+        VerifyReport("board", 1, 1, 1, 0, [
+            Violation("decoupling.series", "error", "series", "hidden", "fix", ["C1"], ["+3V3"]),
+        ]),
+        VerifyReport("board", 1, 1, 0, 0, []),
+    ]
+
+    def verifier(schematic, got_parts, spec):
+        return reports.pop(0)
+
+    code = main(
+        ["design", "--spec", str(spec_path), "--plan", str(plan_path)],
+        model=ScriptedModel(),
+        compiler=compiler,
+        verifier=verifier,
+        parts=parts,
+        run_dir=tmp_path / "run",
+    )
+    out, err = capsys.readouterr()
+    assert code == 0, err
+    assert err == ""
+    assert "AI-designed" not in out
+    assert "routed" not in out.lower()
+    saved = from_dict(RunResult, json.loads((tmp_path / "run" / "run.json").read_text(encoding="utf-8")))
+    assert saved.status == "passed"
+    assert saved.best_attempt == 2
+    assert saved.attempts[0].attempt == 1
+    assert (tmp_path / "run" / "attempts" / "01" / "index.circuit.tsx").is_file()
+    assert (tmp_path / "run" / "attempts" / "02" / "verify.json").is_file()
+
+
 def test_design_without_codegen_does_not_claim_a_board(tmp_path, capsys):
     path = _write(tmp_path / "spec.json", _spec_data())
     code = main(["design", "--spec", str(path)])
