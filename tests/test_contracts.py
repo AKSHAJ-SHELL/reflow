@@ -165,7 +165,7 @@ def test_cli_json_matches_verify_report():
 
 @pytest.mark.parametrize("module, func", [
     ("reflow.llm", "load_model"),
-    ("reflow.compile", "compile_board"),
+    # compile_board is implemented (K-01, K-02); tests/test_compile.py covers it.
     # catalog search is implemented (P-01, P-03); tests/test_catalog.py covers it.
     ("reflow.route", "route"),
     ("reflow.export", "export_fab"),
