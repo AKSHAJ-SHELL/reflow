@@ -19,6 +19,7 @@ After a completed step, ``run.json`` parses with ``from_dict(RunResult, ...)``.
     write_compile(attempt, compile_try, result, run) -> attempts/NN/compile-N.json
     write_verify(attempt, report, run) -> attempts/NN/verify.json
     write_feedback(attempt, feedback, run) -> attempts/NN/feedback.json
+    write_run(run) -> run.json
 
 Every write is atomic: a temp file in the destination's directory, then
 ``os.replace``. A step that fails before replace leaves that new file absent.
@@ -112,6 +113,11 @@ class RunStore:
             _json_bytes(feedback),
             run,
         )
+
+    def write_run(self, run: RunResult) -> None:
+        """Rewrite run.json. The caller chooses status and best_attempt."""
+        _require(run, RunResult)
+        _atomic_write(self._destination("run.json"), _json_bytes(run))
 
     def _commit(self, relative: str, data: bytes, run: RunResult) -> None:
         _require(run, RunResult)
