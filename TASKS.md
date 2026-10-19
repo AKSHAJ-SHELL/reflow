@@ -58,7 +58,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | P-01 | Catalog client | category query | `CatalogPart[]` | "4.7k 0402" returns ≥1 in-stock part with a real LCSC id; network error raises `CatalogError` | D-6 | AGENT | todo |
-| P-02 | Resolver validity + ranking | `PartRequest`, candidates | `ResolvedPart` / `Unresolved` | package matches request; basic > stock > price; IC only if in `named_parts` | P-01 | HUMAN | todo |
+| P-02 | Resolver validity + ranking | `PartRequest`, candidates | `ResolvedPart` / `Unresolved` | package matches request; basic > stock > price; IC only if in `named_parts` | P-01 | HUMAN | done |
 | P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | todo |
 
 ## Learn mode
