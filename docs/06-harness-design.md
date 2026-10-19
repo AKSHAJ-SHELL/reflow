@@ -2,7 +2,7 @@
 
 The harness is the loop that turns a confirmed spec into a verifier-clean board. Its core is **HUMAN-owned**: the loop, retry termination, best-attempt selection and the Violation → feedback conversion. Agents build the plumbing around it (model adapters, compile wrapper, run-folder I/O, CLI).
 
-Status: **design stage. Nothing here is built.** Open decisions are marked **[HUMAN]** with options, not answers.
+Status: **H-00 accepted 2026-10-19.** The loop, feedback conversion, and termination are in `reflow/harness/`. Binding text is `DECISIONS.md`. D-4 and D-5 stay open.
 
 ## Shape
 
@@ -59,6 +59,12 @@ Target: a fix call around **6–10k input tokens**, most of it cached. Measure i
 |---|---|
 | Q1 Context | The verifier's output is the core of the feedback. (Open: the full list of what else goes in; the table above is the proposed budget.) |
 | Q2 Compile vs verify | A compile error does **not** consume a design attempt; only verifier failures do. A syntax slip isn't a design failure. **Gap to close:** a separate compile-retry cap (`COMPILE_CAP`) so a model that never compiles can't loop forever. |
+
+## Decisions accepted 2026-10-19
+
+Q3: `best_attempt` is fewest errors, then fewest warnings, then the latest compiled attempt; 0 if none compiled. The next codegen TSX is the best-so-far file only when the latest attempt has strictly more errors. Q4: (b) rewrite the run folder every step; no resume command. Q5: (c) always up to 3 design attempts; log identical `rule_ids` and refs; no model switch and no `why` in the prompt. Q6: (a) `parts.provenance` is a verifier error and consumes a design attempt. `COMPILE_CAP` defaults to 2, from config. A missing code fence counts as a compile try. `failed_compile` only when nothing compiled. Unresolved parts, an unconfirmed spec, or a bad plan after one re-prompt: `aborted`.
+
+The option lists below are the questions as they stood before that acceptance.
 
 ## Open decisions [HUMAN]
 

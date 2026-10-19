@@ -1,16 +1,19 @@
-"""`reflow check` and the `reflow design` spec checkpoint.
+"""`reflow check` and the `reflow design` command.
 
-`design` loads a confirmed Spec and an optional Plan. It does not run the
-design loop, call a model, or re-prompt a planner (those stay with H-03).
+`design` loads a confirmed Spec and an optional Plan. When a model is
+supplied it runs the harness loop. The retry policy lives in that loop,
+not here. Without a model, the command only accepts the spec.
 """
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -21,7 +24,9 @@ from reflow.checkpoint import (
     reject_foreign_mpn,
     require_confirmed,
 )
-from reflow.contracts import ContractError
+from reflow.contracts import ContractError, ResolvedParts, from_dict
+from reflow.harness.loop import run_design
+from reflow.llm import ModelError
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
 
@@ -167,18 +172,27 @@ def cmd_check(args) -> int:
     return 0
 
 
-def cmd_design(args, codegen=None) -> int:
-    """Accept a confirmed spec. Do not start codegen unless the caller injects it.
+def cmd_design(
+    args,
+    codegen=None,
+    *,
+    model=None,
+    compiler=None,
+    verifier=None,
+    parts=None,
+    run_dir=None,
+    max_attempts=3,
+    compile_cap=2,
+) -> int:
+    """Accept a confirmed spec. Run the design loop when a model is supplied.
 
-    The injected callable is the seam for the human-owned loop. This command
-    does not call a model and does not invent a part number.
+    `codegen` remains the checkpoint seam used when no model is injected.
+    This command does not invent a part number and does not contain a second
+    copy of the retry policy.
     """
     try:
         if not args.spec:
-            raise InputError(
-                "reflow design needs --spec PATH to a confirmed Spec JSON; "
-                "the design loop is not part of this command (H-03)"
-            )
+            raise InputError("reflow design needs --spec PATH to a confirmed Spec JSON")
         spec = load_spec(Path(args.spec))
         if args.request is not None and args.request != spec.request:
             raise InputError(f"request does not match Spec.request ({spec.request!r})")
@@ -187,14 +201,68 @@ def cmd_design(args, codegen=None) -> int:
         if args.plan:
             plan = load_plan(Path(args.plan))
             reject_foreign_mpn(plan, spec)
-        if codegen is not None:
-            codegen(spec, plan)
-    except (InputError, CheckpointError, ContractError) as exc:
+        if model is None:
+            if codegen is not None:
+                codegen(spec, plan)
+        else:
+            if compiler is None or verifier is None:
+                raise InputError("reflow design needs a compiler and a verifier")
+            resolved = parts if parts is not None else _load_parts(args)
+            if resolved is None:
+                raise InputError(
+                    "resolved parts are required; refusing to invent a part number"
+                )
+            folder = _run_folder(spec, run_dir, args)
+            result = run_design(
+                spec,
+                plan,
+                resolved,
+                model=model,
+                compiler=compiler,
+                verifier=verifier,
+                run_dir=folder,
+                max_attempts=max_attempts,
+                compile_cap=compile_cap,
+            )
+            if result.status == "aborted":
+                reason = getattr(result, "abort_reason", "") or "aborted"
+                raise InputError(reason)
+            print(
+                f"status={result.status} best_attempt={result.best_attempt} "
+                f"run_dir={result.run_dir}"
+            )
+            return 0 if result.status == "passed" else 1
+    except (InputError, CheckpointError, ContractError, ModelError) as exc:
         print(f"reflow: {exc}", file=sys.stderr)
         return 2
-    if codegen is None:
+    if model is None and codegen is None:
         print("spec accepted; design loop not run (H-03)")
     return 0
+
+
+def _load_parts(args):
+    path = getattr(args, "parts", None)
+    if not path:
+        return None
+    file = Path(path)
+    try:
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise InputError(f"{file}: {exc.strerror or exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{file}: invalid JSON ({exc.msg})") from exc
+    return from_dict(ResolvedParts, data)
+
+
+def _run_folder(spec, run_dir, args) -> Path:
+    if run_dir is not None:
+        return Path(run_dir)
+    chosen = getattr(args, "run_dir", None)
+    if chosen:
+        return Path(chosen)
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+    slug = re.sub(r"[^a-z0-9]+", "-", spec.title.lower()).strip("-") or "board"
+    return Path("runs") / f"{stamp}-{slug}"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -211,7 +279,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Load a confirmed Spec JSON and, when given, a Plan JSON. "
             "A non-empty part mpn must appear in Spec.named_parts. "
-            "Does not run the design loop."
+            "Runs the design loop when a model is supplied."
         ),
     )
     design.add_argument(
@@ -221,16 +289,39 @@ def build_parser() -> argparse.ArgumentParser:
     )
     design.add_argument("--spec", metavar="PATH", help="path to a Spec JSON file")
     design.add_argument("--plan", metavar="PATH", help="path to a Plan JSON file")
+    design.add_argument("--parts", metavar="PATH", help="path to a ResolvedParts JSON file")
+    design.add_argument("--run-dir", metavar="PATH", help="run folder to create")
     return parser
 
 
-def main(argv=None, *, codegen=None) -> int:
+def main(
+    argv=None,
+    *,
+    codegen=None,
+    model=None,
+    compiler=None,
+    verifier=None,
+    parts=None,
+    run_dir=None,
+    max_attempts=3,
+    compile_cap=2,
+) -> int:
     try:
         args = build_parser().parse_args(argv)
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 2
     if args.command == "design":
-        return cmd_design(args, codegen=codegen)
+        return cmd_design(
+            args,
+            codegen=codegen,
+            model=model,
+            compiler=compiler,
+            verifier=verifier,
+            parts=parts,
+            run_dir=run_dir,
+            max_attempts=max_attempts,
+            compile_cap=compile_cap,
+        )
     return args.func(args)
 
 

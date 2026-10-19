@@ -18,16 +18,21 @@ Format: `ID · date · status (PROPOSED | ACCEPTED | REJECTED | SUPERSEDED) · d
 | A-08 | 2026-10-17 | Two launches: `reflow check` on the author's account now; full v1 co-posted with LARP Slayers | LARP Slayers want the harness; posting progress early |
 | A-09 | 2026-10-17 | Compile errors do **not** consume a design attempt; only verifier failures do | A syntax slip isn't a design failure (needs a compile cap; see H-00) |
 | A-10 | 2026-10-17 | Never claim "ERC is silent" on the real board; it reports `power_pin_not_driven` | Honesty; NOTES.md 2026-10-17 |
+| D-1 | 2026-10-19 | ACCEPTED (a) Anthropic Claude Sonnet-tier as the v1 default, behind `complete()`. OpenAI is a later comparison arm. | Accepted by the human in chat |
+| D-2 | 2026-10-19 | ACCEPTED (a) hand-rolled loop + small adapters. No LiteLLM, no PydanticAI. | Accepted by the human in chat |
+| D-3 | 2026-10-19 | ACCEPTED (a) compact text rendered from `RetryFeedback`. On-disk feedback stays the contract JSON. | Accepted by the human in chat |
+| D-6 | 2026-10-19 | ACCEPTED jlcsearch JSON API plus a local cache so a repeat run makes no network calls. No shared distributor keys. | Accepted by the human in chat |
+| H-00 Q3 | 2026-10-19 | ACCEPTED `best_attempt` = fewest errors, then fewest warnings, then latest compiled attempt; 0 if none compiled. Next codegen TSX is the best-so-far file only when the latest attempt has strictly more errors. | Accepted by the human in chat |
+| H-00 Q4 | 2026-10-19 | ACCEPTED (b) run folder rewritten every step; no resume command. | Accepted by the human in chat |
+| H-00 Q5 | 2026-10-19 | ACCEPTED (c) always up to 3 design attempts. Log identical rule_ids+refs. No model switch, no `why` in the prompt. | Accepted by the human in chat |
+| H-00 Q6 | 2026-10-19 | ACCEPTED (a) `parts.provenance` is a verifier error and consumes a design attempt. | Accepted by the human in chat |
+| H-00 CAP | 2026-10-19 | ACCEPTED `COMPILE_CAP` default 2, from config. A missing code fence counts as a compile try. | Accepted by the human in chat |
+| H-00 ST | 2026-10-19 | ACCEPTED `failed_compile` only when nothing compiled. Unresolved parts, unconfirmed spec, or a bad plan after one re-prompt: `aborted`. | Accepted by the human in chat |
 
 ## Proposed (awaiting the human)
 
 | ID | Date | Proposal | Options | Proposed by |
 |---|---|---|---|---|
-| D-1 | 2026-10-17 | LLM provider/model for v1 default | (a) Anthropic Claude (Sonnet tier) (b) OpenAI (GPT tier) (c) local via Ollama; all behind one interface | agent |
-| D-2 | 2026-10-17 | Harness framework vs hand-rolled | (a) hand-rolled loop + 2–3 small adapters (b) hand-rolled loop + LiteLLM for model I/O (c) PydanticAI | agent |
-| D-3 | 2026-10-17 | Feedback format Violation → LLM | (a) compact text block per violation (b) `RetryFeedback` as JSON (c) JSON + inline comments in the TSX at offending refs | agent |
 | D-4 | 2026-10-17 | Learn-mode interaction design | (a) spot-the-bug multiple choice (b) spot-the-bug free text graded by refs (c) make-the-call first | agent |
 | D-5 | 2026-10-17 | UI form for v1 | (a) CLI + generated report.html (b) CLI only (c) local web app | agent |
-| D-6 | 2026-10-17 | Parts backend | (a) jlcsearch public JSON API (b) local SQLite snapshot from jlcparts/jlcsearch (c) bring-your-own-key distributor APIs (Mouser/DigiKey); or hybrid | agent |
-| H-00 | 2026-10-17 | Harness Q3 best attempt · Q4 crash safety · Q5 early stop · Q6 provenance check point · COMPILE_CAP | see docs/06-harness-design.md | agent (questions only) |
 | P-1 | 2026-10-17 | Add `runs/` to .gitignore | done provisionally; revert if unwanted | agent |
