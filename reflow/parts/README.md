@@ -6,6 +6,7 @@
 |---|---|---|
 | `catalog.py`: fetch candidates from the parts backend (D-6). Unsorted. | AGENT (P-01, P-03) | built |
 | `resolver.py`: package match, named-part provenance, ranking | P-02 | built |
+| `local_catalog.py`: queries the local snapshot. Resistors and capacitors by value (as numbers), tolerance and voltage; pin headers by `value` "RxC" + `package` pitch (D-6a a); named parts by MPN prefix. Each candidate carries its reflow `category` and the row's `fetched_at`. Other categories without an MPN raise | AGENT (P-05) | built |
 | `snapshot.py`: `reflow parts update` downloads the jlcparts database (D-6a), inflates it across its split parts with a CRC check, and installs it atomically at `REFLOW_PARTS_DB` (default `~/.cache/reflow/jlcparts/cache.sqlite3`) with `snapshot.json` | AGENT (P-04) | built |
 | `pinmap.py`: an IC's pins (number, name, kind) from ST's STM32_open_pin_data, then the KiCad symbol library; reports where the two disagree | AGENT (V-11) | built |
 

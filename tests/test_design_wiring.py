@@ -53,11 +53,12 @@ class ScriptedModel:
 
 def _catalog(calls: list):
     """One in-stock candidate per request; the named IC carries its MPN."""
-    def search(category, *, value="", package="", **kwargs):
-        calls.append((category, value, package))
-        mpn = "MCP9808" if category == "ic" else f"TEST-{category}-{value or 'x'}"
-        return [CatalogPart(lcsc=f"C{100 + len(calls)}", mpn=mpn, manufacturer="test", package=package or "pkg",
-                            value=value, stock=1000, basic=True, unit_price_usd=0.01, source="test")]
+    def search(request):
+        calls.append((request.category, request.value, request.package))
+        mpn = request.mpn or f"TEST-{request.category}-{request.value or 'x'}"
+        return [CatalogPart(lcsc=f"C{100 + len(calls)}", mpn=mpn, manufacturer="test",
+                            package=request.package or "pkg", value=request.value, stock=1000, basic=True,
+                            unit_price_usd=0.01, source="test", category=request.category)]
     return search
 
 
@@ -140,7 +141,7 @@ def test_an_unresolved_part_stops_before_any_model_call(workspace, monkeypatch, 
             raise AssertionError("model called although a part is unresolved")
 
     _use_model(monkeypatch, NeverCalled())
-    monkeypatch.setattr(cli, "catalog_search", lambda category, **kw: [])
+    monkeypatch.setattr(cli, "catalog_search", lambda request: [])
     code = _run(["--plan", "plan.json", "--run-dir", "run"])
     err = capsys.readouterr().err
     assert code == 2
