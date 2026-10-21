@@ -14,7 +14,9 @@ Next: ...
 
 (Agents: add blockers here with date + task ID; the human clears them.)
 
-- none
+- 2026-10-20 · verifier input (docs/04 §5) · tscircuit's `.kicad_sch` export has wrong connectivity (traced pins split across nets or `unconnected`, rails become fake `V`/`GND` components, all pins `passive`). The verifier gives both false positives and false negatives on I2C boards; `.kicad_pcb` and `circuit.json` are correct. Choosing a new verifier input is a contract change and HUMAN. Evidence: `tests/test_integration.py`, REVIEW.md §9.
+- 2026-10-20 · P-02 (HUMAN) + P-01 · resolver picks a part of the wrong kind (I2C header → LED C2286) and a named IC is never searched by its MPN. Catalog query half is AGENT (P-01); the resolver category check is HUMAN. Evidence: `tests/test_parts_integration.py`.
+- 2026-10-20 · D-6 / P-03 · jlcsearch stock data and free-text search are broken upstream. Proposed: jlcparts SQLite snapshot (~205 MB). Needs a DECISIONS.md amendment and the human's OK to download.
 
 ---
 
@@ -42,3 +44,38 @@ Next: the harness loop calls `resolve` with each request's `catalog.search` resu
 Did: Marked D-1, D-2, D-3, D-6, and H-00 (Q3, Q4, Q5, Q6, COMPILE_CAP, status) ACCEPTED in DECISIONS.md, dated 2026-10-19, accepted by the human in chat. D-4, D-5, and P-1 stayed proposed. Implemented the design loop on `shashi-loop` (cut from `c7830a2`): compact feedback from the fix template, compile cap 2, best-attempt selection, and the abort rules. `reflow design` runs that loop when a model, compiler, and verifier are supplied. No live API key. Learn mode was not implemented. Did not merge `origin/shashi` at `5e561fb` (P-02 resolver) and did not edit resolver files.
 Tests: `python3 -m pytest -q` → 171 passed, 7 skipped, 28 errors. The errors are `tests/test_netlist.py` setup (`kicad-cli` missing). The skips are `tests/test_cli.py` (no `kicad-cli`) and `tests/test_compile.py` (no `tsci`). `tests/test_harness.py` and `tests/test_design_cli.py` passed.
 Next: bring P-02 onto this branch only when the human wants the resolver in the loop. D-4 (learn mode) stays open. Fresh check: `python3 -m pytest -q tests/test_harness.py tests/test_design_cli.py`.
+
+## 2026-10-20 · agent (Claude) · review + integration tests (no task ID)
+Did: reviewed `origin/shashi` (checked out as local `shashi`) into REVIEW.md. Added `tests/test_integration.py` (real tsci + kicad-cli + rules + design loop, scripted model), `tests/test_parts_integration.py` (plan → catalog → resolver on recorded jlcsearch responses in `tests/data/jlcsearch_plan/`), and TSX inputs in `tests/data/integration/`. Found that tscircuit's `.kicad_sch` export loses connectivity (see Blocked). Failing tests are left red; no skip/xfail added. Each passing new test was sabotaged in-process once and went red. No production code, HUMAN-owned file, fixture, or existing test changed.
+Tests: `pytest -q` → 7 failed, 230 passed. Failures: 4 integration (schematic connectivity), 2 parts (resolver/catalog C2), 1 pre-existing live jlcsearch test (upstream data). KiCad 10 via `KICAD_CLI`, tsci 0.0.2768.
+Next: the human picks the verifier input (circuit.json vs kicad_pcb) and the catalog source (jlcparts snapshot). Then AGENT work: verifier adapter, P-01 query fix, CLI wiring.
+
+## 2026-10-20 · agent (Claude) · V-1 proposal (no task ID yet)
+Did: drafted Decision V-1 (proposed, not accepted): verify `circuit.json` instead of tscircuit's `.kicad_sch`, with IC pins taken from HUMAN-verified part cards rather than TSX labels. Wrote `docs/proposals/V-1-circuit-json-ground-truth.md`, `V-1-contract.patch` (new `Citation`/`CardPin`/`PartCard`/`PIN_KINDS`, frozen-list + example updates, docs/02/04/06), `V-1-loop-HUMAN.patch` (one line in HUMAN-owned `loop.py`, for the human to apply), and `V-1-draft-card-MCP9808.toml` (draft, `verified_by` empty) from Microchip DS20005095B Table 3-1, cross-checked against EasyEDA C129490. Added the V-1 row to DECISIONS.md under Proposed. Did not apply either patch to the checkout. Found that the agent-written `tests/data/integration/sensor_*.tsx` uses a wrong MCP9808 pinout (A0 on pin 3; the datasheet says Alert), which is the failure mode V-1 targets.
+Tests: both patches applied in a throwaway worktree → `tests/test_contracts.py` 51 passed; `pytest -q` 229 passed, 1 failed (pre-existing live jlcsearch). Example card corrupted twice (bad kind, unknown key) → contract tests red both times. Checkout unchanged: `pytest -q` → 7 failed, 230 passed (same as the previous entry).
+Next: the human accepts or edits V-1, applies `V-1-loop-HUMAN.patch`, and verifies the MCP9808 card. Then AGENT: apply the contract patch in one commit, V-10, V-11, V-14, V-16.
+
+## 2026-10-20 · agent (Claude) · V-2 proposal (no task ID yet)
+Did: drafted Decision V-2 (proposed): generic rules (Python, maintainers) + a fixed set of requirement kinds (HUMAN rules) + per-chip requirements as data in signed part cards, with citation and verbatim quote. `docs/proposals/V-2-rule-framework.md`, plus a DECISIONS.md row. Confirmed ST's STM32_open_pin_data is BSD-3-Clause and types all 48 STM32F103C8 pins (9 Power, NRST Reset, BOOT0 Boot, 37 I/O). AN2586 capacitor values not verified; the doc's STM32 example marks them as placeholders. No code or contract changed.
+Tests: none run (docs only). Checkout state unchanged from the previous entry.
+Next: the human decides V-1, then V-2.
+
+## 2026-10-20 · agent (Claude) · V-2 proposal, sources section
+Did: added §10 to `docs/proposals/V-2-rule-framework.md`: seed sources (vendor pin data, KiCad libraries, EasyEDA as cross-check only, datasheets cited not redistributed), CC-BY-SA 4.0 proposal for `cards/`, and the contribution flow (card + good/bad board + `reflow card check` + two signatures). Checked the local KiCad 10 library: MCP9808 pins and types match DS20005095B but its Datasheet field points to 22203b; STM32F103C8 VSS pins 35/47 are `passive` while ST data says Power. Docs only.
+Tests: none run.
+Next: unchanged (human decides V-1, then V-2).
+
+## 2026-10-20 · agent (Claude) · V-2 rewrite: project rules file
+Did: replaced the V-2 draft with a shorter design: general rules ship with reflow; a project adds `rules.toml` (six `need` kinds, required `source` and `why`) written by the student from datasheets; reflow sends the rules to codegen as constraints and checks each at verify; a separate Claude skill (draft `docs/proposals/datasheet-tutor-SKILL.md`, not part of reflow) explains datasheets and writes the file on request. V-2 now amends V-1 (b): pin maps come from vendor data, then KiCad, then a hand card override. Added `docs/proposals/examples/rules.toml` (7 rules for the MCP9808 board, from DS20005095B). Updated the V-2 row in DECISIONS.md. Docs only.
+Tests: example rules.toml parsed with tomllib; field check passed. No suite run (no code changed).
+Next: the human decides V-1 and V-2.
+
+## 2026-10-20 · agent (Claude) · V-1 contract change (commit b444ba2), V-2 contract draft
+Did: the human accepted V-1 and V-2 in chat. Committed b444ba2 on `shashi`: V-1 and V-2 marked ACCEPTED in DECISIONS.md; `Citation`, `CardPin`, `PartCard`, `PIN_KINDS` in contracts.py, frozen in test_contracts.py, `docs/examples/part_card.json`; docs/02/04/06. docs/04 §2b/§5 and the contracts.py comment were reworded from the drafted patch to follow V-2's amendment of V-1 (b): pin maps come from vendor data, then KiCad, with a signed card as override. The applied `V-1-contract.patch` was dropped (the commit is the record). `loop.py` is untouched; `docs/proposals/V-1-loop-HUMAN.patch` still applies and is for the human. Drafted `docs/proposals/V-2-contract.patch` (not applied): `RULE_NEEDS`, `ProjectRule`, `ProjectRules`, `Spec.rules_file = ""`, frozen lists, `docs/examples/project_rules.json`, spec.json example, docs/04 §0/§0b. It also adds `rules_file` to the hand-listed round trip in `tests/test_design_cli.py`, because the patch otherwise breaks that test.
+Tests: committed HEAD (clean worktree) → 1 failed (live jlcsearch), rest passed. HEAD + V-2 patch → contract + design CLI tests 70 passed; full suite 232 passed, 1 failed (live jlcsearch). V-2 example with an unknown `need` → contract tests red. Working tree with this session's uncommitted integration tests → 7 failed, 234 passed (known failures, REVIEW.md §9).
+Next: the human approves V-2-contract.patch and applies V-1-loop-HUMAN.patch. Then AGENT: V-10 (circuit.json loader), pin-map importer, rules.toml parser and `reflow rules check`.
+
+## 2026-10-20 · agent (Claude) · V-2 contract change (commit 6d47281)
+Did: the human approved V-2-contract.patch in chat, including the `tests/test_design_cli.py` round-trip change. Committed 6d47281 on `shashi`: `RULE_NEEDS`, `ProjectRule`, `ProjectRules`, `Spec.rules_file = ""` in contracts.py; frozen lists and the example check in test_contracts.py; `docs/examples/project_rules.json`; `rules_file` in docs/examples/spec.json; docs/04 §0 row and §0b; `rules_file` in the hand-listed round trip in test_design_cli.py. DECISIONS.md V-2 row records the approval. The applied patch file was removed.
+Tests: committed HEAD in a clean worktree → 232 passed, 1 failed (live jlcsearch). Working tree with this session's uncommitted integration tests → 7 failed, 237 passed (known, REVIEW.md §9). `V-1-loop-HUMAN.patch` still applies.
+Next: the human applies `V-1-loop-HUMAN.patch`. AGENT: circuit.json loader (V-10), pin-map importer, rules.toml parser and `reflow rules check`. Still uncommitted: REVIEW.md, the integration tests and `tests/data/`, the `tests/README.md` rows, and PROGRESS.md.

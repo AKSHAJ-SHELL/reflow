@@ -6,5 +6,7 @@
 | `test_netlist.py` | Invariants + hand-checked nets + expected violations per fixture | yes |
 | `test_cli.py` | `reflow check` exit codes and output | yes (skips if missing) |
 | `test_contracts.py` | Frozen schemas, strict example parsing, stub honesty | no |
+| `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
+| `test_parts_integration.py` | Plan → catalog → resolver on recorded jlcsearch responses (`data/jlcsearch_plan/`) | no |
 
 Run: `pytest -q`. **Never weaken a test** (docs/agents/04-testing-rules.md).
