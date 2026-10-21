@@ -45,6 +45,18 @@ Example: [plan.json](examples/plan.json)
 
 Example: [resolved_parts.json](examples/resolved_parts.json) (values illustrative)
 
+## 2b · `PartCard` (ground truth, HUMAN-verified)
+
+`PartCard{family, mpns, lcsc, package, pins: list[CardPin], pin_source: Citation, verified_by, verified_on}` · `CardPin{number, name, kind}` · `Citation{doc, locator, url}`
+
+- **Pin maps (V-2 amends V-1 b).** The verifier looks up each IC's pins in this order: a signed `PartCard` in `cards/`, then the vendor's machine-readable pin data (e.g. ST STM32_open_pin_data), then the KiCad symbol library. A card is an **override**, written when 2–3 are wrong or missing. No trusted pin map → verify error.
+- A card covers one IC family and package, checked pin by pin against the manufacturer datasheet named in `pin_source`. Cards live in `cards/` and are **HUMAN-owned** (like `fixtures/`).
+- `kind` ∈ `PIN_KINDS`. `power` and `ground` pins become `power_in` in the verifier's netlist.
+- `verified_by == ""` is a draft. The verifier ignores drafts.
+- An agent may draft a card (for example from the part's EasyEDA symbol). Only a person fills `verified_by`.
+
+Example: [part_card.json](examples/part_card.json) (draft)
+
 ## 3 · → `GeneratedCode` (codegen, LLM)
 
 `GeneratedCode{attempt, compile_try, tsx, model, input_tokens, output_tokens}`
@@ -63,9 +75,15 @@ Example: [generated_code.json](examples/generated_code.json)
 
 Example: [compile_result.json](examples/compile_result.json)
 
-## 5 · KiCad schematic → `VerifyReport` (verifier)
+## 5 · netlist source → `VerifyReport` (verifier)
 
 `VerifyReport{schematic, components, nets, errors, warnings, violations: list[Violation]}`. Identical to `reflow check --json` (enforced by `test_cli_json_matches_verify_report`).
+
+- **Input (Decision V-1).** `reflow design` verifies `CompileResult.circuit_json`. `reflow check` verifies a KiCad schematic through `kicad-cli`. Both produce one `Netlist` (`reflow/netlist.py` types) and run the same `run_all`. tscircuit's `.kicad_sch` export is **not** verified: its connectivity is wrong (REVIEW.md §9).
+- `schematic` is the file name the netlist came from: `board.kicad_sch` for `reflow check`, `circuit.json` for `reflow design`.
+- **Connectivity** comes from `circuit.json`: ports are grouped by `subcircuit_connectivity_map_key`. A net is named after its `source_net`, otherwise `Net-(<ref>-<pin name>)`. A port alone on its key is `unconnected-(<ref>-<pin name>-Pad<n>)`.
+- **IC pins come from the trusted pin map (§2b), not the TSX.** Each IC is matched through its LCSC id, which must equal a `ResolvedParts` row. Pin names and kinds are set from the pin map by physical pin number. A TSX label that differs from the map is a verify error. An IC with no trusted pin map is a verify error.
+- **Built = verified.** The `.kicad_pcb` pad nets must equal the `circuit.json` connectivity. Any difference is a verify error.
 
 ### Violation (built, frozen)
 

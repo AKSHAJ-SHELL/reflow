@@ -35,6 +35,10 @@ FROZEN = {
     "ResolvedParts": ("resolved", "unresolved"),
     "GeneratedCode": ("attempt", "compile_try", "tsx", "model", "input_tokens", "output_tokens"),
     "CompileError": ("message", "line", "column", "file"),
+    "Citation": ("doc", "locator", "url"),
+    "CardPin": ("number", "name", "kind"),
+    "PartCard": ("family", "mpns", "lcsc", "package", "pins", "pin_source", "verified_by",
+                 "verified_on"),
     "CompileResult": ("ok", "errors", "stderr_tail", "kicad_sch", "kicad_pcb", "circuit_json"),
     "VerifyReport": ("schematic", "components", "nets", "errors", "warnings", "violations"),
     "FeedbackViolation": ("rule_id", "severity", "message", "fix_hint", "refs", "nets"),
@@ -57,6 +61,7 @@ EXAMPLE_FILES = {
     "spec.json": c.Spec,
     "plan.json": c.Plan,
     "resolved_parts.json": c.ResolvedParts,
+    "part_card.json": c.PartCard,
     "generated_code.json": c.GeneratedCode,
     "compile_result.json": c.CompileResult,
     "verify_report.json": c.VerifyReport,
@@ -139,6 +144,8 @@ def test_enums_in_examples():
     assert all(p.category in c.PART_CATEGORIES for p in plan.parts)
     report = c.from_dict(c.VerifyReport, json.loads((EXAMPLES / "verify_report.json").read_text()))
     assert all(v.severity in c.SEVERITIES for v in report.violations)
+    card = c.from_dict(c.PartCard, json.loads((EXAMPLES / "part_card.json").read_text()))
+    assert all(p.kind in c.PIN_KINDS for p in card.pins)
 
 
 def test_plan_only_copies_user_named_mpns():
