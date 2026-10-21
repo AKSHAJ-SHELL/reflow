@@ -6,6 +6,7 @@
 |---|---|---|
 | `catalog.py`: fetch candidates from the parts backend (D-6). Unsorted. | AGENT (P-01, P-03) | built |
 | `resolver.py`: package match, named-part provenance, ranking | P-02 | built |
+| `snapshot.py`: `reflow parts update` downloads the jlcparts database (D-6a), inflates it across its split parts with a CRC check, and installs it atomically at `REFLOW_PARTS_DB` (default `~/.cache/reflow/jlcparts/cache.sqlite3`) with `snapshot.json` | AGENT (P-04) | built |
 | `pinmap.py`: an IC's pins (number, name, kind) from ST's STM32_open_pin_data, then the KiCad symbol library; reports where the two disagree | AGENT (V-11) | built |
 
 **pinmap contract:** `import_pin_map(mpn, *, st_dir, kicad_lib_id, symbols_dir) -> PinImport{pin_map, checked_against, disagreements}`. The vendor map wins when there is one; disagreements are returned for a person to settle from the datasheet. Directories come from the arguments, else `REFLOW_ST_PIN_DATA` / `REFLOW_KICAD_SYMBOL_DIR`, else the library next to `kicad-cli`. **Never** reads a pin name or kind from the design, downloads anything, or silently corrects a source.

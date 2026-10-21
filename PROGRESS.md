@@ -142,3 +142,14 @@ Checked: C25900 4.7k 0402 has 16,063,321 in stock and is basic (jlcsearch says o
 Wrote `docs/proposals/D-6a-jlcparts-snapshot.md` and a D-6a row under Proposed in DECISIONS.md, with sub-questions (connector encoding, family → orderable MPN, disk, data terms) and tasks P-04, P-05, P-02b (HUMAN), P-06. No code changed; nothing in the repo references the downloaded file.
 Tests: none run (docs only).
 Next: the human accepts or edits D-6a; then AGENT P-04 and P-05 (failing test first), HUMAN P-02b.
+
+## 2026-10-21 · agent (Claude) · D-6a accepted (1bb71cb), P-04
+Did: committed D-6a as accepted with sub-answers a–d and added P-04, P-05, P-02b (HUMAN) and P-06 to TASKS.md. Then P-04: `reflow/parts/snapshot.py` and `reflow parts update [--db PATH] [--url URL]`.
+- Downloads `cache.zip`, reads its end record for the part count (the central directory is on the last disk), downloads `cache.z01..zNN`.
+- Inflates `cache.sqlite3` straight across the parts and checks CRC-32 + size, then opens it read-only and checks `meta.format == source-db-v2`.
+- `os.replace`s it into place and writes `snapshot.json` (source, parts, CRC, size, row count, oldest/newest per-row `fetched_at`). On any failure the old database is kept and temp files are removed; zip64 is refused.
+- Paths: `--db` / REFLOW_PARTS_DB / ~/.cache/reflow/jlcparts/cache.sqlite3. Source: `--url` / REFLOW_PARTS_URL / jlcparts GitHub Pages. Timeout: REFLOW_PARTS_TIMEOUT.
+- Fixture `tests/data/snapshot/`: a jlcparts-format database (real schema, 6 real rows: C25900, C1525, C129490, C94847, C194710, C492412, plus random padding) split with `zip -s 64k` into six parts; README there.
+Tests: `tests/test_parts_snapshot.py` failed first (module missing), then 15 passed. I added the stored-data CRC test because a flipped deflate byte might fail inflation before the CRC check ran. Four in-process sabotages (skip the CRC check, fetch only cache.zip, skip the format check, write in place) → red each time. Real run: installed the real 2026-10-21 snapshot from the scratchpad over file:// in 1.5 s. 2,700,372 parts, rows 2026-09-14..2026-10-21, CRC 2215c35f; SHA-256 identical to the earlier manual extraction, and SQLite quick_check ok. `pytest -q` → 4 failed, 345 passed: the same 4 known failures. No HUMAN-owned file changed.
+Not done: the real download from GitHub Pages ran during D-6a research (curl), not through this command. The command path was exercised over file://.
+Next: P-05 (catalog client on the snapshot, C2 catalog half), using the fixture's six rows. Then P-02b (HUMAN).

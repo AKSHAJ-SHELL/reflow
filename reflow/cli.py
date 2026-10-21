@@ -43,6 +43,7 @@ from reflow.llm import ModelError, load_model
 from reflow.parts.catalog import CatalogError
 from reflow.parts.catalog import search as catalog_search
 from reflow.parts.resolver import resolve
+from reflow.parts.snapshot import SnapshotError, update_snapshot
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
 
@@ -360,7 +361,35 @@ def build_parser() -> argparse.ArgumentParser:
     design.add_argument("--plan", metavar="PATH", help="path to a Plan JSON file")
     design.add_argument("--parts", metavar="PATH", help="path to a ResolvedParts JSON file")
     design.add_argument("--run-dir", metavar="PATH", help="run folder to create")
+    parts = sub.add_parser("parts", help="manage the local parts database")
+    parts_sub = parts.add_subparsers(dest="parts_command", required=True)
+    update = parts_sub.add_parser(
+        "update",
+        help="download and install the jlcparts snapshot",
+        description=(
+            "Download the jlcparts parts database (about 216 MB, 1.5 GB installed), "
+            "check it, and install it at --db, REFLOW_PARTS_DB, or "
+            "~/.cache/reflow/jlcparts/cache.sqlite3. The old database is kept if anything fails."
+        ),
+    )
+    update.add_argument("--db", metavar="PATH", help="where to install cache.sqlite3")
+    update.add_argument("--url", metavar="URL", help="snapshot base URL (default: REFLOW_PARTS_URL or jlcparts)")
+    update.set_defaults(func=cmd_parts_update)
     return parser
+
+
+def cmd_parts_update(args) -> int:
+    try:
+        info = update_snapshot(
+            Path(args.db) if args.db else None,
+            base_url=args.url,
+            on_part=lambda name: print(f"fetching {name}", file=sys.stderr),
+        )
+    except SnapshotError as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    print(f"installed {info.path}: {info.components} parts, rows fetched {info.oldest_row} to {info.newest_row}")
+    return 0
 
 
 def main(
