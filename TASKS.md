@@ -24,6 +24,21 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | R-04 | `scope.high_speed` | netlist net names | rule + `bad_usb_route` | USB/DDR/RF nets flagged; good clean | — | HUMAN | todo |
 | R-05 | Optional context arg for rules (`check(nl, pcb=None, ctx=None)`) | rules API | backward-compatible `run_all` | all existing tests unchanged and green | — | HUMAN | todo |
 
+## Verifier input and project rules (DECISIONS V-1, V-2)
+
+| ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| V-10 | `circuit.json` → `Netlist` loader | `CompileResult.circuit_json` | `reflow/circuit_netlist.py` | recorded sensor boards load with the traced nets; rules on them give the planted bug only; malformed input raises | V-1 | AGENT | done (10-20) |
+| V-11 | Pin-map importer (vendor pin data, then KiCad symbol; signed card overrides) | LCSC id / MPN + package | pin map per IC | MCP9808 and STM32F103C8 maps match their datasheets; a disagreement between sources is reported | V-1 | AGENT | todo |
+| V-12 | Bind ICs to pin maps: relabel pins by physical number | Netlist, ResolvedParts, pin maps | card-labelled Netlist | wrong TSX pinout → mismatch findings; no pin map → finding | V-10, V-11 | HUMAN | todo |
+| V-13 | Rules `parts.no_card`, `pinout.mismatch`, `verify.pcb_mismatch`, and how shorted named nets surface | V-12 output | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
+| V-14 | `.kicad_pcb` pad-net reader | `CompileResult.kicad_pcb` | {(ref, pad): net} | recorded board matches its `circuit.json` nets | — | AGENT | todo |
+| V-16 | Verifier adapter `(circuit_json, ResolvedParts, Spec) → VerifyReport` | V-10..V-14 | callable for `run_design` | integration tests in `tests/test_integration.py` go green on the circuit.json path | V-10..V-14 | AGENT | todo |
+| R-07 | Citations for every rule in docs/05 | rules | docs/05 | every catalog row names its source | — | HUMAN | todo |
+| R-10 | The six `need` checks (`project.cap`, `.pullup`, `.pulldown`, `.tie`, `.open`, `.connected`) | ProjectRules, Netlist | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
+| V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | todo |
+| V-22 | Render project rules into codegen/fix prompts | ProjectRules | prompt text | one line per rule; no `why`/`source` in any prompt | V-21, H-08 | AGENT→HUMAN | todo |
+
 ## Contracts
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
