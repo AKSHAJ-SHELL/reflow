@@ -273,7 +273,7 @@ def _design_attempts(
             return run
 
         assert compile_result is not None
-        report = verifier(compile_result.kicad_sch, parts, spec)
+        report = verifier(compile_result.circuit_json, parts, spec)
         records.append(AttemptRecord(
             attempt=attempt,
             compile_tries=compile_try,

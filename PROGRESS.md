@@ -119,3 +119,8 @@ Did: added `reflow/verifier.py`. `verify_circuit_json(circuit_json, parts, spec,
 Tests: test_verifier failed first (module missing). One expectation of mine was wrong (I assumed alphabetical order; reflow check orders by severity, rule id, then rule output), fixed before commit. Three in-process sabotages (skip bind, accept .kicad_sch, reverse order) → red each time. `pytest -q` → 5 failed, 321 passed. Now green: test_good_sensor_verifies_clean, test_sensor_without_pullups_is_flagged. Still red, known: test_schematic_export_keeps_the_traced_nets (upstream tscircuit, kept as a record), test_loop_fixes_missing_pullups_on_attempt_2 (needs the loop patch), the two resolver tests (C2), and the live jlcsearch test. In a throwaway worktree with `V-1-loop-HUMAN.patch` applied, the pull-up loop test passes, and test_integration + test_harness + test_design_cli give 41 passed, 1 failed (the schematic-export record).
 Waiting on the human: apply `V-1-loop-HUMAN.patch` (one line in loop.py); V-12 bind; V-13 pcb comparison and how shorts surface.
 Next AGENT: CLI wiring (config → model, compile_board, catalog + resolver, make_verifier) and the catalog-query half of C2.
+
+## 2026-10-21 · human · V-1 loop change
+Did: the human changed `reflow/harness/loop.py:276` to pass `compile_result.circuit_json` to the verifier (`docs/proposals/V-1-loop-HUMAN.patch`). The agent committed it at the human's request.
+Tests: `pytest -q` → 4 failed, 322 passed. test_loop_fixes_missing_pullups_on_attempt_2 is now green. Remaining, all known: the schematic-export record (upstream tscircuit), the two resolver tests (C2), the live jlcsearch test.
+Next: V-12 bind (HUMAN), V-13 (HUMAN); AGENT: CLI wiring, C2 catalog query.
