@@ -101,7 +101,7 @@ Example: [compile_result.json](examples/compile_result.json)
 
 - **Input (Decision V-1).** `reflow design` verifies `CompileResult.circuit_json`. `reflow check` verifies a KiCad schematic through `kicad-cli`. Both produce one `Netlist` (`reflow/netlist.py` types) and run the same `run_all`. tscircuit's `.kicad_sch` export is **not** verified: its connectivity is wrong (REVIEW.md §9).
 - `schematic` is the file name the netlist came from: `board.kicad_sch` for `reflow check`, `circuit.json` for `reflow design`.
-- **Connectivity** comes from `circuit.json`: ports are grouped by `subcircuit_connectivity_map_key`. A net is named after its `source_net`, otherwise `Net-(<ref>-<pin name>)`. A port alone on its key is `unconnected-(<ref>-<pin name>-Pad<n>)`.
+- **Connectivity** comes from `circuit.json` (`reflow/circuit_netlist.py`): ports are grouped by `subcircuit_connectivity_map_key`. A net with a `source_net` takes its name, even if only one port is on it. A net without one is `Net-(<ref>-<pin name>)` after its first pin, or `unconnected-(<ref>-<pin name>-Pad<n>)` when it has a single port. Two named nets on one key (a trace from `net.V3_3` to `net.GND`) raise `MergedNetsError` instead of picking a name. Pin types are left empty; they come from the pin map.
 - **IC pins come from the trusted pin map (§2b), not the TSX.** Each IC is matched through its LCSC id, which must equal a `ResolvedParts` row. Pin names and kinds are set from the pin map by physical pin number. A TSX label that differs from the map is a verify error. An IC with no trusted pin map is a verify error.
 - **Built = verified.** The `.kicad_pcb` pad nets must equal the `circuit.json` connectivity. Any difference is a verify error.
 
