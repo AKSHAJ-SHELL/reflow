@@ -36,6 +36,7 @@ PIN_KINDS = {
     "power", "ground", "i2c_sda", "i2c_scl", "address", "input", "output",
     "open_drain_out", "io", "nc", "thermal_pad",
 }
+RULE_NEEDS = {"cap", "pullup", "pulldown", "tie", "open", "connected"}
 PART_CATEGORIES = {
     "resistor", "capacitor", "inductor", "led", "diode", "transistor",
     "ic", "regulator", "connector", "crystal", "switch", "other",
@@ -62,6 +63,27 @@ class Spec:
     named_parts: list[str]      # part numbers the USER typed; the only MPNs the model may copy
     open_questions: list[OpenQuestion] = field(default_factory=list)
     confirmed: bool = False     # True only after the user confirms
+    rules_file: str = ""        # path to the project's rules.toml (V-2); "" = none
+
+
+# ----------------------------------------------------------------------------
+# 0b. rules.toml -> ProjectRules  (PROJECT RULES, written by the student; DECISIONS V-2)
+#     Each rule goes to codegen as a one-line constraint and is checked at verify.
+#     `why` and `source` are for people; they never reach the model.
+# ----------------------------------------------------------------------------
+@dataclass
+class ProjectRule:
+    on: str                     # "U1.VDD": part reference + datasheet pin name or number
+    need: str                   # one of RULE_NEEDS
+    source: str                 # "MCP9808 datasheet, 6.1 Layout Considerations, p.35"
+    why: str                    # the student's own words
+    to: str = ""                # net on the other side (cap, pullup, pulldown, tie)
+    value: str = ""             # "100nF" or "100nF..1uF"; "" = any
+
+
+@dataclass
+class ProjectRules:
+    rule: list[ProjectRule]     # named `rule` so a [[rule]] TOML file parses as-is
 
 
 # ----------------------------------------------------------------------------
@@ -327,7 +349,7 @@ class FabPackage:
 
 ALL_CONTRACTS = {
     cls.__name__: cls for cls in (
-        OpenQuestion, Spec, PartRequest, Block, Plan, ResolvedPart, Unresolved,
+        OpenQuestion, Spec, ProjectRule, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
         ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
         LearnInteraction, LearnRecord, SignOff, DrcSummary, RouteResult, FabPackage,

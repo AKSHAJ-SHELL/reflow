@@ -64,6 +64,7 @@ def test_load_spec_round_trips_through_from_dict(tmp_path):
             for q in loaded.open_questions
         ],
         "confirmed": loaded.confirmed,
+        "rules_file": loaded.rules_file,
     })))
     assert loaded.confirmed is True
     assert loaded.named_parts == ["MCP9808"]

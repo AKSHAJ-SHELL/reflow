@@ -20,8 +20,28 @@ Conventions: all paths are strings relative to the repo or run folder; all times
 | named_parts | list[str] | **Part numbers the user typed.** The only MPNs anything downstream may copy |
 | open_questions | list[OpenQuestion{id, question, answer}] | Asked by the planner, answered by the user |
 | confirmed | bool | True only after the user confirms. Nothing downstream runs on `false` |
+| rules_file | str | Path to the project's `rules.toml` (V-2), `""` for none. Set by the CLI from the user's file, never by the planner |
 
 Example: [spec.json](examples/spec.json)
+
+## 0b · `rules.toml` → `ProjectRules` (project rules, written by the student)
+
+`ProjectRules{rule: list[ProjectRule]}` · `ProjectRule{on, need, source, why, to, value}`
+
+| Field | Type | Meaning |
+|---|---|---|
+| on | str | `part.pin`, by datasheet pin name or number, e.g. `U1.VDD` |
+| need | str | ∈ `RULE_NEEDS`: `cap`, `pullup`, `pulldown`, `tie`, `open`, `connected` |
+| source | str | Where the student read it: document, section, page |
+| why | str | The student's own explanation. **Human only**, like `Violation.why` |
+| to | str | The net on the other side (`cap`, `pullup`, `pulldown`, `tie`); `""` otherwise |
+| value | str | `"100nF"` or a range `"100nF..1uF"`; `""` = any value |
+
+- The file on disk is TOML with one `[[rule]]` table per rule, so `tomllib.load` gives a dict that parses with `from_dict(ProjectRules, …)` directly.
+- **Codegen and fix prompts** get one line per rule (`U1.VDD: cap to GND, 100nF..1uF`). `why` and `source` are never sent.
+- **Verify** checks every rule deterministically against the pin map (V-1) and the `circuit.json` netlist. A failure is a `Violation` with `rule_id = "project.<need>"`, a generated `fix_hint`, and `why` = the student's `why` plus `source`.
+
+Example: [project_rules.json](examples/project_rules.json) (the MCP9808 board's rules as JSON)
 
 ## 1 · `Spec` → `Plan` (planner, LLM)
 
