@@ -1,8 +1,18 @@
 """`reflow check` and the `reflow design` command.
 
-`design` loads a confirmed Spec and an optional Plan. When a model is
-supplied it runs the harness loop. The retry policy lives in that loop,
-not here. Without a model, the command only accepts the spec.
+`design` loads a confirmed Spec and an optional Plan, then runs the harness
+loop with pieces built from config: the model from `reflow.toml` and
+REFLOW_* env (`load_model`), `compile_board`, parts from `--parts` or from
+the catalog + resolver, and the design verifier on circuit.json. The retry
+policy lives in that loop, not here. Tests inject those pieces through
+`main(...)` keywords instead.
+
+Parts are resolved from a plan, so without `--plan` or `--parts` the command
+only accepts the spec (the loop plans after it checks parts, H-03).
+
+Pin binding (V-12, HUMAN) is not built: `PIN_BINDING` is None, the verifier
+runs with an explicit pass-through, and every real run prints a warning that
+the decoupling rules did not run.
 """
 import argparse
 import json
@@ -24,14 +34,27 @@ from reflow.checkpoint import (
     reject_foreign_mpn,
     require_confirmed,
 )
+from reflow.circuit_netlist import CircuitJsonError
+from reflow.compile import TsciMissingError, TsciTimeoutError, compile_board
+from reflow.config import ConfigError, load_config
 from reflow.contracts import ContractError, ResolvedParts, from_dict
 from reflow.harness.loop import run_design
-from reflow.llm import ModelError
+from reflow.llm import ModelError, load_model
+from reflow.parts.catalog import CatalogError
+from reflow.parts.catalog import search as catalog_search
+from reflow.parts.resolver import resolve
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
 
 MAC_KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
 SEVERITY_ORDER = {"error": 0, "warning": 1}
+
+# V-12 (HUMAN) supplies bind(netlist, parts, spec) -> Netlist here.
+PIN_BINDING = None
+UNBOUND_WARNING = (
+    "warning: pin binding (V-12) is not built yet, so IC pins are untyped and the "
+    "decoupling rules did not run on this board"
+)
 
 
 class InputError(Exception):
@@ -184,11 +207,13 @@ def cmd_design(
     max_attempts=3,
     compile_cap=2,
 ) -> int:
-    """Accept a confirmed spec. Run the design loop when a model is supplied.
+    """Accept a confirmed spec, then run the design loop.
 
-    `codegen` remains the checkpoint seam used when no model is injected.
-    This command does not invent a part number and does not contain a second
-    copy of the retry policy.
+    With nothing injected, the pieces come from config (`_run_from_config`).
+    `model`/`compiler`/`verifier`/`parts` are test seams; `codegen` is the
+    checkpoint seam that only receives the spec and plan. This command does
+    not invent a part number and does not contain a second copy of the retry
+    policy.
     """
     try:
         if not args.spec:
@@ -204,40 +229,84 @@ def cmd_design(
         if model is None:
             if codegen is not None:
                 codegen(spec, plan)
-        else:
-            if compiler is None or verifier is None:
-                raise InputError("reflow design needs a compiler and a verifier")
-            resolved = parts if parts is not None else _load_parts(args)
-            if resolved is None:
-                raise InputError(
-                    "resolved parts are required; refusing to invent a part number"
+                return 0
+            if plan is None and not getattr(args, "parts", None):
+                print(
+                    "spec accepted; design loop not run: parts are resolved from a plan, "
+                    "so pass --plan (or --parts). The H-03 loop plans only after it checks parts."
                 )
-            folder = _run_folder(spec, run_dir, args)
-            result = run_design(
-                spec,
-                plan,
-                resolved,
-                model=model,
-                compiler=compiler,
-                verifier=verifier,
-                run_dir=folder,
-                max_attempts=max_attempts,
-                compile_cap=compile_cap,
-            )
-            if result.status == "aborted":
-                reason = getattr(result, "abort_reason", "") or "aborted"
-                raise InputError(reason)
-            print(
-                f"status={result.status} best_attempt={result.best_attempt} "
-                f"run_dir={result.run_dir}"
-            )
-            return 0 if result.status == "passed" else 1
-    except (InputError, CheckpointError, ContractError, ModelError) as exc:
+                return 0
+            return _run_from_config(args, spec, plan, run_dir)
+        if compiler is None or verifier is None:
+            raise InputError("reflow design needs a compiler and a verifier")
+        resolved = parts if parts is not None else _load_parts(args)
+        if resolved is None:
+            raise InputError("resolved parts are required; refusing to invent a part number")
+        return _execute(
+            spec, plan, resolved,
+            model=model, compiler=compiler, verifier=verifier,
+            folder=_run_folder(spec, run_dir, args),
+            max_attempts=max_attempts, compile_cap=compile_cap,
+        )
+    except _RUN_ERRORS as exc:
         print(f"reflow: {exc}", file=sys.stderr)
         return 2
-    if model is None and codegen is None:
-        print("spec accepted; design loop not run (H-03)")
-    return 0
+
+
+_RUN_ERRORS = (
+    InputError, CheckpointError, ContractError, ModelError, ConfigError, CatalogError,
+    TsciMissingError, TsciTimeoutError, CircuitJsonError,
+)
+
+
+def _run_from_config(args, spec, plan, run_dir) -> int:
+    """The shell path: every piece comes from config, the catalog, or this package."""
+    from reflow.verifier import VerifierInputError, make_verifier
+
+    config = load_config()
+    model = load_model(config)
+    resolved = _load_parts(args)
+    if resolved is None:
+        resolved = _resolve_from_catalog(plan, spec)
+    bind = PIN_BINDING
+    if bind is None:
+        print(UNBOUND_WARNING, file=sys.stderr)
+        bind = _unbound
+    try:
+        return _execute(
+            spec, plan, resolved,
+            model=model, compiler=compile_board, verifier=make_verifier(bind=bind),
+            folder=_run_folder(spec, run_dir, args),
+            max_attempts=config["max_attempts"], compile_cap=config["compile_cap"],
+        )
+    except VerifierInputError as exc:
+        raise InputError(str(exc)) from exc
+
+
+def _execute(spec, plan, resolved, *, model, compiler, verifier, folder, max_attempts, compile_cap) -> int:
+    result = run_design(
+        spec, plan, resolved,
+        model=model, compiler=compiler, verifier=verifier, run_dir=folder,
+        max_attempts=max_attempts, compile_cap=compile_cap,
+    )
+    if result.status == "aborted":
+        raise InputError(getattr(result, "abort_reason", "") or "aborted")
+    print(f"status={result.status} best_attempt={result.best_attempt} run_dir={result.run_dir}")
+    return 0 if result.status == "passed" else 1
+
+
+def _resolve_from_catalog(plan, spec) -> ResolvedParts:
+    """One catalog query per plan part, then the resolver picks (or refuses) each."""
+    candidates = {
+        part.id: catalog_search(part.category, value=part.value, package=part.package)
+        for part in plan.parts
+    }
+    return resolve(plan.parts, spec.named_parts, candidates)
+
+
+def _unbound(netlist, parts, spec):
+    """Stand-in until V-12: pins stay untyped (UNBOUND_WARNING is printed)."""
+    return netlist
 
 
 def _load_parts(args):
