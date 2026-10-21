@@ -8,7 +8,7 @@
 | `verifier.py` | The design verifier: `circuit.json` → `VerifyReport`, with a required pin-binding step (V-12); `make_verifier` gives `run_design` its `verifier` | AGENT (V-16) | working; `.kicad_pcb` comparison waits on V-13 |
 | `violation.py` | The `Violation` dataclass every rule returns | HUMAN | working |
 | `contracts.py` | Data types for every stage boundary + strict `from_dict` | AGENT (changes via DECISIONS.md) | working |
-| `cli.py` | `reflow check` (and later `reflow design`) | AGENT | `check` working |
+| `cli.py` | `reflow check`, and `reflow design` wired to config (model), `compile_board`, catalog + resolver, and the design verifier | AGENT | working; pin binding waits on V-12 |
 | `llm.py` | One `complete(system, prompt)` interface over providers | AGENT | stub (M-01) |
 | `compile.py` | tscircuit TSX → KiCad via `tsci` | AGENT | stub (K-01) |
 | `route.py` | 2-layer routing + our own re-DRC | AGENT | stub (X-01) |

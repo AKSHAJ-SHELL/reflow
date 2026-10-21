@@ -124,3 +124,14 @@ Next AGENT: CLI wiring (config → model, compile_board, catalog + resolver, mak
 Did: the human changed `reflow/harness/loop.py:276` to pass `compile_result.circuit_json` to the verifier (`docs/proposals/V-1-loop-HUMAN.patch`). The agent committed it at the human's request.
 Tests: `pytest -q` → 4 failed, 322 passed. test_loop_fixes_missing_pullups_on_attempt_2 is now green. Remaining, all known: the schematic-export record (upstream tscircuit), the two resolver tests (C2), the live jlcsearch test.
 Next: V-12 bind (HUMAN), V-13 (HUMAN); AGENT: CLI wiring, C2 catalog query.
+
+## 2026-10-21 · agent (Claude) · H-09 (CLI wiring)
+Did: wired `reflow design` in `reflow/cli.py`. With nothing injected and a `--plan` (or `--parts`), it builds every piece itself:
+- `load_config()` for the caps and model settings, then `load_model(config)`;
+- `compile_board` as the compiler;
+- parts from `--parts`, else one `catalog_search` per plan part and then `resolve(plan.parts, spec.named_parts, candidates)`;
+- `make_verifier(bind=…)`, running `run_design` with the config's caps.
+Config, model, catalog, tsci and circuit.json errors exit 2 with their message. With only `--spec` it still accepts the spec and says why the loop didn't start: parts need a plan, and the H-03 loop plans only after it checks parts. That's the H1 order issue in loop.py, HUMAN. `PIN_BINDING = None` is the hook for V-12. Until it's set, every real run prints a stderr warning that pins are untyped and the decoupling rules didn't run. `main(...)` keyword seams for tests are unchanged. Added task H-09 to TASKS.md.
+Tests: `tests/test_design_wiring.py` (8) failed first (no hooks on reflow.cli), then passed. Two of my test assumptions were wrong and fixed before commit: the example resolved_parts.json deliberately has an unresolved header. The end-to-end test runs a scripted model through real tsci and the real verifier: attempt 1 (no pull-ups) fails, attempt 2 passes, verify.json says `circuit.json`. Four in-process sabotages (ignore config caps, silence the warning, query the catalog before config, verify the .kicad_sch) → red each time. `pytest -q` → 4 failed, 330 passed: the same 4 known failures (schematic-export record, 2 resolver C2 tests, live jlcsearch). No HUMAN-owned file changed.
+Not done: no run against a real model yet (needs REFLOW_API_KEY and base_url in reflow.toml or REFLOW_BASE_URL). Planning from the request alone waits on the loop order (H1) and H-06.
+Next AGENT: the catalog-query half of C2.
