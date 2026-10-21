@@ -5,6 +5,7 @@
 | `netlist.py` | KiCad kicadsexpr netlist → `Netlist`/`Component`/`Pin` | HUMAN | working |
 | `circuit_netlist.py` | tscircuit `circuit.json` → `Netlist` (the design verifier's input, V-1) | AGENT (V-10) | working |
 | `pcb_nets.py` | `.kicad_pcb` → `{(ref, pad): net}` (what the gerbers are made from; V-1 d) | AGENT (V-14) | working |
+| `verifier.py` | The design verifier: `circuit.json` → `VerifyReport`, with a required pin-binding step (V-12); `make_verifier` gives `run_design` its `verifier` | AGENT (V-16) | working; `.kicad_pcb` comparison waits on V-13 |
 | `violation.py` | The `Violation` dataclass every rule returns | HUMAN | working |
 | `contracts.py` | Data types for every stage boundary + strict `from_dict` | AGENT (changes via DECISIONS.md) | working |
 | `cli.py` | `reflow check` (and later `reflow design`) | AGENT | `check` working |
