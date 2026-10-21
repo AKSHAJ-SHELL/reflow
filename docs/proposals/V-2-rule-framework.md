@@ -1,6 +1,6 @@
 # V-2 · Project rules: students write them from datasheets, reflow enforces them
 
-Status: **ACCEPTED** 2026-10-20 by the human (proposed by agent, Claude). Builds on V-1 (verify `circuit.json`; pin facts never come from the AI's labels). The contract change in this file is drafted separately and needs its own approval. Binding text: `DECISIONS.md`.
+Status: **ACCEPTED** 2026-10-20 by the human (proposed by agent, Claude). Builds on V-1 (verify `circuit.json`; pin facts never come from the AI's labels). Its contract change was approved and applied on 2026-10-20. Binding text: `DECISIONS.md`.
 
 ## The idea
 

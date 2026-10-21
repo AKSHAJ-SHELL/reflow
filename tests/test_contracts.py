@@ -23,8 +23,10 @@ EXAMPLES = ROOT / "docs" / "examples"
 FROZEN = {
     "Violation": ("rule_id", "severity", "message", "why", "fix_hint", "refs", "nets"),
     "OpenQuestion": ("id", "question", "answer"),
+    "ProjectRule": ("on", "need", "source", "why", "to", "value"),
+    "ProjectRules": ("rule",),
     "Spec": ("request", "title", "power", "interfaces", "constraints", "named_parts",
-             "open_questions", "confirmed"),
+             "open_questions", "confirmed", "rules_file"),
     "PartRequest": ("id", "role", "category", "value", "package", "tolerance", "voltage",
                     "mpn", "notes"),
     "Block": ("name", "purpose", "part_ids"),
@@ -59,6 +61,7 @@ FROZEN = {
 
 EXAMPLE_FILES = {
     "spec.json": c.Spec,
+    "project_rules.json": c.ProjectRules,
     "plan.json": c.Plan,
     "resolved_parts.json": c.ResolvedParts,
     "part_card.json": c.PartCard,
@@ -146,6 +149,8 @@ def test_enums_in_examples():
     assert all(v.severity in c.SEVERITIES for v in report.violations)
     card = c.from_dict(c.PartCard, json.loads((EXAMPLES / "part_card.json").read_text()))
     assert all(p.kind in c.PIN_KINDS for p in card.pins)
+    rules = c.from_dict(c.ProjectRules, json.loads((EXAMPLES / "project_rules.json").read_text()))
+    assert rules.rule and all(r.need in c.RULE_NEEDS for r in rules.rule)
 
 
 def test_plan_only_copies_user_named_mpns():
