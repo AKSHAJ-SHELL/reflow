@@ -104,3 +104,8 @@ Found:
 Not verified: ST's DS5319 datasheet could not be downloaded (st.com and mirrors blocked), so the STM32 expected pins come from ST's pin data, cross-checked against EasyEDA C8734 and KiCad (all three agree), not from the datasheet itself. The human should confirm against DS5319 Table 5.
 Tests: `tests/test_pinmap.py` failed first (module missing), then 29 passed, including the installed KiCad 10 library found next to kicad-cli. Four in-process sabotages (no ground-by-name, compare returns nothing, only the first RefName alternative, ignore `extends`) → red each time. `pytest -q` → 7 failed, 309 passed: the same 7 known failures, none new.
 Next: V-12 (bind ICs to pin maps, HUMAN) can use `import_pin_map` + `base_name`. PinMap/PinImport live in pinmap.py; promote them to contracts.py if V-12 needs them across a stage boundary (DECISIONS proposal). AGENT next: V-16 or V-21.
+
+## 2026-10-20 · human decision · V-11
+Did: the human decided reflow doesn't need a direct datasheet check for test pin maps. People read datasheets outside reflow (e.g. in a separate chat), and three agreeing sources are enough for test inputs. Dropped the "human to confirm" caveat from V-11 in TASKS.md.
+Tests: none (docs only).
+Next: unchanged.
