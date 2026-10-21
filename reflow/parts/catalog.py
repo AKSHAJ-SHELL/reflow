@@ -95,6 +95,8 @@ class CatalogPart:
     basic: bool
     unit_price_usd: float
     source: str
+    category: str = ""      # the reflow category this row belongs to ("" from jlcsearch, which doesn't say)
+    fetched_at: str = ""    # when the source saw this row (ISO-8601 UTC); "" when unknown
 
 
 class Transport(Protocol):
@@ -203,6 +205,11 @@ def _wanted_value(endpoint: _Endpoint, value: str) -> Decimal | None:
     text = value.strip()
     if not text or not endpoint.numeric:
         return None
+    return _parse_value(text)
+
+
+def parse_value(text: str) -> Decimal:
+    """Engineering value in base units: "4.7k" / "4k7" / "4.7kΩ" -> 4700, "100nF" -> 1E-7."""
     return _parse_value(text)
 
 

@@ -3,7 +3,7 @@
 `design` loads a confirmed Spec and an optional Plan, then runs the harness
 loop with pieces built from config: the model from `reflow.toml` and
 REFLOW_* env (`load_model`), `compile_board`, parts from `--parts` or from
-the catalog + resolver, and the design verifier on circuit.json. The retry
+the local parts snapshot (`reflow parts update`) + resolver, and the design verifier on circuit.json. The retry
 policy lives in that loop, not here. Tests inject those pieces through
 `main(...)` keywords instead.
 
@@ -41,7 +41,7 @@ from reflow.contracts import ContractError, ResolvedParts, from_dict
 from reflow.harness.loop import run_design
 from reflow.llm import ModelError, load_model
 from reflow.parts.catalog import CatalogError
-from reflow.parts.catalog import search as catalog_search
+from reflow.parts.local_catalog import search as catalog_search
 from reflow.parts.resolver import resolve
 from reflow.parts.snapshot import SnapshotError, update_snapshot
 from reflow.netlist import load_netlist
@@ -297,11 +297,8 @@ def _execute(spec, plan, resolved, *, model, compiler, verifier, folder, max_att
 
 
 def _resolve_from_catalog(plan, spec) -> ResolvedParts:
-    """One catalog query per plan part, then the resolver picks (or refuses) each."""
-    candidates = {
-        part.id: catalog_search(part.category, value=part.value, package=part.package)
-        for part in plan.parts
-    }
+    """One local-snapshot query per plan part (D-6a), then the resolver picks (or refuses) each."""
+    candidates = {part.id: catalog_search(part) for part in plan.parts}
     return resolve(plan.parts, spec.named_parts, candidates)
 
 
