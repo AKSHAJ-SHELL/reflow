@@ -58,7 +58,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | H-06 | Spec checkpoint + planner call (CLI side) | request | confirmed `Spec`, `Plan` | `Plan` parses strictly; `mpn` only from `named_parts` | M-01, H-08 | AGENT | todo |
 | H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | done (10-19) |
 | H-09 | Wire `reflow design` to config, `compile_board`, catalog + resolver, design verifier | config, H-03, V-16 | runnable command | scripted model + real tsci: no-pull-up board fails then passes from config; missing key / bad config / catalog failure exit 2 | H-07, V-16 | AGENT | done (10-21) |
-| H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | todo |
+| H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | doing (awaiting human review) |
 
 ## Model + compiler (AGENT)
 

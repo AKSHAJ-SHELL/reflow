@@ -42,12 +42,14 @@ Each part request uses these fields and no others:
 - id: p1, p2, and so on, stable inside the run
 - role: what the part does on the board
 - category: one of resistor, capacitor, inductor, led, diode, transistor, ic, regulator, connector, crystal, switch, other
-- value: such as 100nF or 4.7k. Empty string for an IC or a connector
-- package: such as 0402. Empty string if the request does not state one
+- value: such as 100nF or 4.7k. Empty string for an IC. For a connector: rows x pins per row, such as 1x4
+- package: such as 0402. Empty string if the request does not state one. For a connector: the pin pitch, such as 2.54mm
 - tolerance: such as 1%. Empty string if unstated
 - voltage: rating such as 10V. Empty string if unstated
 - mpn: empty string, or a copy of one Spec.named_parts entry
 - notes: extra constraints. Empty string if none
+
+A connector is a straight pin header written with value and package as above: a 4-pin single-row 2.54 mm header is value 1x4, package 2.54mm. If the request does not give the pitch, use 2.54mm and add an open question that asks for it.
 
 Each part id appears in exactly one block's part_ids. Nets are the names the board will use, such as +3V3, GND, SDA, and SCL.
 
@@ -85,7 +87,7 @@ Shape, for a request that already contains the text MCP9808 (that string may be 
     {"id": "p2", "role": "decoupling cap for U1 VDD", "category": "capacitor", "value": "100nF", "package": "0402", "tolerance": "", "voltage": "10V", "mpn": "", "notes": ""},
     {"id": "p3", "role": "SDA pull-up", "category": "resistor", "value": "4.7k", "package": "0402", "tolerance": "1%", "voltage": "", "mpn": "", "notes": ""},
     {"id": "p4", "role": "SCL pull-up", "category": "resistor", "value": "4.7k", "package": "0402", "tolerance": "1%", "voltage": "", "mpn": "", "notes": ""},
-    {"id": "p5", "role": "I2C header", "category": "connector", "value": "", "package": "", "tolerance": "", "voltage": "", "mpn": "", "notes": "1x4 2.54 mm pin header"}
+    {"id": "p5", "role": "I2C header", "category": "connector", "value": "1x4", "package": "2.54mm", "tolerance": "", "voltage": "", "mpn": "", "notes": "straight pin header"}
   ],
   "nets": ["+3V3", "GND", "SDA", "SCL"]
 }
