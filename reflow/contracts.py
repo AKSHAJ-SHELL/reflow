@@ -32,6 +32,10 @@ RUN_STATUSES = {"passed", "failed_verify", "failed_compile", "aborted"}
 ROUTE_STATUSES = {"routed", "partial", "refused", "failed"}
 ROUTERS = {"tscircuit", "freerouting"}
 LEARN_KINDS = {"spot_bug", "make_call"}
+PIN_KINDS = {
+    "power", "ground", "i2c_sda", "i2c_scl", "address", "input", "output",
+    "open_drain_out", "io", "nc", "thermal_pad",
+}
 PART_CATEGORIES = {
     "resistor", "capacitor", "inductor", "led", "diode", "transistor",
     "ic", "regulator", "connector", "crystal", "switch", "other",
@@ -121,6 +125,39 @@ class ResolvedParts:
 
 
 # ----------------------------------------------------------------------------
+# 2b. Part card  (GROUND TRUTH, HUMAN-verified, read by the verifier; DECISIONS V-1, V-2)
+#     The verifier takes an IC's pin names and kinds from a trusted pin map, by
+#     physical pin number, never from labels in the TSX. Pin maps come from
+#     vendor pin data, then the KiCad symbol library; a signed PartCard
+#     overrides both. No trusted pin map: the IC fails.
+# ----------------------------------------------------------------------------
+@dataclass
+class Citation:
+    doc: str                    # "Microchip DS20005095B"
+    locator: str                # "Table 3-1, p.11 (MSOP column)"
+    url: str = ""
+
+
+@dataclass
+class CardPin:
+    number: str                 # physical pin / pad number, "1"
+    name: str                   # datasheet symbol, "VDD"
+    kind: str                   # one of PIN_KINDS
+
+
+@dataclass
+class PartCard:
+    family: str                 # "MCP9808"
+    mpns: list[str]             # orderable MPNs this card covers
+    lcsc: list[str]             # LCSC ids for those MPNs, e.g. ["C129490"]
+    package: str                # "MSOP-8"
+    pins: list[CardPin]
+    pin_source: Citation        # where every pin row was checked
+    verified_by: str            # the person who checked it; "" = draft, verifier ignores it
+    verified_on: str            # ISO-8601 date; "" for a draft
+
+
+# ----------------------------------------------------------------------------
 # 3. (Spec, Plan, ResolvedParts[, RetryFeedback]) -> GeneratedCode  (CODEGEN, LLM)
 # ----------------------------------------------------------------------------
 @dataclass
@@ -157,10 +194,14 @@ class CompileResult:
 # ----------------------------------------------------------------------------
 # 5. CompileResult -> VerifyReport  (VERIFIER, deterministic, already built)
 #    Field names match `reflow check --json` exactly.
+#    Input (DECISIONS V-1): `reflow design` verifies CompileResult.circuit_json,
+#    with IC pins taken from PartCards; `reflow check` verifies a KiCad schematic.
+#    Both build one Netlist and run the same rules. tscircuit's .kicad_sch
+#    export is never verified.
 # ----------------------------------------------------------------------------
 @dataclass
 class VerifyReport:
-    schematic: str
+    schematic: str              # file the netlist came from: "board.kicad_sch" or "circuit.json"
     components: int
     nets: int
     errors: int
@@ -287,7 +328,7 @@ class FabPackage:
 ALL_CONTRACTS = {
     cls.__name__: cls for cls in (
         OpenQuestion, Spec, PartRequest, Block, Plan, ResolvedPart, Unresolved,
-        ResolvedParts, GeneratedCode, CompileError, CompileResult, VerifyReport,
+        ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
         LearnInteraction, LearnRecord, SignOff, DrcSummary, RouteResult, FabPackage,
     )

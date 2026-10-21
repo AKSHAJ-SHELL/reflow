@@ -1,0 +1,24 @@
+# DRAFT part card (Decision V-1, proposed). Drafted by an agent from Microchip DS20005095B
+# Table 3-1 (p.11), cross-checked against the EasyEDA symbol for C129490/C94847.
+# Not ground truth until a person checks every pin against the datasheet and fills verified_by.
+
+family = "MCP9808"
+mpns = ["MCP9808-E/MS", "MCP9808T-E/MS"]
+lcsc = ["C94847", "C129490"]
+package = "MSOP-8"
+verified_by = ""          # DRAFT: a human checks every pin against the datasheet, then signs
+verified_on = ""
+pins = [
+  { number = "1", name = "SDA",   kind = "i2c_sda" },
+  { number = "2", name = "SCL",   kind = "i2c_scl" },
+  { number = "3", name = "ALERT", kind = "open_drain_out" },
+  { number = "4", name = "GND",   kind = "ground" },
+  { number = "5", name = "A2",    kind = "address" },
+  { number = "6", name = "A1",    kind = "address" },
+  { number = "7", name = "A0",    kind = "address" },
+  { number = "8", name = "VDD",   kind = "power" },
+]
+
+[pin_source]
+doc = "Microchip DS20005095B"
+locator = "Table 3-1, p.11 (MSOP column)"

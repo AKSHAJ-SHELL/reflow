@@ -19,7 +19,7 @@ design(request)
           if result.ok: break
           feedback = to_feedback(result)              # kind="compile"
       else: -> status failed_compile
-      report = verify(result.kicad_sch, parts, spec)
+      report = verify(result.circuit_json, parts, spec)   # V-1: pins from cards
       save(attempt, code, result, report)             # run.json rewritten every step
       if report.errors == 0: -> status passed
       if should_stop_early(history): -> stop          # [HUMAN] Q5

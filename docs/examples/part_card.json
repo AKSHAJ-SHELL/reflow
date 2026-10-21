@@ -1,0 +1,61 @@
+{
+  "family": "MCP9808",
+  "mpns": [
+    "MCP9808-E/MS",
+    "MCP9808T-E/MS"
+  ],
+  "lcsc": [
+    "C94847",
+    "C129490"
+  ],
+  "package": "MSOP-8",
+  "pins": [
+    {
+      "number": "1",
+      "name": "SDA",
+      "kind": "i2c_sda"
+    },
+    {
+      "number": "2",
+      "name": "SCL",
+      "kind": "i2c_scl"
+    },
+    {
+      "number": "3",
+      "name": "ALERT",
+      "kind": "open_drain_out"
+    },
+    {
+      "number": "4",
+      "name": "GND",
+      "kind": "ground"
+    },
+    {
+      "number": "5",
+      "name": "A2",
+      "kind": "address"
+    },
+    {
+      "number": "6",
+      "name": "A1",
+      "kind": "address"
+    },
+    {
+      "number": "7",
+      "name": "A0",
+      "kind": "address"
+    },
+    {
+      "number": "8",
+      "name": "VDD",
+      "kind": "power"
+    }
+  ],
+  "pin_source": {
+    "doc": "Microchip DS20005095B",
+    "locator": "Table 3-1, p.11 (MSOP column)",
+    "url": ""
+  },
+  "verified_by": "",
+  "verified_on": ""
+}
