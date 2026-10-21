@@ -109,3 +109,13 @@ Next: V-12 (bind ICs to pin maps, HUMAN) can use `import_pin_map` + `base_name`.
 Did: the human decided reflow doesn't need a direct datasheet check for test pin maps. People read datasheets outside reflow (e.g. in a separate chat), and three agreeing sources are enough for test inputs. Dropped the "human to confirm" caveat from V-11 in TASKS.md.
 Tests: none (docs only).
 Next: unchanged.
+
+## 2026-10-20 · agent (Claude) · V-16
+Did: added `reflow/verifier.py`. `verify_circuit_json(circuit_json, parts, spec, *, bind) -> VerifyReport` does load_circuit_json (V-10), then `bind`, then run_all, sorted like `reflow check`. `make_verifier(*, bind)` gives `run_design` its verifier callable.
+- `bind` is required (keyword, no default): it's where V-12 (HUMAN) will relabel and type IC pins from pin maps. Until then callers pass an explicit pass-through, so decoupling rules can't fire, and that's visible at the call site.
+- A `.kicad_sch` path raises `VerifierInputError` naming `docs/proposals/V-1-loop-HUMAN.patch`. MergedNetsError propagates.
+- The `.kicad_pcb` comparison isn't wired: the rule is V-13 (HUMAN).
+- `tests/test_verifier.py` (10 tests). `tests/test_integration.py` now verifies through the design verifier (`unbound` pass-through). The old .kicad_sch helper is renamed `verify_kicad_sch` and used only by the schematic-export test and by `_either_file` in the blinky compile-recovery test, so that test stays green before and after the loop patch.
+Tests: test_verifier failed first (module missing). One expectation of mine was wrong (I assumed alphabetical order; reflow check orders by severity, rule id, then rule output), fixed before commit. Three in-process sabotages (skip bind, accept .kicad_sch, reverse order) → red each time. `pytest -q` → 5 failed, 321 passed. Now green: test_good_sensor_verifies_clean, test_sensor_without_pullups_is_flagged. Still red, known: test_schematic_export_keeps_the_traced_nets (upstream tscircuit, kept as a record), test_loop_fixes_missing_pullups_on_attempt_2 (needs the loop patch), the two resolver tests (C2), and the live jlcsearch test. In a throwaway worktree with `V-1-loop-HUMAN.patch` applied, the pull-up loop test passes, and test_integration + test_harness + test_design_cli give 41 passed, 1 failed (the schematic-export record).
+Waiting on the human: apply `V-1-loop-HUMAN.patch` (one line in loop.py); V-12 bind; V-13 pcb comparison and how shorts surface.
+Next AGENT: CLI wiring (config → model, compile_board, catalog + resolver, make_verifier) and the catalog-query half of C2.

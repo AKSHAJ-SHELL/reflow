@@ -1,9 +1,16 @@
 """Integration: real tsci, real kicad-cli, real rules, and the real design loop.
 
 Only the model is scripted. Everything a board passes through after the model
-(compile_board, the .kicad_sch export, kicad-cli netlist, load_netlist,
-run_all) is the code a live run uses. Skips cleanly when tsci or kicad-cli is
-missing (docs/agents/04-testing-rules.md rule 9).
+(compile_board, circuit.json, the design verifier in reflow/verifier.py) is
+the code a live run uses. Skips cleanly when tsci or kicad-cli is missing
+(docs/agents/04-testing-rules.md rule 9).
+
+The design verifier needs a pin-binding step (V-12, HUMAN, not built yet).
+These tests pass `unbound`, which leaves pins untyped, so the decoupling
+rules cannot fire here; the I2C rules work on pin names and do.
+
+`verify_kicad_sch` is the old path through tscircuit's .kicad_sch export. It
+is kept only for tests about that export, which loses connectivity (V-1).
 
 TSX inputs live in tests/data/integration/. They are test inputs, not
 verifier fixtures: there is no expected.toml here.
@@ -30,6 +37,7 @@ from reflow.harness.loop import run_design
 from reflow.llm import Completion
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
+from reflow.verifier import make_verifier, verify_circuit_json
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "tests" / "data" / "integration"
@@ -56,8 +64,13 @@ def _netlist(kicad_sch: str, tmp: Path):
     return load_netlist(export_netlist(KICAD_CLI, Path(kicad_sch), tmp / "board.net"))
 
 
-def verify(kicad_sch: str, parts: ResolvedParts, spec: Spec) -> VerifyReport:
-    """The path `reflow check --json` takes, as the loop's verifier callable."""
+def unbound(netlist, parts, spec):
+    """Stand-in for V-12's pin binding: returns the netlist unchanged."""
+    return netlist
+
+
+def verify_kicad_sch(kicad_sch: str, parts: ResolvedParts, spec: Spec) -> VerifyReport:
+    """The old path through the .kicad_sch export (what `reflow check` does on KiCad files)."""
     sch = Path(kicad_sch)
     nl = _netlist(kicad_sch, sch.parent)
     violations = sort_violations(run_all(nl))
@@ -100,7 +113,7 @@ def _pcb_pad_nets(kicad_pcb: str) -> dict[tuple[str, str], str]:
 def test_blinky_compiles_and_verifies_clean(tmp_path):
     tsx = (ROOT / "boards" / "blinky" / "index.circuit.tsx").read_text(encoding="utf-8")
     result = _compile(tsx, tmp_path)
-    report = verify(result.kicad_sch, ResolvedParts([], []), None)
+    report = verify_circuit_json(result.circuit_json, ResolvedParts([], []), None, bind=unbound)
     assert report.components >= 3
     assert report.errors == 0, report.violations
 
@@ -139,14 +152,14 @@ def test_schematic_export_keeps_the_traced_nets(tmp_path):
 
 def test_good_sensor_verifies_clean(tmp_path):
     result = _compile(_tsx("sensor_good.tsx"), tmp_path)
-    report = verify(result.kicad_sch, ResolvedParts([], []), None)
+    report = verify_circuit_json(result.circuit_json, ResolvedParts([], []), None, bind=unbound)
     assert report.errors == 0, report.violations
 
 
 def test_sensor_without_pullups_is_flagged(tmp_path):
     """The go/no-go board class: an I2C sensor with no pull-ups must fail verify."""
     result = _compile(_tsx("sensor_no_pullups.tsx"), tmp_path)
-    report = verify(result.kicad_sch, ResolvedParts([], []), None)
+    report = verify_circuit_json(result.circuit_json, ResolvedParts([], []), None, bind=unbound)
     rule_ids = sorted(v.rule_id for v in report.violations)
     assert rule_ids == ["i2c.missing_pullup", "i2c.missing_pullup"], report.violations
 
@@ -197,15 +210,26 @@ def _resolved(plan: Plan) -> ResolvedParts:
     return ResolvedParts(resolved=rows, unresolved=[])
 
 
-def _design(tmp_path: Path, replies: list[str]) -> tuple[RunResult, ScriptedModel]:
+def _design(tmp_path: Path, replies: list[str], verifier) -> tuple[RunResult, ScriptedModel]:
     plan = _plan()
     model = ScriptedModel(replies)
     run = run_design(
         _spec(), plan, _resolved(plan),
-        model=model, compiler=compile_board, verifier=verify,
+        model=model, compiler=compile_board, verifier=verifier,
         run_dir=tmp_path / "run", max_attempts=3, compile_cap=2,
     )
     return run, model
+
+
+def _either_file(path: str, parts: ResolvedParts, spec: Spec) -> VerifyReport:
+    """For tests about compiling, not verifying: accept whichever file the loop passes.
+
+    loop.py passes the .kicad_sch until the human applies V-1-loop-HUMAN.patch,
+    and circuit.json after.
+    """
+    if path.endswith(".kicad_sch"):
+        return verify_kicad_sch(path, parts, spec)
+    return verify_circuit_json(path, parts, spec, bind=unbound)
 
 
 def test_loop_recovers_from_a_real_tsci_syntax_error(tmp_path):
@@ -214,7 +238,7 @@ def test_loop_recovers_from_a_real_tsci_syntax_error(tmp_path):
     run, model = _design(tmp_path, [
         _fenced(_tsx("blinky_syntax_error.tsx")),
         _fenced(blinky),
-    ])
+    ], verifier=_either_file)
     assert run.status == "passed"
     assert run.best_attempt == 1
     assert [(a.attempt, a.compile_tries, a.compiled) for a in run.attempts] == [(1, 2, True)]
@@ -233,11 +257,15 @@ def test_loop_recovers_from_a_real_tsci_syntax_error(tmp_path):
 
 
 def test_loop_fixes_missing_pullups_on_attempt_2(tmp_path):
-    """Attempt 1 forgets the pull-ups, the verifier says so, attempt 2 adds them."""
+    """Attempt 1 forgets the pull-ups, the verifier says so, attempt 2 adds them.
+
+    Uses the design verifier, which refuses a .kicad_sch: this goes green once
+    loop.py passes circuit.json (V-1-loop-HUMAN.patch).
+    """
     run, model = _design(tmp_path, [
         _fenced(_tsx("sensor_no_pullups.tsx")),
         _fenced(_tsx("sensor_good.tsx")),
-    ])
+    ], verifier=make_verifier(bind=unbound))
     assert [a.rule_ids for a in run.attempts] == [["i2c.missing_pullup", "i2c.missing_pullup"], []]
     assert run.status == "passed"
     assert run.best_attempt == 2
