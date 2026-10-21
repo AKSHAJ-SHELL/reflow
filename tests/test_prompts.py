@@ -219,3 +219,37 @@ def test_package_does_not_load_unapproved_prompts():
         text = path.read_text(encoding="utf-8")
         for name in ("planner.md", "codegen.md", "fix.md"):
             assert name not in text, f"{path} references prompts/{name}"
+
+
+# ---------------------------------------------------------------------------
+# D-6a (a): a header is written value "RxC", package = pitch
+# ---------------------------------------------------------------------------
+
+def _json_fences(text: str) -> list[dict]:
+    import json
+    return [json.loads(body) for body in re.findall(r"```json\n(.*?)```", text, re.S)]
+
+
+def test_planner_tells_the_model_how_to_write_a_header():
+    text = _read("planner")
+    value_line = next(line for line in text.splitlines() if line.startswith("- value:"))
+    package_line = next(line for line in text.splitlines() if line.startswith("- package:"))
+    assert "connector" not in value_line.lower() or "1x4" in value_line
+    assert "1x4" in text and "rows" in text.lower()
+    assert "2.54mm" in package_line and "pitch" in package_line.lower()
+
+
+def test_planner_example_plan_is_strict_and_its_header_is_findable():
+    from reflow.contracts import Plan, Spec, from_dict
+    from reflow.parts.local_catalog import search
+
+    fences = _json_fences(_read("planner"))
+    spec = from_dict(Spec, next(f for f in fences if "request" in f))
+    plan = from_dict(Plan, next(f for f in fences if "parts" in f))
+    assert all(p.mpn == "" or p.mpn in spec.named_parts for p in plan.parts)
+    headers = [p for p in plan.parts if p.category == "connector"]
+    assert headers, "the example plan should show a header"
+    db = ROOT / "tests" / "data" / "parts_db" / "cache.sqlite3"
+    for part in headers:
+        assert (part.value, part.package) == ("1x4", "2.54mm")
+        assert search(part, db_path=db), f"{part.id}: the local catalog finds no header for this encoding"
