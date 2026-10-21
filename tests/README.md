@@ -11,6 +11,7 @@
 | `test_pinmap.py` | Pin maps from ST pin data and KiCad symbols (`data/pinmaps/`, licences beside them): MCP9808 vs its datasheet, STM32F103C8 across sources, disagreement reporting | installed-library case only (skips if missing) |
 | `test_verifier.py` | The design verifier on recorded `circuit.json` boards: report shape, required `bind`, refuses `.kicad_sch` | no |
 | `test_design_wiring.py` | `reflow design` from config: scripted model, real tsci and verifier, fake catalog; config and catalog errors | tsci for the end-to-end cases (skips if missing) |
+| `test_parts_snapshot.py` | `reflow parts update` on a six-part split-archive fixture (`data/snapshot/`) over file:// URLs: install, CRC and format checks, old database kept on failure | no |
 | `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
 | `test_parts_integration.py` | Plan → catalog → resolver on recorded jlcsearch responses (`data/jlcsearch_plan/`) | no |
 
