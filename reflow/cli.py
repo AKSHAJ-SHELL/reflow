@@ -10,9 +10,9 @@ policy lives in that loop, not here. Tests inject those pieces through
 Parts are resolved from a plan, so without `--plan` or `--parts` the command
 only accepts the spec (the loop plans after it checks parts, H-03).
 
-Pin binding (V-12, HUMAN) is not built: `PIN_BINDING` is None, the verifier
-runs with an explicit pass-through, and every real run prints a warning that
-the decoupling rules did not run.
+IC pins are bound to trusted pin maps before the rules run (V-12,
+`reflow.pinbind.binder_for_spec`): the rules file's `[[part]]` symbols, then
+vendor pin data. `PIN_BINDING`, when set, replaces that binder (tests).
 """
 import argparse
 import json
@@ -50,12 +50,8 @@ from reflow.rules import run_all
 MAC_KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
 SEVERITY_ORDER = {"error": 0, "warning": 1}
 
-# V-12 (HUMAN) supplies bind(netlist, parts, spec) -> Netlist here.
+# Replaces the V-12 pin binder when set: bind(netlist, parts, spec, part_numbers).
 PIN_BINDING = None
-UNBOUND_WARNING = (
-    "warning: pin binding (V-12) is not built yet, so IC pins are untyped and the "
-    "decoupling rules did not run on this board"
-)
 
 
 class InputError(Exception):
@@ -270,10 +266,9 @@ def _run_from_config(args, spec, plan, run_dir) -> int:
     resolved = _load_parts(args)
     if resolved is None:
         resolved = _resolve_from_catalog(plan, spec)
-    bind = PIN_BINDING
-    if bind is None:
-        print(UNBOUND_WARNING, file=sys.stderr)
-        bind = _unbound
+    from reflow.pinbind import binder_for_spec
+
+    bind = PIN_BINDING or binder_for_spec(spec)
     try:
         return _execute(
             spec, plan, resolved,
@@ -301,11 +296,6 @@ def _resolve_from_catalog(plan, spec) -> ResolvedParts:
     """One local-snapshot query per plan part (D-6a), then the resolver picks (or refuses) each."""
     candidates = {part.id: catalog_search(part) for part in plan.parts}
     return resolve(plan.parts, spec.named_parts, candidates)
-
-
-def _unbound(netlist, parts, spec):
-    """Stand-in until V-12: pins stay untyped (UNBOUND_WARNING is printed)."""
-    return netlist
 
 
 def _with_rules_file(spec, spec_path: Path):
@@ -459,17 +449,16 @@ def cmd_rules_check(args) -> int:
 
 def cmd_eval(args) -> int:
     from reflow.evals import run_evals
+    from reflow.pinbind import binder_for_spec
 
     try:
         config = load_config()
         model = load_model(config)
-        if PIN_BINDING is None:
-            print(UNBOUND_WARNING, file=sys.stderr)
         summary = run_evals(
             Path(args.evals),
             make_model=lambda name: model,
             compiler=compile_board,
-            bind=PIN_BINDING,
+            make_bind=(lambda spec: PIN_BINDING) if PIN_BINDING else binder_for_spec,
             runs_dir=Path(args.runs),
             out_dir=Path(args.out),
             only=args.only,

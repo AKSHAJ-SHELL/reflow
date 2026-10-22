@@ -18,6 +18,7 @@
 | `test_eval_runner.py` | The eval runner with a scripted model, real tsci and verifier, and the parts fixture: pass rates, foreign part numbers, expectation misses, errors, go/no-go, results file, `reflow eval` | tsci (skips if missing); about 2 minutes |
 | `test_project_rules.py` | `rules.toml` parsing and `reflow rules check`: required why/source, field errors, unknown pins, uncovered power/reset/boot pins | no |
 | `test_rules_prompt.py` | Project rules rendered for the codegen/fix prompts (no why/source), `reflow design` resolving and checking `rules_file`, `[[part]]` pin maps in `reflow rules check`; one test is red until `docs/proposals/V-22-loop-HUMAN.patch` is applied | no |
+| `test_pinbind.py` | V-12 pin binding on the first real board (`data/real_runs/`): its wrong MCP9808 pinout is reported pin by pin, the corrected board binds clean, bound power pins let decoupling run, unidentified / unmapped chips are errors | no |
 | `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
 
 Run: `pytest -q`. **Never weaken a test** (docs/agents/04-testing-rules.md).

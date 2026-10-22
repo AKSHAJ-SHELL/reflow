@@ -30,7 +30,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 |---|---|---|---|---|---|---|---|
 | V-10 | `circuit.json` → `Netlist` loader | `CompileResult.circuit_json` | `reflow/circuit_netlist.py` | recorded sensor boards load with the traced nets; rules on them give the planted bug only; malformed input raises | V-1 | AGENT | done (10-20) |
 | V-11 | Pin-map importer (vendor pin data, then KiCad symbol; signed card overrides) | LCSC id / MPN + package | pin map per IC | MCP9808 and STM32F103C8 maps match their datasheets; a disagreement between sources is reported | V-1 | AGENT | done (10-20) |
-| V-12 | Bind ICs to pin maps: relabel pins by physical number | Netlist, ResolvedParts, pin maps | card-labelled Netlist | wrong TSX pinout → mismatch findings; no pin map → finding | V-10, V-11 | HUMAN | todo |
+| V-12 | Bind ICs to pin maps: relabel pins by physical number | Netlist, ResolvedParts, pin maps | card-labelled Netlist | wrong TSX pinout → mismatch findings; no pin map → finding | V-10, V-11 | AGENT→HUMAN (O-1b: human reviews the diff) | doing (awaiting human review) |
 | V-13 | Rules `parts.no_card`, `pinout.mismatch`, `verify.pcb_mismatch`, and how shorted named nets surface | V-12 output | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
 | V-14 | `.kicad_pcb` pad-net reader | `CompileResult.kicad_pcb` | {(ref, pad): net} | recorded board matches its `circuit.json` nets | — | AGENT | done (10-20) |
 | V-16 | Verifier adapter `(circuit_json, ResolvedParts, Spec) → VerifyReport` | V-10..V-14 | callable for `run_design` | integration tests in `tests/test_integration.py` go green on the circuit.json path | V-10..V-14 | AGENT | done (10-20); loop test green once loop patch applied |

@@ -1,9 +1,9 @@
 """V-16: the design verifier, circuit.json -> VerifyReport (docs/04-contracts.md §5).
 
 Uses the recorded boards in tests/data/circuit_json/. Binding IC pins to a
-trusted pin map is V-12 (HUMAN), so every call here passes a `bind` step
-explicitly. `unbound` returns the netlist unchanged, which means no pin is
-typed power and the decoupling rules cannot fire.
+trusted pin map is V-12 (`reflow.pinbind`, tested in tests/test_pinbind.py), so
+every call here passes a `bind` step explicitly. `unbound` returns the netlist
+unchanged, which means no pin is typed power and the decoupling rules cannot fire.
 """
 import json
 from pathlib import Path
@@ -23,7 +23,7 @@ def _spec() -> Spec:
     return from_dict(Spec, json.loads((ROOT / "docs" / "examples" / "spec.json").read_text(encoding="utf-8")))
 
 
-def unbound(netlist, parts, spec):
+def unbound(netlist, parts, spec, part_numbers):
     return netlist
 
 
@@ -55,7 +55,7 @@ def test_the_rules_see_the_netlist_bind_returns():
     """A bind step that types U1 pin 8 as power is what lets decoupling.series fire."""
     calls = []
 
-    def power_on_vdd(netlist, parts, spec):
+    def power_on_vdd(netlist, parts, spec, part_numbers):
         calls.append((parts, spec.title))
         netlist.components["U1"].pins["8"].pintype = "power_in"
         return netlist
@@ -75,7 +75,7 @@ def test_bind_is_required():
 
 def test_bind_must_return_a_netlist():
     with pytest.raises(VerifierInputError, match="bind"):
-        verify_circuit_json(DATA / "sensor_good.circuit.json", PARTS, _spec(), bind=lambda nl, p, s: None)
+        verify_circuit_json(DATA / "sensor_good.circuit.json", PARTS, _spec(), bind=lambda nl, p, s, ids: None)
 
 
 def test_a_kicad_schematic_is_refused():

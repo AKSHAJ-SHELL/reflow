@@ -5,9 +5,11 @@ Only the model is scripted. Everything a board passes through after the model
 the code a live run uses. Skips cleanly when tsci or kicad-cli is missing
 (docs/agents/04-testing-rules.md rule 9).
 
-The design verifier needs a pin-binding step (V-12, HUMAN, not built yet).
-These tests pass `unbound`, which leaves pins untyped, so the decoupling
-rules cannot fire here; the I2C rules work on pin names and do.
+The design verifier needs a pin-binding step (V-12, `reflow.pinbind`). These
+boards' U1 is a generic chip with no part number, so there is no pin map to
+bind it to; these tests pass `unbound`, which leaves pins untyped (decoupling
+rules can't fire; the I2C rules work on pin names and do). Binding against
+real pin maps is tested in tests/test_pinbind.py and tests/test_design_wiring.py.
 
 `verify_kicad_sch` is the old path through tscircuit's .kicad_sch export. It
 is kept only for tests about that export, which loses connectivity (V-1).
@@ -64,8 +66,8 @@ def _netlist(kicad_sch: str, tmp: Path):
     return load_netlist(export_netlist(KICAD_CLI, Path(kicad_sch), tmp / "board.net"))
 
 
-def unbound(netlist, parts, spec):
-    """Stand-in for V-12's pin binding: returns the netlist unchanged."""
+def unbound(netlist, parts, spec, part_numbers):
+    """No pin binding: these boards' U1 carries no part number (tests/test_pinbind.py covers binding)."""
     return netlist
 
 

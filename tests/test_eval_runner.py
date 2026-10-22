@@ -181,7 +181,7 @@ def test_results_file_records_what_the_run_used(tmp_path):
     assert saved == summary
     run = saved["run"]
     assert run["model"] == "scripted/eval"
-    assert run["pin_binding"] == "none (V-12 not built)"
+    assert run["pin_binding"] == "none (pins not bound to pin maps)"
     assert run["parts_db"] == str(DB)
     assert run["commit"] and run["tsci"]
     assert Path(saved["boards"][0]["run_dir"]).is_dir()
@@ -212,9 +212,16 @@ def test_reflow_eval_runs_from_config(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("REFLOW_MODEL", "test-model")
     monkeypatch.setenv("REFLOW_BASE_URL", "https://example.invalid")
     monkeypatch.setenv("REFLOW_PARTS_DB", str(DB))
-    monkeypatch.setattr(cli, "load_model", lambda config: Scripted([_tsx(GOOD)]))
+    # Pins are bound for real here (V-12): give the board a rules file naming the
+    # MCP9808's KiCad symbol, and reply with the corrected first-real-run board.
+    shutil.copy(ROOT / "docs" / "proposals" / "examples" / "rules.toml", evals / "a" / "rules.toml")
+    _set(evals / "a", "spec.json", '"rules_file": ""', '"rules_file": "rules.toml"')
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(ROOT / "tests" / "data" / "pinmaps" / "kicad"))
+    corrected = (ROOT / "tests" / "data" / "real_runs" / "mcp9808_nemotron_20261022" / "corrected.tsx").read_text(encoding="utf-8")
+    monkeypatch.setattr(cli, "load_model", lambda config: Scripted(["```tsx\n" + corrected + "```\n"]))
     code = cli.main(["eval", "--evals", str(evals), "--out", str(tmp_path / "results")])
     out, err = capsys.readouterr()
     assert code == 0, err
     assert "1/1 passed" in out and "undecided" in out
-    assert "V-12" in err
+    saved = json.loads(next((tmp_path / "results").glob("*.json")).read_text(encoding="utf-8"))
+    assert saved["run"]["pin_binding"] == "reflow.pinbind.binder_for_spec"

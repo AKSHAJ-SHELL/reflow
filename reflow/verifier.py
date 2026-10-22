@@ -10,12 +10,14 @@ Contract
 Steps, in order:
 1. `load_circuit_json` (V-10) builds the Netlist from tscircuit's own
    connectivity. Pins are untyped and carry the design's labels.
-2. `bind(netlist, parts, spec)` returns the Netlist the rules will see. This is
-   where IC pins are relabelled and typed from trusted pin maps (V-12, HUMAN).
-   It is required on purpose: without it no pin is typed power, so the
-   decoupling rules cannot fire, and that must be a visible choice in the
-   caller's code rather than a silent default here.
-3. `run_all` on the bound Netlist; violations sorted as `reflow check` sorts them.
+2. `bind(netlist, parts, spec, part_numbers)` relabels and types IC pins from
+   trusted pin maps (V-12, `reflow.pinbind`). `part_numbers` is what each
+   component carries in circuit.json. It returns a `pinbind.BindResult`
+   (netlist + its own `pinout.*` violations) or just a Netlist. It is required
+   on purpose: without it no pin is typed power, so the decoupling rules
+   cannot fire, and that must be a visible choice in the caller's code.
+3. `run_all` on the bound Netlist, plus the binder's violations, sorted as
+   `reflow check` sorts them.
 
 `VerifyReport.schematic` is the circuit.json file name. Field values match
 `reflow check --json` for the same violations.
@@ -32,20 +34,21 @@ Must never
 ----------
 - verify tscircuit's .kicad_sch,
 - type or rename pins itself, or skip `bind`,
-- send anything to a model or read a part number from the design.
+- send anything to a model, or treat a part number the design carries as resolved
+  (the binder only matches those against ResolvedParts rows).
 """
 from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
 
-from reflow.circuit_netlist import load_circuit_json
+from reflow.circuit_netlist import load_circuit_json, part_numbers
 from reflow.cli import sort_violations
 from reflow.contracts import ResolvedParts, Spec, VerifyReport
 from reflow.netlist import Netlist
 from reflow.rules import run_all
 
-Bind = Callable[[Netlist, ResolvedParts, Spec], Netlist]
+Bind = Callable[[Netlist, ResolvedParts, Spec, dict], object]
 
 
 class VerifierInputError(ValueError):
@@ -59,10 +62,11 @@ def verify_circuit_json(circuit_json, parts: ResolvedParts, spec: Spec, *, bind:
             f"{path.name}: the design verifier reads circuit.json, never tscircuit's .kicad_sch "
             "(V-1). loop.py must pass compile_result.circuit_json (docs/proposals/V-1-loop-HUMAN.patch)."
         )
-    netlist = bind(load_circuit_json(path), parts, spec)
+    bound = bind(load_circuit_json(path), parts, spec, part_numbers(path))
+    netlist, bind_violations = getattr(bound, "netlist", bound), list(getattr(bound, "violations", []))
     if not isinstance(netlist, Netlist):
-        raise VerifierInputError(f"bind returned {type(netlist).__name__}, not a Netlist")
-    violations = sort_violations(run_all(netlist))
+        raise VerifierInputError(f"bind returned {type(bound).__name__}, not a Netlist or BindResult")
+    violations = sort_violations(run_all(netlist) + bind_violations)
     errors = sum(v.severity == "error" for v in violations)
     return VerifyReport(
         schematic=path.name,
