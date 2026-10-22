@@ -435,3 +435,44 @@ Tests:
 - test_a_rules_file_is_read_and_rendered now sets REFLOW_KICAD_SYMBOL_DIR to the test symbols, since rendering reads the symbol.
 - Four sabotages each turn the suite red: no pin maps, sorting pins as text, base_name'd labels, dropping the prompt wording.
 - `pytest -q` → 532 passed, 3 failed: the unpowered pull-up rail test (on purpose, HUMAN rule), the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (local reflow.toml).
+
+## 2026-10-22 · all 5 evals on Lightning with pin tables (run 20261022T204747Z)
+`reflow eval` after V-22a (4766725). 20,198 in / 140,784 out tokens (down from 233k); 0 part numbers outside the resolver.
+- Summary: 3/5 passed, all on attempt 1 (at24c02, led, pcf8574); 2 clean.
+- Every board that compiled had the right pinout on the first try. Before, AT24C02 and PCF8574 never converged.
+**Per board:**
+- **ams1117_regulator** (failed_verify):
+  - Attempt 1: compile try 1 used `footprint="SOT-223"` (invalid); try 2 compiled with 1 error, a pinout.mismatch on pin 4. That's the SOT-223 tab: tscircuit's footprint has a 4th pad, and KiCad's AMS1117-3.3 symbol has 3 pins, so this is a false error from the pin map. It needs the human's call (V-12 review).
+  - Attempt 2: "no code fence", then SOT-223 again. The compile cap ran out and the run ended, without attempt 3.
+- **at24c02_eeprom** (passed on attempt 1, not clean): pinout correct and everything wired, but WP is tied to V3_3, which write-protects the EEPROM. The draft expects GND. The rules file has no rules yet, so the verifier can't know; a datasheet rule "U1.WP tie GND" would catch it.
+- **led_indicator** (passed and clean on attempt 1).
+- **mcp9808_breakout** (failed_compile in attempt 1, so the run ended):
+  - Compile try 1: the extracted TSX began with a literal "```tsx" line, so tsci saw a backtick template string that never ends ("Unterminated string literal"). The reply probably nested or doubled its fence: `extract_code_fence` returns the body of "```\n```tsx\n…```" with the inner opener included. The try-1 reply itself is lost, because response.md keeps only the last try.
+  - Try 2: the reply was bare TSX with no fence → "no code fence".
+- **pcf8574_expander** (passed and clean on attempt 1): every pin correct; INT left open.
+**Biggest levers now:**
+1. Running out of the compile cap ends the whole run (loop.py, HUMAN). That's what ended mcp9808 and ams1117.
+2. Code-fence handling (codefence.py, AGENT): tolerate a doubled opener, keep every try's reply.
+3. Footprint names in codegen.md (SOT-223 → sot223).
+4. The AMS1117 tab pin.
+5. Datasheet rules for the AT24C02 (WP).
+
+## 2026-10-22 · agent (Claude) · E-01: eval runner reports stage, retries model calls, repeats runs, hashes prompts
+Did: at the human's request, in `reflow/evals.py` and `reflow eval`:
+- **Stage:** each board's `stage` says where it stopped: parts, model, compile, pin_binding (a `pinout.*` error in the best attempt's verify.json), rules, part_numbers, expectations, tool, or none (clean). Before, everything collapsed into failed_verify.
+- **Model retries:**
+  - A failed model call (any ModelError: timeout, empty or cut-off reply, provider error) is retried `model_retries` times (default 2). It waits `retry_wait_s` × the retry number between tries (default 10 s, then 20 s).
+  - Each board records `model_retries` and the retried errors.
+  - Totals give `model_errors` apart from `design_failures` (compile, pin_binding, rules, part_numbers, expectations), plus `by_stage`.
+  - The go/no-go reason mentions runs lost to model errors.
+- **Repeats:**
+  - `--repeat N` / `repeats=N` runs each board N times. `boards` has one entry per run (`repeat`), and run folders are `<board>/run<N>`.
+  - `by_board` gives runs, passed, first_pass, clean, model_errors, pass_rate, clean_rate, stages and `clean_majority`.
+  - The go/no-go counts a board clean when more than half its runs were clean. With N = 1 that's the same as before.
+- **Prompt hashes:** the run info records `repeats`, `model_retries`, a SHA-256 per prompts/*.md and one `prompts_hash` over them.
+- **CLI:** prints each run's stage and retries, per-board rates when N > 1, and "X model error(s), Y design failure(s)".
+Not done here: tracking which errors came back attempt after attempt (the loop going in circles).
+Tests:
+- 8 new in tests/test_eval_runner.py failed first: stage for clean/rules/expectations/compile/parts; pin_binding through a binder's pinout error; a flaky model retried with waits 10, 20; a model that keeps failing (3 calls) counted as a model error, not a design failure; 3 repeats with separate run folders and rates; majority-clean go/no-go over 5 checked boards; prompt hashes; `reflow eval --repeat 2` output.
+- Six sabotages each turn the suite red: no retry, no pin_binding stage, shared run folder, one clean run counts, hashing the file name, model errors counted as design failures.
+- `pytest -q` → 540 passed, 3 failed: the unpowered pull-up rail test (on purpose, HUMAN rule), the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (local reflow.toml).

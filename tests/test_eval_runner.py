@@ -225,3 +225,174 @@ def test_reflow_eval_runs_from_config(tmp_path, monkeypatch, capsys):
     assert "1/1 passed" in out and "undecided" in out
     saved = json.loads(next((tmp_path / "results").glob("*.json")).read_text(encoding="utf-8"))
     assert saved["run"]["pin_binding"] == "reflow.pinbind.binder_for_spec"
+
+
+# ---------------------------------------------------------------------------
+# where each board stopped, model retries, repeated runs, prompt hashes
+# ---------------------------------------------------------------------------
+
+class Flaky:
+    """Raises ModelError `fails` times, then answers from `replies`."""
+
+    def __init__(self, fails: int, replies: list[str]) -> None:
+        self.fails, self.calls, self.inner = fails, 0, Scripted(replies)
+
+    def complete(self, system, prompt, *, max_tokens=None):
+        from reflow.llm import ModelError
+
+        self.calls += 1
+        if self.calls <= self.fails:
+            raise ModelError(f"Upstream idle timeout exceeded (code 504), call {self.calls}")
+        return self.inner.complete(system, prompt)
+
+
+def _quiet(**kw):
+    """No real waiting between model retries in tests."""
+    waits = []
+    return waits, dict(sleep=waits.append, **kw)
+
+
+def test_each_board_reports_the_stage_it_stopped_at(tmp_path):
+    names = ["clean", "rules", "expectations", "compile", "parts"]
+    evals = _evals(tmp_path, names)
+    _set(evals / "expectations", "expected.toml", "resistor = 2", "resistor = 3")
+    _set(evals / "parts", "plan.json", '"package": "MSOP-8"', '"package": "SOT-23"')
+    replies = {"clean": [_tsx(GOOD)], "rules": [_tsx(NO_PULLUPS)] * 3, "expectations": [_tsx(GOOD)],
+               "compile": ["no code here"] * 6, "parts": []}
+    _, kw = _quiet()
+    by = {b["name"]: b for b in _run(tmp_path, evals, replies, **kw)["boards"]}
+    assert {n: by[n]["stage"] for n in names} == {
+        "clean": "none", "rules": "rules", "expectations": "expectations", "compile": "compile", "parts": "parts",
+    }
+
+
+def test_a_pinout_error_stops_at_pin_binding(tmp_path):
+    from reflow.pinbind import BindResult
+    from reflow.violation import Violation
+
+    def wrong_pin(netlist, parts, spec, part_numbers):
+        bad = Violation("pinout.mismatch", "error", "U1 pin 8 is labelled A0, but the pin map says VDD",
+                        "why", "fix", ["U1"], ["GND"])
+        return BindResult(netlist=netlist, violations=[bad])
+
+    evals = _evals(tmp_path, ["pins"])
+    _, kw = _quiet(bind=wrong_pin)
+    models = {"pins": Scripted([_tsx(GOOD)] * 3)}
+    board = run_evals(evals, make_model=lambda n: models[n], compiler=compile_board, db_path=DB,
+                      runs_dir=tmp_path / "runs", out_dir=tmp_path / "results", **kw)["boards"][0]
+    assert board["status"] == "failed_verify"
+    assert board["stage"] == "pin_binding"
+
+
+def test_a_failed_model_call_is_retried(tmp_path):
+    evals = _evals(tmp_path, ["flaky"])
+    flaky = Flaky(2, [_tsx(GOOD)])
+    waits, kw = _quiet()
+    summary = run_evals(evals, make_model=lambda n: flaky, compiler=compile_board, bind=None, db_path=DB,
+                        runs_dir=tmp_path / "runs", out_dir=tmp_path / "results", model_retries=2,
+                        retry_wait_s=10, **kw)
+    board = summary["boards"][0]
+    assert board["status"] == "passed" and board["stage"] == "none"
+    assert board["model_retries"] == 2
+    assert [e.startswith("ModelError: Upstream idle timeout") for e in board["model_errors_retried"]] == [True, True]
+    assert waits == [10, 20]
+    assert summary["totals"]["model_errors"] == 0
+
+
+def test_a_model_that_keeps_failing_is_a_model_error_not_a_design_failure(tmp_path):
+    evals = _evals(tmp_path, ["down", "bad_design"])
+    models = {"down": Flaky(99, []), "bad_design": Scripted([_tsx(NO_PULLUPS)] * 3)}
+    _, kw = _quiet()
+    summary = run_evals(evals, make_model=lambda n: models[n], compiler=compile_board, bind=None, db_path=DB,
+                        runs_dir=tmp_path / "runs", out_dir=tmp_path / "results", model_retries=2, **kw)
+    by = {b["name"]: b for b in summary["boards"]}
+    assert by["down"]["status"] == "error" and by["down"]["stage"] == "model"
+    assert models["down"].calls == 3
+    totals = summary["totals"]
+    assert totals["model_errors"] == 1
+    assert totals["design_failures"] == 1
+    assert totals["by_stage"] == {"model": 1, "rules": 1}
+
+
+def test_repeats_run_each_board_n_times_and_report_rates(tmp_path):
+    evals = _evals(tmp_path, ["a"])
+    runs = iter([Scripted([_tsx(GOOD)]), Scripted([_tsx(NO_PULLUPS)] * 3), Scripted([_tsx(NO_PULLUPS), _tsx(GOOD)])])
+    _, kw = _quiet()
+    summary = run_evals(evals, make_model=lambda n: next(runs), compiler=compile_board, bind=None, db_path=DB,
+                        runs_dir=tmp_path / "runs", out_dir=tmp_path / "results", repeats=3, **kw)
+    boards = summary["boards"]
+    assert [(b["name"], b["repeat"], b["status"]) for b in boards] == [
+        ("a", 1, "passed"), ("a", 2, "failed_verify"), ("a", 3, "passed"),
+    ]
+    assert len({b["run_dir"] for b in boards}) == 3 and all(Path(b["run_dir"]).is_dir() for b in boards)
+    rates = summary["by_board"]["a"]
+    assert rates["runs"] == 3 and rates["passed"] == 2 and rates["first_pass"] == 1
+    assert rates["pass_rate"] == pytest.approx(2 / 3)
+    assert rates["stages"] == {"none": 2, "rules": 1}
+    assert rates["clean"] == 2 and rates["clean_rate"] == pytest.approx(2 / 3) and rates["clean_majority"] is True
+    assert summary["run"]["repeats"] == 3
+
+
+def test_with_repeats_a_board_counts_clean_when_most_of_its_runs_are(tmp_path):
+    names = ["a", "b", "c", "d", "e"]
+    evals = _evals(tmp_path, names)
+    for name in names:
+        _set(evals / name, "expected.toml", 'status = "draft"\nchecked_by = ""', 'status = "checked"\nchecked_by = "tester"')
+    good, bad = (lambda: Scripted([_tsx(GOOD)])), (lambda: Scripted([_tsx(NO_PULLUPS)] * 3))
+    plan = {"a": [good, good, bad], "b": [good, bad, good], "c": [bad, good, good],
+            "d": [good, bad, bad], "e": [bad, bad, bad]}
+    queues = {n: iter(f() for f in fs) for n, fs in plan.items()}
+    _, kw = _quiet()
+    summary = run_evals(evals, make_model=lambda n: next(queues[n]), compiler=compile_board, bind=None, db_path=DB,
+                        runs_dir=tmp_path / "runs", out_dir=tmp_path / "results", repeats=3, **kw)
+    assert {n: summary["by_board"][n]["clean_majority"] for n in names} == {
+        "a": True, "b": True, "c": True, "d": False, "e": False,
+    }
+    assert summary["go_no_go"]["decision"] == "go"
+    assert "3/5" in summary["go_no_go"]["reason"]
+
+
+def test_results_record_a_hash_of_each_prompt(tmp_path):
+    import hashlib
+
+    evals = _evals(tmp_path, ["a"])
+    _, kw = _quiet()
+    run = _run(tmp_path, evals, {"a": [_tsx(GOOD)]}, **kw)["run"]
+    files = sorted(p for p in (ROOT / "prompts").glob("*.md") if p.name != "README.md")
+    assert sorted(run["prompts"]) == [p.name for p in files]
+    for path in files:
+        assert run["prompts"][path.name] == hashlib.sha256(path.read_bytes()).hexdigest()
+    combined = hashlib.sha256("".join(f"{p.name}:{run['prompts'][p.name]}\n" for p in files).encode()).hexdigest()
+    assert run["prompts_hash"] == combined
+
+
+def test_reflow_eval_passes_repeat_through_and_prints_rates(tmp_path, monkeypatch, capsys):
+    import reflow.evals as evals_module
+
+    seen = {}
+
+    def fake_run_evals(evals_dir, **kw):
+        seen.update(kw)
+        board = {"name": "a", "repeat": 1, "status": "passed", "stage": "none", "attempts": 1, "clean": True,
+                 "foreign_part_numbers": [], "abort_reason": "", "error": "", "expectation_misses": [],
+                 "model_retries": 1}
+        return {
+            "boards": [board, dict(board, repeat=2, status="failed_verify", stage="rules", clean=False)],
+            "by_board": {"a": {"runs": 2, "passed": 1, "first_pass": 1, "clean": 1, "pass_rate": 0.5,
+                               "clean_rate": 0.5, "clean_majority": True, "stages": {"none": 1, "rules": 1}}},
+            "totals": {"boards": 2, "passed": 1, "first_pass": 1, "clean": 1, "foreign_part_numbers": 0,
+                       "input_tokens": 1, "output_tokens": 2, "model_errors": 0, "design_failures": 1,
+                       "by_stage": {"none": 1, "rules": 1}},
+            "go_no_go": {"decision": "undecided", "reason": "draft"},
+        }
+
+    monkeypatch.setattr(evals_module, "run_evals", fake_run_evals)
+    monkeypatch.setattr(cli, "load_config", lambda: {"max_attempts": 3, "compile_cap": 2})
+    monkeypatch.setattr(cli, "load_model", lambda config: Scripted([]))
+    assert cli.main(["eval", "--evals", str(tmp_path), "--repeat", "2"]) == 0
+    assert seen["repeats"] == 2
+    out = capsys.readouterr().out
+    assert "a run 1/2: passed (stage none)" in out
+    assert "a run 2/2: failed_verify (stage rules)" in out
+    assert "a: 1/2 passed, 1/2 clean" in out
+    assert "0 model error(s), 1 design failure(s)" in out
