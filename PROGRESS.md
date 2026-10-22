@@ -191,3 +191,14 @@ For the human reviewer:
 - The planner prompt leaves an IC's package empty, so a model-made plan for MCP9808 will hit the package question until the planner asks the user for it.
 Tests: 12 new tests in `tests/test_resolver.py`. 9 failed first (3 already passed: exact match, never matching a shorter MPN, "" category not filtered); the local plan test failed first. One bug in my own test helper (category passed twice) fixed. Then test_resolver + test_local_catalog 64 passed, and every pre-existing P-02 test still passes. Five in-process sabotages (no category check, no variant check, exact-only, ignore row date, literal connector package) → red each time. Real snapshot: MCP9808 asks MSOP-8 or DFN; with MSOP-8 → C129490 MCP9808T-E/MS (row date 2026-10-16); AT24C02 → C688857; KT-0603R → C2286; PCF8574 / PCF8574T / TMP102 ask which variant. `pytest -q` → 4 failed, 391 passed: the same 4 known failures. The jlcsearch C2 test still picks the LED, because jlcsearch gives no category; P-06 replaces it.
 Next: the human reviews the resolver.py diff; then E-02 drafts.
+
+## 2026-10-21 · agent (Claude) · E-02 drafts (awaiting human check)
+Did: under O-1, drafted five eval boards in `evals/` (README explains the format), each with request.txt, a confirmed spec.json, a hand-written plan.json and expected.toml (`status = "draft"`, `checked_by = ""`):
+- mcp9808_breakout: MCP9808, MSOP-8;
+- at24c02_eeprom: AT24C02, SOP-8;
+- ams1117_regulator: AMS1117-3.3, SOT-223;
+- pcf8574_expander: the exact PCF8574T/3,518, because the family "PCF8574" also matches PCF8574A;
+- led_indicator: KT-0603R + 1k.
+Plans use only what the local catalog supports (resistors, capacitors, D-6a headers, named parts with a package). Only the MCP9808 expectations cite pages that were read (DS20005095B). Every line marked `TO CHECK` (AT24C02, AMS1117, PCF8574, KT-0603R pin names, strap levels and capacitor needs) is unverified. In particular the AMS1117 output-capacitor requirement and the LED cathode pad must be checked against their datasheets. Added `tests/test_evals.py`, a structural checker for every eval folder.
+Tests: `tests/test_evals.py` 16 passed. Planting two mistakes (a header with an empty value; a named part not in the request) turned it red, and restoring them turned it green. On the real snapshot, every part of all five plans resolves, 24/24: C129490, C688857, C6186, C7605, C2286, plus basic passives. `pytest -q` → 4 failed, 407 passed: the same 4 known failures.
+Next: the human checks each expected.toml against the datasheets and sets status "checked". Then E-01 (eval runner, AGENT).

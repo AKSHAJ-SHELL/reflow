@@ -1,0 +1,1 @@
+Power indicator: a KT-0603R red LED with a 1k resistor, powered from a 2-pin 3.3V header

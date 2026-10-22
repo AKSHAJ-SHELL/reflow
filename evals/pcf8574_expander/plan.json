@@ -1,0 +1,104 @@
+{
+  "blocks": [
+    {
+      "name": "expander",
+      "purpose": "PCF8574 with decoupling and address straps",
+      "part_ids": [
+        "p1",
+        "p2"
+      ]
+    },
+    {
+      "name": "interface",
+      "purpose": "I2C header with pull-ups, GPIO header",
+      "part_ids": [
+        "p3",
+        "p4",
+        "p5",
+        "p6"
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "id": "p1",
+      "role": "I2C GPIO expander",
+      "category": "ic",
+      "value": "",
+      "package": "SOIC-16-300mil",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "PCF8574T/3,518",
+      "notes": ""
+    },
+    {
+      "id": "p2",
+      "role": "decoupling cap for U1 VDD",
+      "category": "capacitor",
+      "value": "100nF",
+      "package": "0402",
+      "tolerance": "",
+      "voltage": "10V",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p3",
+      "role": "SDA pull-up",
+      "category": "resistor",
+      "value": "4.7k",
+      "package": "0402",
+      "tolerance": "1%",
+      "voltage": "",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p4",
+      "role": "SCL pull-up",
+      "category": "resistor",
+      "value": "4.7k",
+      "package": "0402",
+      "tolerance": "1%",
+      "voltage": "",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p5",
+      "role": "I2C header",
+      "category": "connector",
+      "value": "1x4",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header"
+    },
+    {
+      "id": "p6",
+      "role": "GPIO header",
+      "category": "connector",
+      "value": "1x8",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header"
+    }
+  ],
+  "nets": [
+    "V3_3",
+    "GND",
+    "SDA",
+    "SCL",
+    "P0",
+    "P1",
+    "P2",
+    "P3",
+    "P4",
+    "P5",
+    "P6",
+    "P7"
+  ]
+}

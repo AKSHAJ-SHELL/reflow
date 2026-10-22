@@ -1,0 +1,17 @@
+{
+  "request": "Power indicator: a KT-0603R red LED with a 1k resistor, powered from a 2-pin 3.3V header",
+  "title": "LED power indicator",
+  "power": "3.3V supplied on the header",
+  "interfaces": [
+    "2-pin 2.54 mm header: 3V3, GND"
+  ],
+  "constraints": [
+    "2 layers"
+  ],
+  "named_parts": [
+    "KT-0603R"
+  ],
+  "open_questions": [],
+  "confirmed": true,
+  "rules_file": ""
+}
