@@ -5,6 +5,7 @@ on `reflow.cli`. The compiler and the verifier are the real ones (the
 end-to-end tests need tsci and skip without it).
 """
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -19,7 +20,46 @@ from reflow.parts.catalog import CatalogError, CatalogPart
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "docs" / "examples"
 TSX = ROOT / "tests" / "data" / "integration"
+REAL = ROOT / "tests" / "data" / "real_runs" / "mcp9808_nemotron_20261022"
+BOARD = ROOT / "evals" / "mcp9808_breakout"
 needs_tsci = pytest.mark.skipif(find_tsci() is None, reason="tsci not installed")
+
+
+def _fence(text: str) -> str:
+    return "```tsx\n" + text + "```\n"
+
+
+def _without_pullups(text: str) -> str:
+    text = re.sub(r'\s*<resistor\s+name="R[12]".*?/>', "", text, flags=re.S)
+    return "\n".join(line for line in text.splitlines() if ".R1 >" not in line and ".R2 >" not in line) + "\n"
+
+
+CORRECTED = (REAL / "corrected.tsx").read_text(encoding="utf-8")
+WRONG_PINOUT = (REAL / "index.circuit.tsx").read_text(encoding="utf-8")
+
+
+@pytest.fixture
+def bound_workspace(workspace, monkeypatch):
+    """The MCP9808 eval board with real pin binding: the real local catalog on the
+    parts fixture, and a rules file naming the MCP9808's KiCad symbol."""
+    from reflow.parts.local_catalog import search
+
+    for name in ("spec.json", "plan.json"):
+        shutil.copy(BOARD / name, workspace / name)
+    spec = json.loads((workspace / "spec.json").read_text(encoding="utf-8"))
+    spec["rules_file"] = "rules.toml"
+    (workspace / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
+    shutil.copy(ROOT / "docs" / "proposals" / "examples" / "rules.toml", workspace / "rules.toml")
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(ROOT / "tests" / "data" / "pinmaps" / "kicad"))
+    db = ROOT / "tests" / "data" / "parts_db" / "cache.sqlite3"
+    searches: list = []
+
+    def counting(request):
+        searches.append(request.id)
+        return search(request, db_path=db)
+
+    monkeypatch.setattr(cli, "catalog_search", counting)
+    return workspace, searches
 
 
 @pytest.fixture
@@ -39,8 +79,9 @@ def workspace(tmp_path, monkeypatch):
 
 
 class ScriptedModel:
-    def __init__(self, tsx_files: list[str]) -> None:
+    def __init__(self, tsx_files: list[str] = (), *, texts: list[str] = ()) -> None:
         self.replies = ["```tsx\n" + (TSX / name).read_text(encoding="utf-8") + "```\n" for name in tsx_files]
+        self.replies += [_fence(t) for t in texts]
         self.calls = 0
 
     def complete(self, system, prompt, *, max_tokens=4096):
@@ -79,11 +120,11 @@ def _run(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 @needs_tsci
-def test_design_runs_from_config_to_a_verified_board(workspace, monkeypatch, capsys):
-    seen, searches = [], []
-    model = ScriptedModel(["sensor_no_pullups.tsx", "sensor_good.tsx"])
+def test_design_runs_from_config_to_a_verified_board(bound_workspace, monkeypatch, capsys):
+    workspace, searches = bound_workspace
+    seen = []
+    model = ScriptedModel(texts=[_without_pullups(CORRECTED), CORRECTED])
     _use_model(monkeypatch, model, seen)
-    monkeypatch.setattr(cli, "catalog_search", _catalog(searches))
 
     code = _run(["--plan", "plan.json", "--run-dir", "run"])
     out, err = capsys.readouterr()
@@ -101,14 +142,29 @@ def test_design_runs_from_config_to_a_verified_board(workspace, monkeypatch, cap
     assert [p["request_id"] for p in parts["resolved"]] == ["p1", "p2", "p3", "p4", "p5"]
     assert "status=passed" in out
     assert "AI-designed" not in out and "routed" not in out.lower()
-    assert "V-12" in err and "decoupling" in err      # the unbound-pins warning, every real run
+    assert "pin binding" not in err                   # pins are bound now (V-12); no unbound warning
 
 
 @needs_tsci
-def test_caps_come_from_config(workspace, monkeypatch, capsys):
+def test_a_wrong_pinout_fails_verify_and_the_corrected_board_passes(bound_workspace, monkeypatch, capsys):
+    """The first real run's board (MCP9808 VDD wired to GND) on attempt 1, the fix on attempt 2."""
+    workspace, _ = bound_workspace
+    _use_model(monkeypatch, ScriptedModel(texts=[WRONG_PINOUT, CORRECTED]))
+    code = _run(["--plan", "plan.json", "--run-dir", "run"])
+    capsys.readouterr()
+    run = from_dict(RunResult, json.loads((workspace / "run" / "run.json").read_text(encoding="utf-8")))
+    assert code == 0
+    assert run.attempts[0].rule_ids.count("pinout.mismatch") == 3
+    assert (run.status, run.best_attempt) == ("passed", 2)
+    feedback = (workspace / "run" / "attempts" / "02" / "prompt.md").read_text(encoding="utf-8")
+    assert "rule_id: pinout.mismatch" in feedback and 'pin8: "VDD"' in feedback
+
+
+@needs_tsci
+def test_caps_come_from_config(bound_workspace, monkeypatch, capsys):
+    workspace, _ = bound_workspace
     monkeypatch.setenv("REFLOW_MAX_ATTEMPTS", "1")
-    _use_model(monkeypatch, ScriptedModel(["sensor_no_pullups.tsx"]))
-    monkeypatch.setattr(cli, "catalog_search", _catalog([]))
+    _use_model(monkeypatch, ScriptedModel(texts=[_without_pullups(CORRECTED)]))
     code = _run(["--plan", "plan.json", "--run-dir", "run"])
     capsys.readouterr()
     run = from_dict(RunResult, json.loads((workspace / "run" / "run.json").read_text(encoding="utf-8")))
@@ -121,11 +177,10 @@ def test_caps_come_from_config(workspace, monkeypatch, capsys):
 # ---------------------------------------------------------------------------
 
 @needs_tsci
-def test_a_parts_file_skips_the_catalog(workspace, monkeypatch, capsys):
-    example = json.loads((EXAMPLES / "resolved_parts.json").read_text(encoding="utf-8"))
-    example["unresolved"] = []          # the example includes an unresolved header on purpose
-    (workspace / "parts.json").write_text(json.dumps(example), encoding="utf-8")
-    _use_model(monkeypatch, ScriptedModel(["sensor_good.tsx"]))
+def test_a_parts_file_skips_the_catalog(bound_workspace, monkeypatch, capsys):
+    workspace, _ = bound_workspace
+    shutil.copy(REAL / "parts.json", workspace / "parts.json")      # the real run's resolved parts
+    _use_model(monkeypatch, ScriptedModel(texts=[CORRECTED]))
 
     def no_catalog(*args, **kwargs):
         raise AssertionError("catalog queried although --parts was given")

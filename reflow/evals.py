@@ -30,8 +30,10 @@ or compiler error is recorded on that board and the run moves on. The summary
 is returned and written to `out_dir/<UTC stamp>.json` with what the run used
 (model, pin binding, parts database and snapshot, git commit, tsci version).
 
-`bind=None` means pin binding (V-12) is not built: the verifier gets a
-pass-through and the results say so.
+Pin binding: `make_bind(spec)` gives each board its binder (the CLI uses
+`reflow.pinbind.binder_for_spec`, with the board's rules_file resolved next to
+its spec). `bind` is one binder for every board. With neither, the verifier
+gets a pass-through and the results say "none".
 
 Must never
 ----------
@@ -46,10 +48,11 @@ import subprocess
 import tomllib
 from collections import Counter
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
-from reflow.circuit_netlist import CircuitJsonError, load_circuit_json
+from reflow.circuit_netlist import CircuitJsonError, load_circuit_json, part_numbers
 from reflow.compile import TsciMissingError, TsciTimeoutError, find_tsci
 from reflow.contracts import Plan, ResolvedParts, Spec, from_dict
 from reflow.harness.loop import run_design
@@ -60,7 +63,7 @@ from reflow.parts.resolver import resolve
 from reflow.parts.snapshot import default_db_path
 from reflow.verifier import VerifierInputError, make_verifier
 
-NO_BINDING = "none (V-12 not built)"
+NO_BINDING = "none (pins not bound to pin maps)"
 _PREFIX = {
     "ic": "U", "regulator": "U", "resistor": "R", "capacitor": "C", "connector": "J",
     "led": "D", "diode": "D", "inductor": "L", "transistor": "Q", "crystal": "Y", "switch": "SW",
@@ -82,23 +85,22 @@ class _Counting:
         return completion
 
 
-def run_evals(evals_dir, *, make_model: Callable[[str], object], compiler, bind=None, db_path=None,
-              runs_dir, out_dir, only: list[str] | None = None,
+def run_evals(evals_dir, *, make_model: Callable[[str], object], compiler, bind=None, make_bind=None,
+              db_path=None, runs_dir, out_dir, only: list[str] | None = None,
               max_attempts: int = 3, compile_cap: int = 2) -> dict:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     folders = sorted(p for p in Path(evals_dir).iterdir() if p.is_dir() and (p / "spec.json").is_file())
     if only:
         folders = [p for p in folders if p.name in only]
-    verifier = make_verifier(bind=bind or _passthrough)
     model_ids: set[str] = set()
     boards = []
     for folder in folders:
         model = _Counting(make_model(folder.name))
-        boards.append(_run_board(folder, model, compiler, verifier, bind or _passthrough, db_path,
+        boards.append(_run_board(folder, model, compiler, bind, make_bind, db_path,
                                  Path(runs_dir) / stamp / folder.name, max_attempts, compile_cap))
         model_ids |= model.ids
     summary = {
-        "run": _run_info(stamp, model_ids, bind, db_path),
+        "run": _run_info(stamp, model_ids, make_bind or bind, db_path),
         "boards": boards,
         "totals": _totals(boards),
     }
@@ -109,9 +111,11 @@ def run_evals(evals_dir, *, make_model: Callable[[str], object], compiler, bind=
     return summary
 
 
-def _run_board(folder: Path, model, compiler, verifier, bind, db_path, run_dir: Path,
+def _run_board(folder: Path, model, compiler, bind, make_bind, db_path, run_dir: Path,
                max_attempts: int, compile_cap: int) -> dict:
     spec = from_dict(Spec, json.loads((folder / "spec.json").read_text(encoding="utf-8")))
+    if spec.rules_file.strip() and not Path(spec.rules_file).is_absolute():
+        spec = replace(spec, rules_file=str((folder / spec.rules_file).resolve()))
     plan = from_dict(Plan, json.loads((folder / "plan.json").read_text(encoding="utf-8")))
     expected = tomllib.loads((folder / "expected.toml").read_text(encoding="utf-8"))
     board = {
@@ -121,6 +125,8 @@ def _run_board(folder: Path, model, compiler, verifier, bind, db_path, run_dir: 
         "input_tokens": 0, "output_tokens": 0, "run_dir": str(run_dir),
     }
     try:
+        bind = make_bind(spec) if make_bind is not None else (bind or _passthrough)
+        verifier = make_verifier(bind=bind)
         parts = resolve(plan.parts, spec.named_parts,
                         {p.id: search(p, db_path=db_path) for p in plan.parts})
         result = run_design(spec, plan, parts, model=model, compiler=compiler, verifier=verifier,
@@ -140,7 +146,8 @@ def _run_board(folder: Path, model, compiler, verifier, bind, db_path, run_dir: 
         circuit = Path(record.dir) / "build" / "circuit.json"
         try:
             board["foreign_part_numbers"] = _foreign(circuit, parts, spec)
-            board["expectation_misses"] = _misses(bind(load_circuit_json(circuit), parts, spec), expected)
+            bound = bind(load_circuit_json(circuit), parts, spec, part_numbers(circuit))
+            board["expectation_misses"] = _misses(getattr(bound, "netlist", bound), expected)
         except CircuitJsonError as exc:
             board["error"] = f"CircuitJsonError: {exc}"
     board["clean"] = (board["status"] == "passed" and not board["foreign_part_numbers"]
@@ -148,7 +155,7 @@ def _run_board(folder: Path, model, compiler, verifier, bind, db_path, run_dir: 
     return board
 
 
-def _passthrough(netlist, parts, spec):
+def _passthrough(netlist, parts, spec, part_numbers=None):
     return netlist
 
 
@@ -249,7 +256,7 @@ def _run_info(stamp: str, model_ids: set[str], bind, db_path) -> dict:
     return {
         "started": stamp,
         "model": ", ".join(sorted(model_ids)),
-        "pin_binding": NO_BINDING if bind is None else f"{bind.__module__}.{bind.__qualname__}",
+        "pin_binding": NO_BINDING if bind is None else f"{bind.__module__}.{getattr(bind, '__qualname__', type(bind).__name__)}",
         "parts_db": str(db),
         "parts_snapshot": json.loads(snapshot.read_text(encoding="utf-8")) if snapshot.is_file() else None,
         "commit": _command(["git", "rev-parse", "--short", "HEAD"]),

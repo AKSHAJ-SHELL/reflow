@@ -3,6 +3,12 @@
 Contract
 --------
     load_circuit_json(path) -> reflow.netlist.Netlist
+    part_numbers(path) -> {ref: {"mpn": str, "lcsc": [str, ...]}}
+
+`part_numbers` reports the part numbers each component carries in the design
+(manufacturer_part_number, and the jlcpcb/lcsc supplier ids), so pin binding
+(V-12) can match a chip to its resolved part. It reports them as written; it
+never treats them as resolved.
 
 Reads only the source_* elements that `tsci export -f circuit-json` writes
 (checked against tsci 0.0.2768). Every other element type is ignored.
@@ -188,3 +194,19 @@ def _add_net(nets: dict[str, list[Pin]], name: str, members: list[tuple[str, dic
         components[ref].pins[pin.pin] = pin
         pins.append(pin)
     nets[name] = pins
+
+
+def part_numbers(path) -> dict[str, dict]:
+    found: dict[str, dict] = {}
+    for element in _read(Path(path)):
+        if element["type"] != "source_component":
+            continue
+        _require(element, _COMPONENT_KEYS)
+        mpn = element.get("manufacturer_part_number")
+        ids: list[str] = []
+        for supplier, values in (element.get("supplier_part_numbers") or {}).items():
+            if supplier in ("jlcpcb", "lcsc"):
+                ids.extend(v.strip() for v in (values if isinstance(values, list) else [values])
+                           if isinstance(v, str) and v.strip())
+        found[element["name"]] = {"mpn": mpn.strip() if isinstance(mpn, str) else "", "lcsc": ids}
+    return found

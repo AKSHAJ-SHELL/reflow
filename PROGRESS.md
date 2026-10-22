@@ -288,3 +288,19 @@ Did:
 Tests: `pytest -q` → see below.
 Next (HUMAN, highest value for the go/no-go): V-12 bind, V-13 pinout.mismatch; consider a footprint-vs-package check.
 - 2026-10-22 suite: `pytest -q` → 486 passed, 2 failed. The failures: the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only, because the local reflow.toml was emptied (uncommitted; defaults are the same caps, so behaviour is unchanged). Restoring the two cap lines makes it pass.
+
+## 2026-10-22 · agent (Claude) · V-12 pin binding (O-1b, awaiting human review)
+Did: the human extended O-1 to V-12 (O-1b in DECISIONS.md; TASKS owner AGENT→HUMAN).
+- New `reflow/pinbind.py`: `PinBinder(pin_map_for)` identifies each U-prefixed IC by a part number it carries in circuit.json that is a ResolvedParts row (LCSC id first, else MPN), else `pinout.unidentified`. It gets the pin map from `pin_map_for(ref, row)`; none (or PinMapError) gives `pinout.no_pin_map`. Then it relabels every pin by physical number from the map and types it (power/ground → power_in, …). A label that is neither the map's name (base_name) nor generic "pinN", or a pin number the package lacks, gives `pinout.mismatch`. All errors carry a fix_hint naming the pin and the right label. `binder_for_spec(spec)` takes pin maps from the rules file's [[part]] symbol (by ref, else MPN prefix), then vendor pin data.
+- `circuit_netlist.part_numbers(path)` reads what each component carries.
+- `verifier.py`: bind now gets `(netlist, parts, spec, part_numbers)` and may return a BindResult; its violations join the rules'.
+- `reflow design` and `reflow eval` use `binder_for_spec` (PIN_BINDING still overrides); the "V-12 not built" warning is gone. The eval runner resolves each board's rules_file next to its spec.
+- Fixtures `tests/data/real_runs/mcp9808_nemotron_20261022/`: the real board (model TSX, circuit.json source_*, parts.json), plus corrected and corrected-without-C1 variants compiled with tsci 0.0.2768.
+- This overlaps V-13 (the pinout rule ids). The human asked for mismatches to be reported; `verify.pcb_mismatch` and how shorts surface stay HUMAN.
+Tests: `tests/test_pinbind.py` (15) failed first (module missing), then passed. On the real board: pins 3, 7, 8 → 3 pinout.mismatch, and the verifier now fails it. The corrected board is clean; corrected without C1 → decoupling.missing (the rule runs now that pins are typed). Updated tests: 4-arg binder signatures in test_verifier/test_integration; the binding label in test_eval_runner; and the design-wiring end-to-end tests plus the eval CLI test, which bind for real now and use the real local catalog on the parts fixture, a rules file with the MCP9808 symbol, and the corrected real board. New end-to-end: the model's wrong-pinout board fails attempt 1 with 3 pinout.mismatch, the fix prompt carries pin8: "VDD", and attempt 2 passes. Four in-process sabotages (keep design labels, no pin types, skip unidentified, trust any MPN) → red each time.
+For the human reviewer:
+- Only U-prefixed parts are bound.
+- A [[part]] symbol is matched by ref first, then by MPN prefix.
+- `pinout.no_pin_map`'s fix_hint asks for a rules.toml [[part]], which the model can't act on; consider rewording.
+- The eval boards have rules_file "", so a real eval of them now fails `pinout.no_pin_map` until each gets a rules.toml with a [[part]] symbol (next: eval drafts).
+- V-12 suite: `pytest -q` → 502 passed, 2 failed (the deliberate tscircuit record; test_committed_reflow_toml_is_caps_only, because the local reflow.toml was emptied and is uncommitted).
