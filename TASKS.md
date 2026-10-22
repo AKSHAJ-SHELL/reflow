@@ -36,7 +36,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | V-16 | Verifier adapter `(circuit_json, ResolvedParts, Spec) → VerifyReport` | V-10..V-14 | callable for `run_design` | integration tests in `tests/test_integration.py` go green on the circuit.json path | V-10..V-14 | AGENT | done (10-20); loop test green once loop patch applied |
 | R-07 | Citations for every rule in docs/05 | rules | docs/05 | every catalog row names its source | — | HUMAN | todo |
 | R-10 | The six `need` checks (`project.cap`, `.pullup`, `.pulldown`, `.tie`, `.open`, `.connected`) | ProjectRules, Netlist | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
-| V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | todo |
+| V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | done (10-21) |
 | V-22 | Render project rules into codegen/fix prompts | ProjectRules | prompt text | one line per rule; no `why`/`source` in any prompt | V-21, H-08 | AGENT→HUMAN | todo |
 
 ## Contracts

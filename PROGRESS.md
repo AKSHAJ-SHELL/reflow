@@ -225,3 +225,13 @@ Did: the human approved removing the jlcsearch client and its tests.
 Left alone: `reflow/parts/resolver.py` docstrings still say '"" means the source did not say (the jlcsearch client)'. The file is under the human's P-02b review, so the wording is the human's to update.
 Tests: new `tests/test_catalog.py` failed first on the two "gone" checks (17 tests; the parse_value cases already passed). `pytest -q` → 1 failed, 425 passed. The one failure is the deliberate record of tscircuit's broken .kicad_sch export (`test_schematic_export_keeps_the_traced_nets`). The live jlcsearch test and both C2 jlcsearch tests are gone with the client. No HUMAN-owned file changed.
 Next: the human reviews P-02b and checks the eval drafts; then a real `reflow eval`. AGENT options: V-21 (rules.toml parser), O-02 (report.json/md).
+
+## 2026-10-21 · agent (Claude) · V-21
+Did: added `reflow/project_rules.py` and `reflow rules check RULES [--symbol REF=Lib:Symbol] [--mpn REF=MPN]`.
+- `load_rules` parses strictly to `ProjectRules`: missing why/source, unknown keys and TOML errors raise RulesFileError.
+- `check_rules` reports errors: `on` not REF.PIN; need not in RULE_NEEDS; `to` missing for cap/pullup/pulldown/tie or present for open/connected; unparseable value or a reversed range; blank why/source; a pin not on its part's pin map (matched by number or base_name, citing the pin map's source).
+- It reports warnings: a ref with no pin map given; any power, ground, reset or boot pin no rule mentions. Reset/boot are recognised by name (NRST/RESET/RST/MCLR/BOOT*), since neither pin source types them.
+- Because a rules file exists before any board, the user says which part each ref is (`--symbol` via V-11 from_kicad_symbol, `--mpn` via import_pin_map). Exit 1 on errors, 2 on unusable input.
+- Not wired into `reflow design`: the example spec's rules_file points at a file the design tests don't have, and using the rules in the loop is V-22 / R-10.
+Tests: `tests/test_project_rules.py` (26) failed first (module missing), then passed. Four in-process sabotages (any pin accepted, no coverage warnings, no reset/boot names, `to` never checked) → red each time. Real run on the accepted example with the installed KiCad library → 7 rules, 0 errors, 1 warning (U1.GND has no rule). `pytest -q` → 1 failed (the deliberate tscircuit .kicad_sch record), 451 passed.
+Next: V-22 (render rules into prompts, AGENT→HUMAN), or R-10 (the six need checks, HUMAN).
