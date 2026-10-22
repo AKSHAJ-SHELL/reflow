@@ -476,3 +476,12 @@ Tests:
 - 8 new in tests/test_eval_runner.py failed first: stage for clean/rules/expectations/compile/parts; pin_binding through a binder's pinout error; a flaky model retried with waits 10, 20; a model that keeps failing (3 calls) counted as a model error, not a design failure; 3 repeats with separate run folders and rates; majority-clean go/no-go over 5 checked boards; prompt hashes; `reflow eval --repeat 2` output.
 - Six sabotages each turn the suite red: no retry, no pin_binding stage, shared run folder, one clean run counts, hashing the file name, model errors counted as design failures.
 - `pytest -q` → 540 passed, 3 failed: the unpowered pull-up rail test (on purpose, HUMAN rule), the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (local reflow.toml).
+
+## 2026-10-22 · agent (Claude) · V-2b proposal: model-drafted rules, visible and confirmed (no code)
+Did: at the human's request, wrote `docs/proposals/V-2b-model-drafted-rules.md` and added a PROPOSED row to DECISIONS.md. The proposal has four parts:
+- (A) the datasheet-tutor skill writes rules.toml only after the study, or when the student says they've studied it, and marks every line `drafted_by = "model"` with a page and a quote;
+- (B) `reflow init` writes the skill, AGENTS.md, CLAUDE.md and a skeleton rules.toml built from the pin map;
+- (C) a contract change: `ProjectRule` gains optional `drafted_by` / `quote` / `confirmed_by`, filled only by a TTY-only `reflow rules confirm`; unconfirmed rules still run, but runs are labelled and eval boards with them are left out of the go/no-go;
+- (D) `reflow learn REF` opens a separate Claude Code session (`claude --name … "<first message>"`; the flags were checked against the installed CLI).
+A hidden instruction for the student's model was considered and rejected; the proposal says why. It lists 5 questions for the human and the tasks that follow acceptance (V-23, V-24, I-01, H-08b, L-04).
+Tests: none (no code).
