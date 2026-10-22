@@ -80,3 +80,48 @@ def test_expected_agrees_with_the_plan(folder):
         assert item["source"].strip()
         for pin in item["pins"]:
             assert pin.split(".", 1)[0] in kinds
+
+
+# ---------------------------------------------------------------------------
+# pin binding (V-12): every board with an IC names where its pin map comes from
+# ---------------------------------------------------------------------------
+
+def _rules(folder: Path):
+    from reflow.project_rules import load_rules
+
+    spec, _, _ = _load(folder)
+    return load_rules(folder / spec.rules_file) if spec.rules_file else None
+
+
+@pytest.mark.parametrize("folder", BOARDS, ids=lambda p: p.name)
+def test_every_board_with_an_ic_names_its_pin_map(folder):
+    spec, plan, _ = _load(folder)
+    chips = [p for p in plan.parts if p.category in {"ic", "regulator"}]
+    if not chips:
+        return
+    rules = _rules(folder)
+    assert rules is not None, f"{folder.name}: rules_file is empty, so its IC can't be bound to a pin map"
+    named = {(p.mpn) for p in rules.part}
+    for chip in chips:
+        assert chip.mpn in named, f"{folder.name}: no [[part]] for {chip.mpn}"
+    for part in rules.part:
+        assert part.ref.startswith("U") and part.symbol, part
+        assert part.mpn in spec.named_parts, f"{part.mpn} is not a part the spec names"
+
+
+@pytest.mark.skipif(__import__("reflow.cli", fromlist=["find_kicad_cli"]).find_kicad_cli() is None,
+                    reason="kicad-cli not found (the installed KiCad symbol library is beside it)")
+@pytest.mark.parametrize("folder", BOARDS, ids=lambda p: p.name)
+def test_each_named_symbol_is_in_the_installed_kicad_library(folder, monkeypatch):
+    from reflow.parts.pinmap import from_kicad_symbol
+
+    monkeypatch.delenv("REFLOW_KICAD_SYMBOL_DIR", raising=False)
+    rules = _rules(folder)
+    _, _, expected = _load(folder)
+    for part in (rules.part if rules else []):
+        names = {p.name.upper() for p in from_kicad_symbol(part.symbol).pins}
+        for net in expected.get("net", []) + expected.get("open", []):
+            for pin in net.get("includes", net.get("pins", [])):
+                kind, _, pin_name = pin.partition(".")
+                if pin_name and kind in {"ic", "regulator"}:
+                    assert pin_name.upper() in names, f"{folder.name}: expected.toml names {pin}, the symbol has {sorted(names)}"

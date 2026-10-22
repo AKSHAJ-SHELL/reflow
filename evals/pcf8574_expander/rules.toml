@@ -1,0 +1,12 @@
+# rules.toml for evals/pcf8574_expander (DRAFT, E-02 / O-1).
+# [[part]] tells reflow's pin binding (V-12) which pin map U1 uses.
+# Same functions as EasyEDA's symbol for C7605; KiCad says GND and INT where EasyEDA says VSS and INT#
+# (checked 2026-10-22).
+# The rule list is empty on purpose: write each rule from the datasheet, with its page (V-2).
+
+rule = []
+
+[[part]]
+ref    = "U1"
+mpn    = "PCF8574T/3,518"
+symbol = "Interface_Expansion:PCF8574T"

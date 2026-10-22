@@ -304,3 +304,24 @@ For the human reviewer:
 - `pinout.no_pin_map`'s fix_hint asks for a rules.toml [[part]], which the model can't act on; consider rewording.
 - The eval boards have rules_file "", so a real eval of them now fails `pinout.no_pin_map` until each gets a rules.toml with a [[part]] symbol (next: eval drafts).
 - V-12 suite: `pytest -q` → 502 passed, 2 failed (the deliberate tscircuit record; test_committed_reflow_toml_is_caps_only, because the local reflow.toml was emptied and is uncommitted).
+
+## 2026-10-22 · agent (Claude) · E-02 eval boards get rules.toml pin maps (O-1)
+Did: each eval board with an IC now has a `rules.toml` whose `[[part]]` names the KiCad symbol V-12 binds U1 to. Its spec points at it (`"rules_file": "rules.toml"`).
+- mcp9808_breakout: a copy of the accepted example (`docs/proposals/examples/rules.toml`): Sensor_Temperature:MCP9808_MSOP plus its 7 rules.
+- at24c02_eeprom: Memory_EEPROM:AT24CS02-SSHM. The serial-number variant has the same SOIC-8 pinout; checked pin for pin against EasyEDA C688857.
+- ams1117_regulator: Regulator_Linear:AMS1117-3.3. EasyEDA (C6186) names the pins VIN/VOUT and also has tab pin 4 (VOUT). KiCad's 3-pin symbol has no pin 4, so a design that wires the tab as pin4 gets `pinout.mismatch`. The human should decide whether that's right.
+- pcf8574_expander: Interface_Expansion:PCF8574T.
+- The three non-MCP9808 rule lists are `rule = []` on purpose: rules must be written from the datasheet with a page (V-2).
+- led_indicator has no IC, so it keeps rules_file "".
+- Expected drafts (agent-written under O-1, still status "draft"): renamed pins to the KiCad symbol's names, since V-12 relabels pins to them. ams1117 regulator.VIN→VI and VOUT→VO; pcf8574 ic.VSS→GND. Each file has a comment noting the EasyEDA names.
+Tests:
+- Two new tests in tests/test_evals.py: every board with an ic/regulator names a [[part]] for it, with a U ref, a symbol and a spec-named MPN; and each symbol loads from the installed KiCad library and has every pin expected.toml names. 4 boards failed first, then passed.
+- test_eval_runner's CLI test copied the MCP9808 board and added a rules file. The board now ships one, so the test asserts that instead.
+- Sabotage: removing the AT24C02 [[part]], pointing AMS1117 at the -5.0 symbol, or restoring "regulator.VIN" each turns the suite red.
+- `pytest -q` → 512 passed, 2 failed: the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (the local reflow.toml was emptied; uncommitted).
+- Smoke eval `reflow eval --only mcp9808_breakout` with the human's .env, run twice. Both failed at the model before any board came back, so nothing was compiled or verified, and this run tells us nothing about V-12 binding:
+  - 20261022T184351Z: "ModelError: provider response contained no text".
+  - 20261022T185803Z: "Upstream idle timeout exceeded (code 504)" from OpenRouter.
+  - Both are recorded in evals/results/ (uncommitted) with status error and 0 tokens.
+  - Side finding: run.json labels these "failed_compile" with 0 attempts, although nothing was compiled. The status comes from harness/loop.py (HUMAN).
+  - Next: rerun when the free model is responsive, or try another model through REFLOW_MODEL.
