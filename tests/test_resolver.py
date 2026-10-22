@@ -288,3 +288,115 @@ def test_resolver_does_not_call_catalog_search(monkeypatch):
     monkeypatch.setattr("reflow.parts.resolver.search", _boom, raising=False)
     result = resolve([_resistor()], [], {"r1": [_part(basic=True)]}, fetched_at=FETCHED)
     assert result.resolved[0].lcsc == "C1000"
+
+
+# ---------------------------------------------------------------------------
+# P-02b (C2 resolver half, DECISIONS D-6a, O-1): category, family -> orderable
+# MPN, connector pitch, and the row's own fetched_at.
+# ---------------------------------------------------------------------------
+
+def _ic(mpn: str = "MCP9808", package: str = "") -> PartRequest:
+    return PartRequest(id="u1", role="sensor", category="ic", mpn=mpn, package=package)
+
+
+def _orderable(lcsc: str, mpn: str, package: str, stock: int, **overrides: object) -> CatalogPart:
+    fields: dict[str, object] = {"category": "ic", "source": "jlcparts"}
+    fields.update(overrides)
+    return _part(lcsc=lcsc, mpn=mpn, package=package, value="", stock=stock, **fields)
+
+
+MCP9808_ROWS = [
+    _orderable("C129490", "MCP9808T-E/MS", "MSOP-8", 716),
+    _orderable("C94847", "MCP9808-E/MS", "MSOP-8", 586),
+    _orderable("C194710", "MCP9808T-E/MC", "DFN-8-EP(2x3)", 255),
+]
+
+
+def test_a_candidate_of_another_kind_is_never_chosen():
+    led = _part(lcsc="C2286", mpn="KT-0603R", package="0402", category="led", basic=True, stock=10**7)
+    resistor = _part(lcsc="C25900", category="resistor", stock=10)
+    result = resolve([_resistor()], [], {"r1": [led, resistor]}, fetched_at=FETCHED)
+    assert [p.lcsc for p in result.resolved] == ["C25900"]
+
+
+def test_only_other_kinds_is_unresolved_and_says_so():
+    led = _part(lcsc="C2286", mpn="KT-0603R", category="led", stock=10**7)
+    result = resolve([_resistor()], [], {"r1": [led]}, fetched_at=FETCHED)
+    assert result.resolved == []
+    reason = result.unresolved[0].reason
+    assert "resistor" in reason and "led" in reason
+
+
+def test_an_uncategorised_snapshot_row_is_rejected():
+    """The snapshot leaves some rows without a category; local_catalog maps them to "other"."""
+    row = _orderable("C55343413", "TMP102AQDRLRQ1-TUDI", "SOT-563", 2983, category="other")
+    result = resolve([_ic("TMP102AQDRLRQ1-TUDI")], ["TMP102AQDRLRQ1-TUDI"], {"u1": [row]}, fetched_at=FETCHED)
+    assert result.resolved == [] and "other" in result.unresolved[0].reason
+
+
+def test_a_source_that_gives_no_category_is_not_filtered():
+    """category "" means the source didn't say (the jlcsearch client); only a stated category is checked."""
+    result = resolve([_resistor()], [], {"r1": [_part(lcsc="C7", category="")]}, fetched_at=FETCHED)
+    assert [p.lcsc for p in result.resolved] == ["C7"]
+
+
+def test_a_typed_family_with_two_packages_asks_which():
+    result = resolve([_ic()], ["MCP9808"], {"u1": MCP9808_ROWS}, fetched_at=FETCHED)
+    assert result.resolved == []
+    reason = result.unresolved[0].reason
+    assert "MSOP-8" in reason and "DFN-8-EP(2x3)" in reason
+    assert "package" in reason.casefold()
+
+
+def test_a_typed_family_with_its_package_resolves_to_an_orderable_part():
+    result = resolve([_ic(package="MSOP-8")], ["MCP9808"], {"u1": MCP9808_ROWS}, fetched_at=FETCHED)
+    assert result.unresolved == []
+    got = result.resolved[0]
+    assert (got.lcsc, got.mpn, got.package) == ("C129490", "MCP9808T-E/MS", "MSOP-8")
+
+
+def test_family_matching_ignores_case():
+    result = resolve([_ic("mcp9808", "MSOP-8")], ["mcp9808"], {"u1": MCP9808_ROWS}, fetched_at=FETCHED)
+    assert [p.lcsc for p in result.resolved] == ["C129490"]
+
+
+def test_an_exact_part_number_wins_over_longer_ones():
+    rows = [
+        _orderable("C6203", "AT24C02C-SSHM-T", "SOIC-8", 113_992),
+        _orderable("C688857", "AT24C02", "SOP-8", 105_879),
+    ]
+    result = resolve([_ic("AT24C02")], ["AT24C02"], {"u1": rows}, fetched_at=FETCHED)
+    assert [(p.lcsc, p.mpn) for p in result.resolved] == [("C688857", "AT24C02")]
+
+
+def test_a_different_variant_behind_the_same_prefix_is_asked_about():
+    """PCF8574 and PCF8574A are different chips (different I2C address) in the same package."""
+    rows = [
+        _orderable("C7605", "PCF8574T/3,518", "SOIC-16-300mil", 19_200),
+        _orderable("C86832", "PCF8574AT/3,518", "SOIC-16-300mil", 4_890),
+    ]
+    result = resolve([_ic("PCF8574")], ["PCF8574"], {"u1": rows}, fetched_at=FETCHED)
+    assert result.resolved == []
+    reason = result.unresolved[0].reason
+    assert "PCF8574T/3,518" in reason and "PCF8574AT/3,518" in reason
+
+
+def test_a_typed_part_number_never_matches_a_shorter_one():
+    rows = [_orderable("C1", "MCP980", "MSOP-8", 10**6)]
+    result = resolve([_ic("MCP9808", "MSOP-8")], ["MCP9808"], {"u1": rows}, fetched_at=FETCHED)
+    assert result.resolved == [] and "MCP9808" in result.unresolved[0].reason
+
+
+def test_a_connector_package_is_its_pitch():
+    """D-6a (a): a header request is value "1x4", package "2.54mm"; the row's package is free text."""
+    request = PartRequest(id="j1", role="header", category="connector", value="1x4", package="2.54mm")
+    header = _part(lcsc="C32713270", mpn="HX PZ2.54-1x4P ZZ", package="插件,P=2.54mm", value="",
+                   category="connector", stock=135_024)
+    result = resolve([request], [], {"j1": [header]}, fetched_at=FETCHED)
+    assert [(p.lcsc, p.package) for p in result.resolved] == [("C32713270", "插件,P=2.54mm")]
+
+
+def test_resolved_part_carries_the_rows_own_date():
+    row = _part(lcsc="C25900", category="resistor", fetched_at="2026-10-02T08:00:00Z")
+    result = resolve([_resistor()], [], {"r1": [row]}, fetched_at=FETCHED)
+    assert result.resolved[0].fetched_at == "2026-10-02T08:00:00Z"

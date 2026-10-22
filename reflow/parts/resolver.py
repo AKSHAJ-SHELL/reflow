@@ -13,6 +13,23 @@ A tie keeps the order of that request's candidate list. There is no fourth key.
 
 Package match follows the catalog client: case-insensitive, and a parenthetical
 suffix on the candidate package is ignored ("0402" matches "0402 (1005 Metric)").
+For a connector, `package` is the pin pitch (D-6a a) and the catalog has
+already matched it, so the row's package text is not compared.
+
+P-02b (D-6a, O-1):
+
+- A candidate whose `category` is set and differs from the request's is
+  never chosen. "" means the source did not say (the jlcsearch client).
+- A named part is a typed family or an exact part number. An exact
+  (case-insensitive) match wins. Otherwise candidates whose MPN starts with
+  the typed text count when the rest is an ordering code: nothing, a
+  non-alphanumeric character, or a single T or R then a non-alphanumeric
+  character ("MCP9808T-E/MS", "MCP9808-E/MS"). Any other continuation is a
+  different variant ("PCF8574AT/3,518" for "PCF8574"), and then the request is
+  Unresolved with the variants listed, not guessed.
+- If the named part still spans more than one package, the request is
+  Unresolved and asks which package.
+- `fetched_at` is the chosen row's own date when the source gives one.
 
 Must never
 ----------
@@ -81,13 +98,21 @@ def _resolve_one(
         return Unresolved(request.id, "IC mpn is not in the user's named parts")
 
     parts = list(pool)
+    stated = [part for part in parts if part.category and part.category != category]
+    parts = [part for part in parts if not part.category or part.category == category]
+    if stated and not parts:
+        kinds = ", ".join(sorted({part.category for part in stated}))
+        return Unresolved(request.id, f"catalog offered only {kinds} parts for a {category} request")
+
     if mpn:
-        parts = [part for part in parts if part.mpn.strip() == mpn]
+        parts, problem = _named_matches(mpn, parts)
+        if problem:
+            return Unresolved(request.id, problem)
         if not parts:
             return Unresolved(request.id, f"{mpn} was not in the catalog")
 
     package = request.package.strip()
-    if package:
+    if package and category != "connector":
         matched = [part for part in parts if _package_matches(package, part.package)]
         if not matched:
             if not parts:
@@ -96,6 +121,14 @@ def _resolve_one(
         parts = matched
     elif not parts:
         return Unresolved(request.id, "no catalog candidates")
+    if mpn and not package:
+        packages = sorted({part.package for part in parts})
+        if len(packages) > 1:
+            listed = "; ".join(
+                f"{name} ({', '.join(p.lcsc for p in parts if p.package == name)})" for name in packages
+            )
+            return Unresolved(request.id, f"{mpn} comes in more than one package: {listed}. "
+                                          "Put the package in the plan.")
 
     instock = [part for part in parts if part.stock > 0]
     if not instock:
@@ -116,8 +149,32 @@ def _resolve_one(
         basic=winner.basic,
         unit_price_usd=winner.unit_price_usd,
         source=winner.source,
-        fetched_at=fetched_at,
+        fetched_at=winner.fetched_at or fetched_at,
     )
+
+
+def _named_matches(typed: str, parts: list[CatalogPart]) -> tuple[list[CatalogPart], str]:
+    """Candidates for a typed part number, and a reason when the choice is the user's."""
+    key = typed.casefold()
+    exact = [part for part in parts if part.mpn.strip().casefold() == key]
+    if exact:
+        return exact, ""
+    orderable, variants = [], []
+    for part in parts:
+        name = part.mpn.strip()
+        if not name.casefold().startswith(key):
+            continue
+        (orderable if _is_ordering_code(name[len(typed):]) else variants).append(part)
+    if variants:
+        names = ", ".join(sorted({part.mpn for part in orderable + variants}))
+        return [], f"{typed} matches more than one variant: {names}. Name the exact part number."
+    return orderable, ""
+
+
+def _is_ordering_code(rest: str) -> bool:
+    if not rest or not rest[0].isalnum():
+        return True
+    return rest[0] in "TRtr" and (len(rest) == 1 or not rest[1].isalnum())
 
 
 def _pick(parts: Sequence[CatalogPart]) -> CatalogPart:

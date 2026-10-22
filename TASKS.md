@@ -78,7 +78,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | todo |
 | P-04 | `reflow parts update`: download the jlcparts snapshot, join + inflate, CRC check, install atomically (D-6a) | jlcparts data URL | `cache.sqlite3` + `snapshot.json` at `REFLOW_PARTS_DB` | split-archive fixture installs; a missing or corrupt part fails and keeps the old database | D-6a | AGENT | done (10-21) |
 | P-05 | Catalog client on the local snapshot, category-aware queries; candidates carry `category` (C2 catalog half) | `PartRequest` | `CatalogPart[]` | MCP9808 plan resolves its 4.7k/100nF/header/IC requests from a snapshot fixture | P-04 | AGENT | done (10-21); header + IC resolve once P-02b lands |
-| P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | HUMAN | todo |
+| P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | AGENT→HUMAN (O-1: human reviews the diff) | doing (awaiting human review) |
 | P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal needs the human's OK) | todo |
 
 ## Learn mode
@@ -104,7 +104,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | HUMAN | todo |
+| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | todo |
 | E-01 | Eval runner + metrics (first-pass vs post-retry pass rate, hallucinated-part rate, tokens) | E-02 | `evals/results/*.json` | reproducible with a fixed seed/model | H-07 | AGENT | todo |
 | D-02 | Demo recording (simple board end to end + honest stop on a harder one) | v1 | video | real runs, no staged failures | v1 | HUMAN | todo (10-31) |
 

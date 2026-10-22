@@ -176,3 +176,18 @@ Next: the human reviews planner.md (and approves H-08 when ready); P-02b (HUMAN)
 Did: the human reviewed the planner.md header-encoding change (e95dd05) and approved its content. H-08 stays "doing (awaiting human review)" for codegen.md and fix.md. The draft banners stay until the human approves all three.
 Tests: none (log only).
 Next: codegen.md / fix.md review (H-08); P-02b (HUMAN).
+
+## 2026-10-21 · agent (Claude) · O-1, P-02b (awaiting human review)
+Did: the human chose (in chat) to have the agent implement P-02b and draft E-02, with the human reviewing. Recorded as O-1 in DECISIONS.md (these two tasks only; golden rule 1 otherwise unchanged); TASKS.md owners updated. Changed `reflow/parts/resolver.py` (`_resolve_one`, new `_named_matches`, `_is_ordering_code`):
+- A candidate with a stated `category` that differs from the request's is never chosen. "" (jlcsearch) isn't filtered.
+- A typed family: an exact case-insensitive match wins. Otherwise a prefix match counts only when the rest is an ordering code: nothing, a non-alphanumeric character, or T/R then a non-alphanumeric character. Any other continuation (PCF8574 → PCF8574AT) makes the request Unresolved, listing the variants.
+- A named part left in more than one package is Unresolved and asks which package.
+- A connector's `package` (the pitch) isn't compared to the row's package text.
+- `fetched_at` is the row's own date when set.
+Also tightened `tests/test_local_catalog.py`'s plan test to require every part resolved (IC with package MSOP-8).
+For the human reviewer:
+- The ordering-code rule is a heuristic: it accepts a trailing T/R as packing (Microchip "T-" tape and reel). It will ask more often than strictly needed (AT24C02C vs AT24C02D, TMP102A…) rather than guess.
+- AMS1117-3.3 asks for a package, because the snapshot spells SOT-223 as "SOT-223", "SOT-223-3" and "SOT-223-4".
+- The planner prompt leaves an IC's package empty, so a model-made plan for MCP9808 will hit the package question until the planner asks the user for it.
+Tests: 12 new tests in `tests/test_resolver.py`. 9 failed first (3 already passed: exact match, never matching a shorter MPN, "" category not filtered); the local plan test failed first. One bug in my own test helper (category passed twice) fixed. Then test_resolver + test_local_catalog 64 passed, and every pre-existing P-02 test still passes. Five in-process sabotages (no category check, no variant check, exact-only, ignore row date, literal connector package) → red each time. Real snapshot: MCP9808 asks MSOP-8 or DFN; with MSOP-8 → C129490 MCP9808T-E/MS (row date 2026-10-16); AT24C02 → C688857; KT-0603R → C2286; PCF8574 / PCF8574T / TMP102 ask which variant. `pytest -q` → 4 failed, 391 passed: the same 4 known failures. The jlcsearch C2 test still picks the LED, because jlcsearch gives no category; P-06 replaces it.
+Next: the human reviews the resolver.py diff; then E-02 drafts.
