@@ -398,6 +398,8 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--out", metavar="DIR", default="evals/results", help="where the results JSON goes")
     evaluate.add_argument("--runs", metavar="DIR", default="runs/evals", help="run folders for each board")
     evaluate.add_argument("--only", metavar="NAME", action="append", help="run only this board (repeatable)")
+    evaluate.add_argument("--repeat", metavar="N", type=_positive_int, default=1,
+                          help="run each board N times and report pass rates (default: 1)")
     evaluate.set_defaults(func=cmd_eval)
     rules = sub.add_parser("rules", help="work with a project's rules.toml")
     rules_sub = rules.add_subparsers(dest="rules_command", required=True)
@@ -447,6 +449,13 @@ def cmd_rules_check(args) -> int:
     return 1 if result.errors else 0
 
 
+def _positive_int(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return value
+
+
 def cmd_eval(args) -> int:
     from reflow.evals import run_evals
     from reflow.pinbind import binder_for_spec
@@ -464,6 +473,7 @@ def cmd_eval(args) -> int:
             only=args.only,
             max_attempts=config["max_attempts"],
             compile_cap=config["compile_cap"],
+            repeats=args.repeat,
         )
     except (ConfigError, ModelError, CatalogError, ContractError, OSError) as exc:
         print(f"reflow: {exc}", file=sys.stderr)
@@ -471,13 +481,21 @@ def cmd_eval(args) -> int:
     for board in summary["boards"]:
         detail = board["abort_reason"] or board["error"] or "; ".join(board["expectation_misses"])
         foreign = len(board["foreign_part_numbers"])
-        print(f"{board['name']}: {board['status']} in {board['attempts']} attempt(s), "
-              f"{'clean' if board['clean'] else 'not clean'}, {foreign} foreign part number(s)"
+        name = board["name"] if args.repeat == 1 else f"{board['name']} run {board['repeat']}/{args.repeat}"
+        retried = f", {board['model_retries']} model call(s) retried" if board.get("model_retries") else ""
+        print(f"{name}: {board['status']} (stage {board['stage']}) in {board['attempts']} attempt(s), "
+              f"{'clean' if board['clean'] else 'not clean'}, {foreign} foreign part number(s){retried}"
               + (f" ({detail})" if detail else ""))
+    if args.repeat > 1:
+        for name, row in summary["by_board"].items():
+            stages = ", ".join(f"{stage} {count}" for stage, count in row["stages"].items())
+            print(f"{name}: {row['passed']}/{row['runs']} passed, {row['clean']}/{row['runs']} clean "
+                  f"(stages: {stages})")
     t = summary["totals"]
     print(f"{t['passed']}/{t['boards']} passed ({t['first_pass']} on the first attempt), {t['clean']} clean, "
           f"{t['foreign_part_numbers']} part number(s) outside the resolver, "
           f"{t['input_tokens']} in / {t['output_tokens']} out tokens")
+    print(f"{t['model_errors']} model error(s), {t['design_failures']} design failure(s)")
     go = summary["go_no_go"]
     print(f"go/no-go: {go['decision']} ({go['reason']})")
     return 0
