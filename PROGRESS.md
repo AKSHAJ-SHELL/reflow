@@ -485,3 +485,12 @@ Did: at the human's request, wrote `docs/proposals/V-2b-model-drafted-rules.md` 
 - (D) `reflow learn REF` opens a separate Claude Code session (`claude --name … "<first message>"`; the flags were checked against the installed CLI).
 A hidden instruction for the student's model was considered and rejected; the proposal says why. It lists 5 questions for the human and the tasks that follow acceptance (V-23, V-24, I-01, H-08b, L-04).
 Tests: none (no code).
+
+## 2026-10-22 · agent (Claude) · V-2b answers 3–5; skill moved
+Did: the human answered three of V-2b's questions in chat:
+- Q3: `reflow rules confirm` needs a real terminal.
+- Q4: on macOS, `reflow learn` opens a new Terminal window and runs the commands; Windows/Linux print them, later.
+- Q5: move the skill.
+Recorded them in the proposal and the DECISIONS.md row. Q1 (which rules need confirming) and Q2 (where the `confirmed_by` name comes from) are still open, and V-2b is still PROPOSED.
+- Moved `docs/proposals/datasheet-tutor-SKILL.md` → `skills/datasheet-tutor/SKILL.md` (git mv; text unchanged) and updated the pointer in docs/proposals/V-2-rule-framework.md.
+Tests: none (docs only).

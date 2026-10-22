@@ -9,7 +9,7 @@ Status: **ACCEPTED** 2026-10-20 by the human (proposed by agent, Claude). Builds
 3. **reflow uses that file twice:**
    - **Design:** the rules go into the codegen prompt as constraints, so the AI tries to follow them.
    - **Verify:** every rule is checked deterministically against the compiled board. The AI's attempt is never trusted; a broken rule fails the board and goes back as a fix hint.
-4. **Help is outside reflow.** A separate Claude skill (the *datasheet tutor*, draft in `datasheet-tutor-SKILL.md`) explains datasheet sections. When the student asks, it writes `rules.toml` in this format. reflow doesn't call it and doesn't know it exists. It only reads the file.
+4. **Help is outside reflow.** A separate Claude skill (the *datasheet tutor*, now `skills/datasheet-tutor/SKILL.md`) explains datasheet sections. When the student asks, it writes `rules.toml` in this format. reflow doesn't call it and doesn't know it exists. It only reads the file.
 
 ## The file
 
