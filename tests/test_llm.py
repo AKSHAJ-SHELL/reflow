@@ -275,3 +275,61 @@ def test_connection_failure_raises_model_error():
     }
     with pytest.raises(ModelError):
         load_model(cfg).complete("s", "p")
+
+
+# ---------------------------------------------------------------------------
+# M-03: max_tokens from config, and a cut-off reply says so
+# ---------------------------------------------------------------------------
+
+def test_config_max_tokens_is_the_default_for_every_call(server):
+    server.body = _anthropic_ok()
+    model = load_model(_config(server, max_tokens=12000))
+    model.complete("S", "U")
+    model.complete("S", "U", max_tokens=128)
+    sent = [json.loads(r["body"])["max_tokens"] for r in server.requests]
+    assert sent == [12000, 128]
+
+
+@pytest.mark.parametrize("bad", [0, -1, "lots", True, 1.5])
+def test_bad_config_max_tokens_raises(server, bad):
+    with pytest.raises(ModelError, match="max_tokens"):
+        load_model(_config(server, max_tokens=bad))
+
+
+def test_anthropic_reply_cut_off_at_max_tokens_raises(server):
+    body = json.loads(_anthropic_ok("```tsx\nexport default () => (\n  <board>"))
+    body["stop_reason"] = "max_tokens"
+    server.body = json.dumps(body).encode()
+    with pytest.raises(ModelError, match=r"cut off.*max_tokens.*4096"):
+        load_model(_config(server)).complete("S", "U")
+
+
+def test_openai_reply_cut_off_raises_even_with_some_text(server):
+    body = json.loads(_openai_ok("```tsx\nexport default () => (\n  <board>"))
+    body["choices"][0]["finish_reason"] = "length"
+    server.body = json.dumps(body).encode()
+    with pytest.raises(ModelError, match=r"cut off.*max_tokens.*2000"):
+        load_model(_config(server, provider="openai-compatible", max_tokens=2000)).complete("S", "U")
+
+
+def test_a_reasoning_reply_with_no_text_left_is_reported_as_cut_off(server):
+    """Reasoning models can spend the whole budget thinking; say that, not 'no text'."""
+    server.body = json.dumps({
+        "model": "m", "usage": {"prompt_tokens": 3, "completion_tokens": 4096},
+        "choices": [{"message": {"role": "assistant", "content": ""}, "finish_reason": "length"}],
+    }).encode()
+    with pytest.raises(ModelError, match="cut off"):
+        load_model(_config(server, provider="openai-compatible")).complete("S", "U")
+
+
+@pytest.mark.parametrize("provider, field, value", [
+    ("anthropic", "stop_reason", "end_turn"), ("openai-compatible", "finish_reason", "stop"),
+])
+def test_a_normal_stop_is_fine(server, provider, field, value):
+    body = json.loads(_anthropic_ok() if provider == "anthropic" else _openai_ok())
+    if provider == "anthropic":
+        body[field] = value
+    else:
+        body["choices"][0][field] = value
+    server.body = json.dumps(body).encode()
+    assert load_model(_config(server, provider=provider)).complete("S", "U").text

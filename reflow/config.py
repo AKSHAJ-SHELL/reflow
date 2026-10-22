@@ -13,6 +13,7 @@ The dict always has these keys, in this order:
     api_key        str          REFLOW_API_KEY only
     base_url       str | None   file or REFLOW_BASE_URL, default None
     timeout_s      int          default 60
+    max_tokens     int          default 4096 (per model reply; raise it for reasoning models)
 
 A set environment variable overrides the file. A missing file uses the
 defaults above. A missing or blank REFLOW_API_KEY raises ConfigError.
@@ -40,6 +41,7 @@ _KEYS = (
     "api_key",
     "base_url",
     "timeout_s",
+    "max_tokens",
 )
 
 _DEFAULTS: dict[str, object] = {
@@ -49,6 +51,7 @@ _DEFAULTS: dict[str, object] = {
     "model": "",
     "base_url": None,
     "timeout_s": 60,
+    "max_tokens": 4096,
 }
 
 # Smallest legal value for each integer setting.
@@ -56,6 +59,7 @@ _INT_MIN = {
     "max_attempts": 1,
     "compile_cap": 1,
     "timeout_s": 1,
+    "max_tokens": 1,
 }
 
 _ENV = {
@@ -65,6 +69,7 @@ _ENV = {
     "model": "REFLOW_MODEL",
     "base_url": "REFLOW_BASE_URL",
     "timeout_s": "REFLOW_TIMEOUT_S",
+    "max_tokens": "REFLOW_MAX_TOKENS",
 }
 
 _FILE_KEYS = frozenset(_INT_MIN) | {"provider", "model", "base_url"}

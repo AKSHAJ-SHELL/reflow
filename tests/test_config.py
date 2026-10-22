@@ -20,6 +20,7 @@ _ENV_VARS = (
     "REFLOW_MAX_ATTEMPTS",
     "REFLOW_COMPILE_CAP",
     "REFLOW_TIMEOUT_S",
+    "REFLOW_MAX_TOKENS",
 )
 
 _KEYS = (
@@ -30,6 +31,7 @@ _KEYS = (
     "api_key",
     "base_url",
     "timeout_s",
+    "max_tokens",
 )
 
 
@@ -353,3 +355,34 @@ def test_repo_root_load_uses_committed_caps(clean_env, monkeypatch):
     assert cfg["base_url"] is None
     assert cfg["timeout_s"] == 60
     assert cfg["api_key"] == "test-key"
+
+
+# ---------------------------------------------------------------------------
+# max_tokens: room for long or reasoning replies (M-03)
+# ---------------------------------------------------------------------------
+
+def test_max_tokens_defaults_to_4096(clean_env, tmp_path, monkeypatch):
+    from reflow.config import load_config
+
+    _isolate(monkeypatch, tmp_path)
+    assert load_config()["max_tokens"] == 4096
+
+
+def test_max_tokens_from_the_file_and_the_environment(clean_env, tmp_path, monkeypatch):
+    from reflow.config import load_config
+
+    _isolate(monkeypatch, tmp_path)
+    (tmp_path / "reflow.toml").write_text("max_tokens = 12000\n", encoding="utf-8")
+    assert load_config()["max_tokens"] == 12000
+    monkeypatch.setenv("REFLOW_MAX_TOKENS", "16000")
+    assert load_config()["max_tokens"] == 16000
+
+
+@pytest.mark.parametrize("line", ["max_tokens = 0", 'max_tokens = "lots"', "max_tokens = 1.5"])
+def test_bad_max_tokens_is_refused(clean_env, tmp_path, monkeypatch, line):
+    from reflow.config import ConfigError, load_config
+
+    _isolate(monkeypatch, tmp_path)
+    (tmp_path / "reflow.toml").write_text(line + "\n", encoding="utf-8")
+    with pytest.raises(ConfigError, match="max_tokens"):
+        load_config()
