@@ -38,6 +38,9 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | R-10 | The six `need` checks (`project.cap`, `.pullup`, `.pulldown`, `.tie`, `.open`, `.connected`) | ProjectRules, Netlist | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
 | V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | done (10-21) |
 | V-22 | Render project rules into codegen/fix prompts | ProjectRules | prompt text | one line per rule; no `why`/`source` in any prompt | V-21, H-08 | AGENT→HUMAN | done (10-21; human reviewed codegen.md and applied the loop patch, 30cc4b4). 10-22: each [[part]]'s pin table added (V-22a), awaiting human review |
+| V-23 | Contract patch for V-2b: `ProjectRule` gains optional `drafted_by`, `quote`, `confirmed_by`; `reflow rules check` warns on unconfirmed rules; design/eval label runs with unconfirmed rules; eval boards need every rule confirmed | ProjectRules | contracts + labels | existing rules.toml files still parse; `drafted_by = "model"` without `quote` fails check; an unconfirmed rule → warning, `unconfirmed_rules: N` in run.json, eval board left out of the go/no-go | V-2b, V-21 | AGENT→HUMAN (contract) | todo |
+| V-24 | `reflow rules confirm [RULES] [--ref U1]` | rules.toml | `confirmed_by = "<name>, <date>"` on confirmed rules | refuses without a TTY (no `--yes`); name typed, defaulting to git user.name; confirm/edit/skip per rule; write-back changes only `confirmed_by` (rest of the file byte-identical) | V-23 | AGENT | todo |
+| I-01 | `reflow init [DIR] [--part REF=MPN[:Lib:Symbol]]` | skill, pin map | `.claude/skills/datasheet-tutor/SKILL.md`, `AGENTS.md`, `CLAUDE.md` (`@AGENTS.md`), skeleton `rules.toml` | never overwrites (existing files reported, skipped); skeleton has one blank entry per pin that needs a decision and fails `reflow rules check` until filled; check that Claude Code loads the project skill | V-23, H-08b | AGENT | todo |
 
 ## Contracts
 
@@ -59,6 +62,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | done (10-19) |
 | H-09 | Wire `reflow design` to config, `compile_board`, catalog + resolver, design verifier | config, H-03, V-16 | runnable command | scripted model + real tsci: no-pull-up board fails then passes from config; missing key / bad config / catalog failure exit 2 | H-07, V-16 | AGENT | done (10-21) |
 | H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | doing (awaiting human review) |
+| H-08b | Tighten the datasheet-tutor skill (study first, write only when asked, `drafted_by`/`quote`, never `confirmed_by`) and write the `AGENTS.md` text | V-2b | `skills/datasheet-tutor/SKILL.md`, AGENTS.md template | human approved | V-2b | AGENT→HUMAN (prompt text) | todo |
 
 ## Model + compiler (AGENT)
 
@@ -89,6 +93,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | L-01 | Interaction selection + grading + skip logic | `RunResult`, violations | `LearnInteraction` list | every interaction's `rule_id` is a real violation from the run | H-03, D-4 | HUMAN | todo |
 | L-02 | Terminal screens for spot-the-bug | L-01 output | interactive prompts | scripted-input test records a `LearnRecord` | L-01 | AGENT | todo |
 | L-03 | Sign-off gate | warnings, overrides | `SignOff` | `n` stops before export | — | AGENT | todo |
+| L-04 | `reflow learn REF [--datasheet PATH] [--print-command]` | rules.toml `[[part]]` | a separate Claude Code session | macOS: opens a Terminal window and runs `claude --name … "<first message>"` in the project folder (never `-p`); `--print-command`, or no `claude` on PATH: prints the commands; Windows/Linux print (later); reads nothing back | I-01, H-08b | AGENT | todo |
 
 ## Routing + output (AGENT)
 

@@ -1,6 +1,6 @@
 # V-2b · Model-drafted rules are visible, marked and confirmed by a person
 
-Status: **PROPOSED** 2026-10-22 by the agent (Claude), at the human's request. Amends V-2 and V-2a. Nothing binds until the human accepts it in `DECISIONS.md`. No code yet. All five questions were answered by the human on 2026-10-22 (see Answers); acceptance is still the human's call.
+Status: **ACCEPTED** 2026-10-22 by the human (proposed by agent, Claude). Amends V-2 and V-2a. Binding text: `DECISIONS.md`. The contract patch is task V-23; no code yet.
 
 ## Problem
 
