@@ -73,13 +73,13 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| P-01 | Catalog client | category query | `CatalogPart[]` | "4.7k 0402" returns ≥1 in-stock part with a real LCSC id; network error raises `CatalogError` | D-6 | AGENT | todo |
+| P-01 | Catalog client | category query | `CatalogPart[]` | "4.7k 0402" returns ≥1 in-stock part with a real LCSC id; network error raises `CatalogError` | D-6 | AGENT | retired (jlcsearch; replaced by P-05, D-6a) |
 | P-02 | Resolver validity + ranking | `PartRequest`, candidates | `ResolvedPart` / `Unresolved` | package matches request; basic > stock > price; IC only if in `named_parts` | P-01 | HUMAN | done |
-| P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | todo |
+| P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | done via the local snapshot (P-04, P-05) |
 | P-04 | `reflow parts update`: download the jlcparts snapshot, join + inflate, CRC check, install atomically (D-6a) | jlcparts data URL | `cache.sqlite3` + `snapshot.json` at `REFLOW_PARTS_DB` | split-archive fixture installs; a missing or corrupt part fails and keeps the old database | D-6a | AGENT | done (10-21) |
 | P-05 | Catalog client on the local snapshot, category-aware queries; candidates carry `category` (C2 catalog half) | `PartRequest` | `CatalogPart[]` | MCP9808 plan resolves its 4.7k/100nF/header/IC requests from a snapshot fixture | P-04 | AGENT | done (10-21); header + IC resolve once P-02b lands |
 | P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | AGENT→HUMAN (O-1: human reviews the diff) | doing (awaiting human review) |
-| P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal needs the human's OK) | todo |
+| P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal approved by the human) | done (10-21) |
 
 ## Learn mode
 

@@ -284,7 +284,8 @@ def test_resolver_does_not_call_catalog_search(monkeypatch):
     def _boom(*_args, **_kwargs):
         raise AssertionError("resolver must not fetch or rank via catalog.search")
 
-    monkeypatch.setattr("reflow.parts.catalog.search", _boom)
+    # P-06: the catalog that fetches is now reflow.parts.local_catalog (the jlcsearch client is gone).
+    monkeypatch.setattr("reflow.parts.local_catalog.search", _boom)
     monkeypatch.setattr("reflow.parts.resolver.search", _boom, raising=False)
     result = resolve([_resistor()], [], {"r1": [_part(basic=True)]}, fetched_at=FETCHED)
     assert result.resolved[0].lcsc == "C1000"

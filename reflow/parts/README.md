@@ -4,7 +4,7 @@
 
 | Piece | Owner | Status |
 |---|---|---|
-| `catalog.py`: fetch candidates from the parts backend (D-6). Unsorted. | AGENT (P-01, P-03) | built |
+| `catalog.py`: shared `CatalogPart`, `CatalogError`, `parse_value`. The jlcsearch client and cache were retired (P-06) | AGENT | built |
 | `resolver.py`: package match, named-part provenance, ranking; P-02b adds the category check, typed family → orderable MPN (asks when variants or packages differ), connector package = pitch, the row's own date | P-02 HUMAN; P-02b agent-written under O-1, human review pending | built |
 | `local_catalog.py`: queries the local snapshot. Resistors and capacitors by value (as numbers), tolerance and voltage; pin headers by `value` "RxC" + `package` pitch (D-6a a); named parts by MPN prefix. Each candidate carries its reflow `category` and the row's `fetched_at`. Other categories without an MPN raise | AGENT (P-05) | built |
 | `snapshot.py`: `reflow parts update` downloads the jlcparts database (D-6a), inflates it across its split parts with a CRC check, and installs it atomically at `REFLOW_PARTS_DB` (default `~/.cache/reflow/jlcparts/cache.sqlite3`) with `snapshot.json` | AGENT (P-04) | built |
