@@ -179,17 +179,16 @@ def test_database_path_comes_from_the_environment(monkeypatch):
 # the MCP9808 eval plan, through the real resolver
 # ---------------------------------------------------------------------------
 
-def test_mcp9808_plan_passives_and_header_resolve():
+def test_mcp9808_plan_resolves_every_part():
     plan = from_dict(Plan, json.loads((ROOT / "docs" / "examples" / "plan.json").read_text(encoding="utf-8")))
-    parts = [dataclasses.replace(p, value="1x4", package="2.54mm") if p.category == "connector" else p
+    parts = [dataclasses.replace(p, value="1x4", package="2.54mm") if p.category == "connector"
+             else dataclasses.replace(p, package="MSOP-8") if p.category == "ic" else p
              for p in plan.parts]
     candidates = {p.id: search(p, db_path=DB) for p in parts}
     result = resolve(parts, ["MCP9808"], candidates, fetched_at="2026-10-21T00:00:00Z")
     chosen = {r.request_id: r.lcsc for r in result.resolved}
     assert chosen["p2"] in {"C307331", "C1525"}                 # basic 100nF 0402 rated >= 10V
     assert chosen["p3"] == chosen["p4"] == "C25900"            # basic 4.7k 0402 1%
-    # The catalog's half for p1 and p5. Their resolver outcome is P-02b (HUMAN):
-    # family "MCP9808" -> an orderable MPN, and for a connector `package` is the
-    # pitch (D-6a a), which the resolver still compares to the row's package text.
-    assert {p.mpn for p in candidates["p1"]} == {"MCP9808-E/MS", "MCP9808T-E/MS", "MCP9808T-E/MC"}
-    assert _lcsc(candidates["p5"]) == {"C32713270", "C124378", "C41417361"}
+    assert chosen["p1"] == "C129490"                           # MCP9808T-E/MS, MSOP-8, most stock
+    assert chosen["p5"] == "C32713270"                         # 1x4 2.54 mm, most stock
+    assert result.unresolved == []
