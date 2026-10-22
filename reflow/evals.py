@@ -75,7 +75,8 @@ class _Counting:
     def __init__(self, model) -> None:
         self.model, self.ids = model, set()
 
-    def complete(self, system, prompt, *, max_tokens=4096):
+    def complete(self, system, prompt, *, max_tokens=None):
+        # None leaves the budget to the model (config max_tokens, M-03).
         completion = self.model.complete(system, prompt, max_tokens=max_tokens)
         self.ids.add(completion.model)
         return completion
