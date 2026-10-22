@@ -16,7 +16,8 @@ from reflow.checkpoint import reject_foreign_mpn
 from reflow.contracts import PART_CATEGORIES, Plan, Spec, from_dict
 
 EVALS = Path(__file__).resolve().parents[1] / "evals"
-BOARDS = sorted(p for p in EVALS.iterdir() if p.is_dir())
+# Board folders have a spec.json; evals/results/ (written by `reflow eval`) is not a board.
+BOARDS = sorted(p for p in EVALS.iterdir() if p.is_dir() and (p / "spec.json").is_file())
 HEADER = re.compile(r"\d+x\d+")
 
 
