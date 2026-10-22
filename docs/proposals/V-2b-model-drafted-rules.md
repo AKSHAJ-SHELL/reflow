@@ -1,6 +1,6 @@
 # V-2b · Model-drafted rules are visible, marked and confirmed by a person
 
-Status: **PROPOSED** 2026-10-22 by the agent (Claude), at the human's request. Amends V-2 and V-2a. Nothing binds until the human accepts it in `DECISIONS.md`. No code yet. Questions 3–5 were answered by the human on 2026-10-22 (see Answers); 1 and 2 are open.
+Status: **PROPOSED** 2026-10-22 by the agent (Claude), at the human's request. Amends V-2 and V-2a. Nothing binds until the human accepts it in `DECISIONS.md`. No code yet. All five questions were answered by the human on 2026-10-22 (see Answers); acceptance is still the human's call.
 
 ## Problem
 
@@ -100,7 +100,8 @@ This complements learn mode (A-04, L-01..L-03); it doesn't replace it.
 - **Q3:** yes. `reflow rules confirm` refuses to run without a real terminal.
 - **Q4:** on macOS, `reflow learn` opens a new Terminal window and runs the commands itself. Windows (and Linux) print the commands to copy and paste; that comes later.
 - **Q5:** yes. Done: the skill is at `skills/datasheet-tutor/SKILL.md`.
-- **Q1, Q2:** open.
+- **Q1:** (a) for students: only `drafted_by = "model"` rules need confirming, and a person's own lines count as written. Eval boards (E-02) need **every** rule confirmed before they count toward the go/no-go.
+- **Q2:** the name is typed at the `reflow rules confirm` prompt, with git `user.name` filled in as the default (press Enter to accept it).
 
 ## Questions for the human
 

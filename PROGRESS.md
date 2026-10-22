@@ -494,3 +494,10 @@ Did: the human answered three of V-2b's questions in chat:
 Recorded them in the proposal and the DECISIONS.md row. Q1 (which rules need confirming) and Q2 (where the `confirmed_by` name comes from) are still open, and V-2b is still PROPOSED.
 - Moved `docs/proposals/datasheet-tutor-SKILL.md` → `skills/datasheet-tutor/SKILL.md` (git mv; text unchanged) and updated the pointer in docs/proposals/V-2-rule-framework.md.
 Tests: none (docs only).
+
+## 2026-10-22 · agent (Claude) · V-2b answers 1–2
+Did: recorded the human's answers in the proposal and the DECISIONS.md row:
+- Q1: (a) for students, only model-drafted rules need confirming; eval boards need every rule confirmed.
+- Q2: the confirmed_by name is typed at the prompt, defaulting to git user.name.
+All five questions are now answered. V-2b stays PROPOSED until the human accepts it, and the contract patch (V-23) waits on that.
+Tests: none (docs only).
