@@ -14,6 +14,7 @@
 | `test_parts_snapshot.py` | `reflow parts update` on a six-part split-archive fixture (`data/snapshot/`) over file:// URLs: install, CRC and format checks, old database kept on failure | no |
 | `test_local_catalog.py` | Local-snapshot queries on 27 real rows (`data/parts_db/`): values, tolerance, voltage, headers, MPN prefix, category mapping, the MCP9808 plan through the resolver | no |
 | `test_evals.py` | Structure of every `evals/` board: strict spec and plan, named parts verbatim in the request, D-6a headers, expected.toml agrees with the plan | no |
+| `test_eval_runner.py` | The eval runner with a scripted model, real tsci and verifier, and the parts fixture: pass rates, foreign part numbers, expectation misses, errors, go/no-go, results file, `reflow eval` | tsci (skips if missing); about 2 minutes |
 | `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
 | `test_parts_integration.py` | Plan → catalog → resolver on recorded jlcsearch responses (`data/jlcsearch_plan/`) | no |
 

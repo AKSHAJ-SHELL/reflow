@@ -34,6 +34,18 @@ were read (DS20005095B).
 
 `tests/test_evals.py` checks the structure of every folder. It can't check that an expectation is electrically right; that's the person's check.
 
-## Running them (E-01, not built yet)
+## Running them (E-01)
 
-Needs `REFLOW_API_KEY`, a `base_url` in `reflow.toml`, and `reflow parts update` run once. Pin binding (V-12) isn't built, so the decoupling rules don't run yet; results should say so.
+```bash
+reflow eval            # all boards; --only NAME to pick, --out DIR for results
+```
+
+Needs `REFLOW_API_KEY`, a `base_url` in `reflow.toml`, and `reflow parts update` run once. Each board's run folder goes under `runs/evals/<stamp>/`, and the summary goes to `evals/results/<stamp>.json`.
+
+Per board the summary has:
+- status and attempts, and whether it passed on the first attempt;
+- part numbers in the board that came from neither the resolver nor the spec;
+- expectation misses, checked on the board's netlist;
+- tokens.
+
+The go/no-go stays `undecided` while any eval is a draft. Pin binding (V-12) isn't built, so the decoupling rules don't run, and IC pin names in the expectation check are the design's own labels; the results record `pin_binding`.
