@@ -4,6 +4,9 @@ Contract
 --------
     load_rules(path) -> contracts.ProjectRules
     check_rules(rules, pin_maps) -> RulesCheck
+    pin_maps_from_parts(rules) -> (pin_maps, warnings)
+    render_rules(rules, plan) -> str
+    rules_prompt_block(spec, plan) -> str
 
 `load_rules` parses the TOML strictly with `from_dict(ProjectRules, ...)`: a
 missing `why` or `source`, or an unknown key, raises RulesFileError.
@@ -20,9 +23,17 @@ missing `why` or `source`, or an unknown key, raises RulesFileError.
   are recognised by name (NRST, RESET, RST, MCLR, BOOT*), because neither pin
   source types them.
 
-`pin_maps` maps a reference ("U1") to a `reflow.parts.pinmap.PinMap`. A rules
-file is written before any board exists, so the caller says which part each
-reference is (`reflow rules check --symbol U1=Lib:Symbol` / `--mpn U1=MPN`).
+`pin_maps` maps a reference ("U1") to a `reflow.parts.pinmap.PinMap`.
+`pin_maps_from_parts` builds them from the file's `[[part]]` table (V-2a): a
+`symbol` gives the KiCad symbol, otherwise `mpn` is looked up in vendor pin
+data; a part with neither gets a warning. When a `[[part]]` table exists, a
+rule whose reference isn't in it is a warning too.
+
+`render_rules` is what the codegen and fix prompts get (V-22): one line per
+`[[part]]` ("U1 is the MCP9808 (plan part p1). Give it reference U1.") and
+one per rule ("U1.VDD: capacitor to GND, 100nF..1uF"), never `why` or
+`source`. `rules_prompt_block` reads `spec.rules_file` ("none" when empty; a
+missing or invalid file raises).
 
 Must never
 ----------
@@ -44,6 +55,14 @@ from reflow.parts.pinmap import PinMap, base_name
 _ON = re.compile(r"([A-Za-z]+\d+)\.(\S+)")
 _NEEDS_A_NET = {"cap", "pullup", "pulldown", "tie"}
 _RESET_BOOT = ("NRST", "RESET", "RST", "MCLR", "BOOT")
+_WORDING = {
+    "cap": "capacitor to {to}",
+    "pullup": "pull-up resistor to {to}",
+    "pulldown": "pull-down resistor to {to}",
+    "tie": "wire directly to {to}",
+    "open": "leave unconnected",
+    "connected": "must be connected",
+}
 
 
 class RulesFileError(ValueError):
@@ -95,6 +114,11 @@ def check_rules(rules: ProjectRules, pin_maps: dict[str, PinMap]) -> RulesCheck:
             covered.add((ref, pin.number))
     for ref in sorted(unmapped):
         result.warnings.append(f"{ref}: no pin map given, so its pin names were not checked")
+    named = {part.ref for part in rules.part}
+    if named:
+        refs = {m.group(1) for r in rules.rule if (m := _ON.fullmatch(r.on.strip()))}
+        for ref in sorted(refs - named):
+            result.warnings.append(f"{ref} is used by a rule but not listed in [[part]], so codegen won't know which part it is")
     for ref in sorted(pin_maps):
         for pin in pin_maps[ref].pins:
             role = _role(pin)
@@ -153,3 +177,38 @@ def _role(pin) -> str:
     if name.startswith(_RESET_BOOT):
         return "boot" if name.startswith("BOOT") else "reset"
     return ""
+
+
+def pin_maps_from_parts(rules: ProjectRules) -> tuple[dict[str, PinMap], list[str]]:
+    """Pin maps for the [[part]] table. A symbol that can't be read raises PinMapError."""
+    from reflow.parts.pinmap import PinMapError, from_kicad_symbol, import_pin_map
+
+    maps, warnings = {}, []
+    for part in rules.part:
+        if part.symbol.strip():
+            maps[part.ref] = from_kicad_symbol(part.symbol.strip())
+            continue
+        try:
+            maps[part.ref] = import_pin_map(part.mpn).pin_map
+        except PinMapError as exc:
+            warnings.append(f"{part.ref}: no pin map for {part.mpn} ({exc}); add symbol = \"Library:Symbol\"")
+    return maps, warnings
+
+
+def render_rules(rules: ProjectRules, plan) -> str:
+    lines = []
+    for part in rules.part:
+        match = next((p for p in (plan.parts if plan else []) if p.mpn and p.mpn == part.mpn), None)
+        where = f" (plan part {match.id})" if match else ""
+        lines.append(f"{part.ref} is the {part.mpn}{where}. Give it reference {part.ref}.")
+    for rule in rules.rule:
+        wording = _WORDING.get(rule.need, rule.need).format(to=rule.to.strip())
+        value = f", {rule.value.strip()}" if rule.value.strip() else ""
+        lines.append(f"{rule.on.strip()}: {wording}{value}")
+    return "\n".join(lines)
+
+
+def rules_prompt_block(spec, plan) -> str:
+    if not spec.rules_file.strip():
+        return "none"
+    return render_rules(load_rules(spec.rules_file), plan)

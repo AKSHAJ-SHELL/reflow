@@ -33,7 +33,7 @@ DOUBLED_PLACEHOLDER_RE = re.compile(r"\{\{[A-Za-z_][A-Za-z0-9_]*\}\}")
 
 ALLOWED_PLACEHOLDERS = {
     "planner": {"request"},
-    "codegen": {"spec", "plan", "resolved_parts"},
+    "codegen": {"spec", "plan", "resolved_parts", "project_rules"},
     "fix": {
         "attempt",
         "max_attempts",

@@ -20,7 +20,13 @@ Resolved-parts table. Columns are request_id, role, value, package, lcsc, and mp
 
 {resolved_parts}
 
-Every row is one component. Do not add a component that has no row. Reference designators are yours to assign: U for an IC, R for a resistor, C for a capacitor, L for an inductor, D for a diode or LED, J for a connector. A request_id such as p1 is not a reference designator.
+Every row is one component. Do not add a component that has no row. Reference designators are yours to assign, except the ones the project rules below fix: U for an IC, R for a resistor, C for a capacitor, L for an inductor, D for a diode or LED, J for a connector. A request_id such as p1 is not a reference designator.
+
+## Project rules: fixed references and pin requirements
+
+These are the project's rules for this board. A line such as "U1 is the MCP9808 (plan part p1). Give it reference U1." fixes that part's reference designator: use exactly that reference. Every other line is a requirement on one pin, written REF.PIN with the part's own pin name. The finished board is checked against every line, so meet each one.
+
+{project_rules}
 
 ## Part numbers in the TSX
 

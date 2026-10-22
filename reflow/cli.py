@@ -227,6 +227,7 @@ def cmd_design(
         if args.plan:
             plan = load_plan(Path(args.plan))
             reject_foreign_mpn(plan, spec)
+        spec = _with_rules_file(spec, Path(args.spec))
         if model is None:
             if codegen is not None:
                 codegen(spec, plan)
@@ -305,6 +306,28 @@ def _resolve_from_catalog(plan, spec) -> ResolvedParts:
 def _unbound(netlist, parts, spec):
     """Stand-in until V-12: pins stay untyped (UNBOUND_WARNING is printed)."""
     return netlist
+
+
+def _with_rules_file(spec, spec_path: Path):
+    """Resolve Spec.rules_file next to the spec, and refuse a missing or invalid one (V-22)."""
+    from dataclasses import replace
+
+    from reflow.project_rules import RulesFileError, load_rules
+
+    if not spec.rules_file.strip():
+        return spec
+    path = Path(spec.rules_file)
+    if not path.is_absolute():
+        path = spec_path.parent / path
+    try:
+        rules = load_rules(path)
+    except RulesFileError as exc:
+        raise InputError(str(exc)) from exc
+    for part in rules.part:
+        if part.mpn not in spec.named_parts:
+            raise InputError(f"{path}: [[part]] {part.ref} is {part.mpn!r}, which is not one of the parts "
+                             f"the spec names ({', '.join(spec.named_parts) or 'none'})")
+    return replace(spec, rules_file=str(path.resolve()))
 
 
 def _load_parts(args):
@@ -409,10 +432,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_rules_check(args) -> int:
     from reflow.parts.pinmap import PinMapError, from_kicad_symbol, import_pin_map
-    from reflow.project_rules import RulesFileError, check_rules, load_rules
+    from reflow.project_rules import RulesFileError, check_rules, load_rules, pin_maps_from_parts
 
     try:
-        pin_maps = {}
+        rules = load_rules(Path(args.rules_file))
+        pin_maps, part_warnings = pin_maps_from_parts(rules)
         for option, build in (("symbol", lambda v: from_kicad_symbol(v)),
                               ("mpn", lambda v: import_pin_map(v).pin_map)):
             for pair in getattr(args, option):
@@ -420,11 +444,11 @@ def cmd_rules_check(args) -> int:
                 if not sep or not ref.strip() or not value.strip():
                     raise InputError(f"--{option} takes REF=VALUE, got {pair!r}")
                 pin_maps[ref.strip()] = build(value.strip())
-        rules = load_rules(Path(args.rules_file))
     except (InputError, PinMapError, RulesFileError) as exc:
         print(f"reflow: {exc}", file=sys.stderr)
         return 2
     result = check_rules(rules, pin_maps)
+    result.warnings[:0] = [w for w in part_warnings if w.split(":", 1)[0] not in pin_maps]
     for error in result.errors:
         print(f"error: {error}")
     for warning in result.warnings:
