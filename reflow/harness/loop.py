@@ -24,6 +24,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from reflow.project_rules import rules_prompt_block
 
 from reflow.checkpoint import CheckpointError, reject_foreign_mpn
 from reflow.codefence import extract_code_fence
@@ -354,6 +355,7 @@ def _codegen_text(spec: Spec, plan: Plan, parts: ResolvedParts) -> str:
         "spec": _render_spec(spec),
         "plan": _render_plan(plan),
         "resolved_parts": _render_parts(plan, parts),
+        "project_rules": rules_prompt_block(spec, plan),
     })
 
 
