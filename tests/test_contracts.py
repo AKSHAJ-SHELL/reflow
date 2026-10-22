@@ -24,7 +24,8 @@ FROZEN = {
     "Violation": ("rule_id", "severity", "message", "why", "fix_hint", "refs", "nets"),
     "OpenQuestion": ("id", "question", "answer"),
     "ProjectRule": ("on", "need", "source", "why", "to", "value"),
-    "ProjectRules": ("rule",),
+    "RulePart": ("ref", "mpn", "symbol"),
+    "ProjectRules": ("rule", "part"),
     "Spec": ("request", "title", "power", "interfaces", "constraints", "named_parts",
              "open_questions", "confirmed", "rules_file"),
     "PartRequest": ("id", "role", "category", "value", "package", "tolerance", "voltage",
@@ -151,6 +152,8 @@ def test_enums_in_examples():
     assert all(p.kind in c.PIN_KINDS for p in card.pins)
     rules = c.from_dict(c.ProjectRules, json.loads((EXAMPLES / "project_rules.json").read_text()))
     assert rules.rule and all(r.need in c.RULE_NEEDS for r in rules.rule)
+    refs = {p.ref for p in rules.part}
+    assert all(r.on.split(".", 1)[0] in refs for r in rules.rule)
 
 
 def test_plan_only_copies_user_named_mpns():

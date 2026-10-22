@@ -82,8 +82,16 @@ class ProjectRule:
 
 
 @dataclass
+class RulePart:
+    ref: str                    # "U1": the reference the rules use, and codegen must give this part
+    mpn: str                    # the named part it is, e.g. "MCP9808" (a Spec.named_parts string)
+    symbol: str = ""            # optional KiCad library id for its pin map, "Sensor_Temperature:MCP9808_MSOP"
+
+
+@dataclass
 class ProjectRules:
     rule: list[ProjectRule]     # named `rule` so a [[rule]] TOML file parses as-is
+    part: list[RulePart] = field(default_factory=list)   # [[part]]: which part each rule reference is (V-2a)
 
 
 # ----------------------------------------------------------------------------
@@ -349,7 +357,7 @@ class FabPackage:
 
 ALL_CONTRACTS = {
     cls.__name__: cls for cls in (
-        OpenQuestion, Spec, ProjectRule, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
+        OpenQuestion, Spec, ProjectRule, RulePart, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
         ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
         LearnInteraction, LearnRecord, SignOff, DrcSummary, RouteResult, FabPackage,
