@@ -235,3 +235,7 @@ Did: added `reflow/project_rules.py` and `reflow rules check RULES [--symbol REF
 - Not wired into `reflow design`: the example spec's rules_file points at a file the design tests don't have, and using the rules in the loop is V-22 / R-10.
 Tests: `tests/test_project_rules.py` (26) failed first (module missing), then passed. Four in-process sabotages (any pin accepted, no coverage warnings, no reset/boot names, `to` never checked) → red each time. Real run on the accepted example with the installed KiCad library → 7 rules, 0 errors, 1 warning (U1.GND has no rule). `pytest -q` → 1 failed (the deliberate tscircuit .kicad_sch record), 451 passed.
 Next: V-22 (render rules into prompts, AGENT→HUMAN), or R-10 (the six need checks, HUMAN).
+
+## 2026-10-21 · agent (Claude) · fix: test fixtures hidden by .gitignore (V-11, P-04)
+Did: while testing the V-2a patch in a clean worktree, found that `.gitignore`'s `kicad/` and `*.zip` patterns had kept two fixtures out of git: `tests/data/pinmaps/kicad/` (V-11, commit 19b7c4a) and `tests/data/snapshot/cache.zip` (P-04, dd4d2e0). Their tests passed locally but would fail on a fresh clone. My clean-worktree runs covered only the contract commits, not those. Added negation lines for exactly those paths, committed the files, and added `tests/test_repo_hygiene.py`, which fails if any file under tests/data, evals, docs/examples or docs/proposals/examples is git-ignored.
+Tests: the hygiene test failed first, listing the 4 hidden files, then passed. The full `pytest -q` in a fresh worktree of this commit is recorded below.

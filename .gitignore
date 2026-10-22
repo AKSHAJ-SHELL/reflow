@@ -30,3 +30,7 @@ kicad/
 
 # reflow run folders
 runs/
+
+# Test inputs the patterns above would otherwise hide (tests/test_repo_hygiene.py)
+!tests/data/pinmaps/kicad/
+!tests/data/snapshot/cache.zip
