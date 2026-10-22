@@ -34,3 +34,6 @@ runs/
 # Test inputs the patterns above would otherwise hide (tests/test_repo_hygiene.py)
 !tests/data/pinmaps/kicad/
 !tests/data/snapshot/cache.zip
+
+# Local settings and secrets (REFLOW_API_KEY): never committed. See .env.example.
+.env
