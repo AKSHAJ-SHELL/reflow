@@ -171,3 +171,8 @@ Next: P-02b (HUMAN); the planner prompt line for headers (H-08, AGENT→HUMAN); 
 Did: updated the planner draft `prompts/planner.md` for D-6a (a). The `value` field says a connector is "rows x pins per row, such as 1x4", and the `package` field says a connector's is "the pin pitch, such as 2.54mm". A new paragraph says a connector is a straight pin header, and that a missing pitch defaults to 2.54mm plus an open question. The example plan's p5 header is now value "1x4", package "2.54mm". The draft banner is unchanged: still a draft, awaiting your review. H-08 set to doing (awaiting human review). Note: codegen.md says "a passive footprint is the package cell"; for a header the resolved package is the row's text (e.g. "插件,P=2.54mm"), so codegen should take the pin count from the value. Worth a look when you review codegen.md.
 Tests: two new tests in `tests/test_prompts.py` failed first. The field lines didn't describe headers, and the example header was ("", ""). One also parses the prompt's example Spec and Plan strictly and checks the local catalog finds a header for each example connector on the 27-row fixture. Both pass now; test_prompts 10 passed. `pytest -q` → 4 failed, 379 passed: the same 4 known failures.
 Next: the human reviews planner.md (and approves H-08 when ready); P-02b (HUMAN).
+
+## 2026-10-21 · human review · H-08 (planner.md)
+Did: the human reviewed the planner.md header-encoding change (e95dd05) and approved its content. H-08 stays "doing (awaiting human review)" for codegen.md and fix.md. The draft banners stay until the human approves all three.
+Tests: none (log only).
+Next: codegen.md / fix.md review (H-08); P-02b (HUMAN).
