@@ -1,6 +1,6 @@
 # V-2b · Model-drafted rules are visible, marked and confirmed by a person
 
-Status: **PROPOSED** 2026-10-22 by the agent (Claude), at the human's request. Amends V-2 and V-2a. Nothing binds until the human accepts it in `DECISIONS.md`. No code yet.
+Status: **PROPOSED** 2026-10-22 by the agent (Claude), at the human's request. Amends V-2 and V-2a. Nothing binds until the human accepts it in `DECISIONS.md`. No code yet. Questions 3–5 were answered by the human on 2026-10-22 (see Answers); 1 and 2 are open.
 
 ## Problem
 
@@ -23,7 +23,7 @@ Everything below is documented in the README. The only gate that actually holds 
 
 ### A. The datasheet-tutor skill writes rules only after the study (prompt text)
 
-Move `docs/proposals/datasheet-tutor-SKILL.md` to `skills/datasheet-tutor/SKILL.md` and tighten its "Writing rules.toml" section:
+The skill now lives at `skills/datasheet-tutor/SKILL.md` (moved from `docs/proposals/datasheet-tutor-SKILL.md` on 2026-10-22, answer 5; its text is unchanged so far). Tighten its "Writing rules.toml" section:
 
 1. **Study first.** Before writing any rule, walk the student through the sections that become rules: pin table, supply and decoupling, reset/boot, interface pull-ups, address straps, unused pins. After each one, the student says the fact back in one sentence. That sentence becomes the rule's `why`.
 2. **Write only when asked.** The skill writes `rules.toml` only when the student asks for it.
@@ -82,7 +82,7 @@ confirmed_by = ""                             # written only by `reflow rules co
 Opens a new Claude Code session for studying one chip, separate from the session the student designs in:
 
 - It runs, in the project folder, `claude --name "reflow learn U1 (MCP9808)" "<first message>"`. The first message asks for the datasheet-tutor walk-through of U1 (part, package, datasheet path), and says not to write `rules.toml` until the student asks. It never uses `-p`, because the point is the student talking.
-- **Where it opens:** on macOS, in a new Terminal window. Elsewhere, or with `--print-command`, it prints the exact command to paste.
+- **Where it opens (answer 4):** on macOS, reflow opens a new Terminal window and starts the session there itself: it changes to the project folder and runs the `claude` command with the first message, so the student only has to start talking. On Windows and Linux (later), and on any system with `--print-command`, it prints the exact commands instead, for the student to paste into a new terminal or for their assistant to hand them.
 - **Without `claude`:** if `claude` isn't on PATH, it prints the same first message for any other assistant. The skill and `AGENTS.md` work there too.
 - **What reflow reads back:** nothing from the session itself. It reads only the `rules.toml` the student saves, and the confirm step (C) stays the gate.
 
@@ -94,6 +94,13 @@ This complements learn mode (A-04, L-01..L-03); it doesn't replace it.
 - The TTY check stops a model from confirming quietly in a normal agent shell. It doesn't stop a determined person.
 - A separate session doesn't prove the student studied. It only makes studying the default path.
 - Not yet verified before building: that Claude Code loads `.claude/skills/<name>/SKILL.md` from the project, and the exact way to open a new Terminal window from Python on macOS. Both get checked, with a test or a recorded manual run, in their tasks.
+
+## Answers (2026-10-22, from the human in chat)
+
+- **Q3:** yes. `reflow rules confirm` refuses to run without a real terminal.
+- **Q4:** on macOS, `reflow learn` opens a new Terminal window and runs the commands itself. Windows (and Linux) print the commands to copy and paste; that comes later.
+- **Q5:** yes. Done: the skill is at `skills/datasheet-tutor/SKILL.md`.
+- **Q1, Q2:** open.
 
 ## Questions for the human
 
