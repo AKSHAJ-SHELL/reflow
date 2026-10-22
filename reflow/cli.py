@@ -372,7 +372,58 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--db", metavar="PATH", help="where to install cache.sqlite3")
     update.add_argument("--url", metavar="URL", help="snapshot base URL (default: REFLOW_PARTS_URL or jlcparts)")
     update.set_defaults(func=cmd_parts_update)
+    evaluate = sub.add_parser(
+        "eval",
+        help="run the eval boards and report the go/no-go numbers",
+        description=(
+            "Run every board in --evals through the design loop with the configured model, then "
+            "report first-pass and after-retry pass rates, part numbers outside the resolver, "
+            "expectation misses and tokens. Results go to --out as JSON."
+        ),
+    )
+    evaluate.add_argument("--evals", metavar="DIR", default="evals", help="eval folders (default: evals)")
+    evaluate.add_argument("--out", metavar="DIR", default="evals/results", help="where the results JSON goes")
+    evaluate.add_argument("--runs", metavar="DIR", default="runs/evals", help="run folders for each board")
+    evaluate.add_argument("--only", metavar="NAME", action="append", help="run only this board (repeatable)")
+    evaluate.set_defaults(func=cmd_eval)
     return parser
+
+
+def cmd_eval(args) -> int:
+    from reflow.evals import run_evals
+
+    try:
+        config = load_config()
+        model = load_model(config)
+        if PIN_BINDING is None:
+            print(UNBOUND_WARNING, file=sys.stderr)
+        summary = run_evals(
+            Path(args.evals),
+            make_model=lambda name: model,
+            compiler=compile_board,
+            bind=PIN_BINDING,
+            runs_dir=Path(args.runs),
+            out_dir=Path(args.out),
+            only=args.only,
+            max_attempts=config["max_attempts"],
+            compile_cap=config["compile_cap"],
+        )
+    except (ConfigError, ModelError, CatalogError, ContractError, OSError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    for board in summary["boards"]:
+        detail = board["abort_reason"] or board["error"] or "; ".join(board["expectation_misses"])
+        foreign = len(board["foreign_part_numbers"])
+        print(f"{board['name']}: {board['status']} in {board['attempts']} attempt(s), "
+              f"{'clean' if board['clean'] else 'not clean'}, {foreign} foreign part number(s)"
+              + (f" ({detail})" if detail else ""))
+    t = summary["totals"]
+    print(f"{t['passed']}/{t['boards']} passed ({t['first_pass']} on the first attempt), {t['clean']} clean, "
+          f"{t['foreign_part_numbers']} part number(s) outside the resolver, "
+          f"{t['input_tokens']} in / {t['output_tokens']} out tokens")
+    go = summary["go_no_go"]
+    print(f"go/no-go: {go['decision']} ({go['reason']})")
+    return 0
 
 
 def cmd_parts_update(args) -> int:
