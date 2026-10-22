@@ -15,5 +15,5 @@
   ],
   "open_questions": [],
   "confirmed": true,
-  "rules_file": ""
+  "rules_file": "rules.toml"
 }

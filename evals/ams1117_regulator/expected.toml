@@ -1,5 +1,7 @@
 # DRAFT (E-02, O-1): written by the agent. Nothing here counts until a person has
 # checked every line against the datasheets, set status = "checked" and filled checked_by.
+# Pin names are the KiCad symbol's in rules.toml [[part]] (V-12 relabels pins to them):
+# Regulator_Linear:AMS1117-3.3 says VI/VO/GND where EasyEDA (C6186) says VIN/VOUT/GND.
 status = "draft"
 checked_by = ""
 outcome = "board"
@@ -10,12 +12,12 @@ violations = []
 
 [[net]]
 name = "V5"
-includes = ["regulator.VIN", "capacitor", "connector"]
+includes = ["regulator.VI", "capacitor", "connector"]
 source = "TO CHECK: AMS1117 datasheet pin names (VIN/VOUT/GND or ADJ) and input capacitor value"
 
 [[net]]
 name = "V3_3"
-includes = ["regulator.VOUT", "capacitor", "connector"]
+includes = ["regulator.VO", "capacitor", "connector"]
 source = "TO CHECK: AMS1117 datasheet output capacitor requirement (value and type/ESR for stability)"
 
 [[net]]

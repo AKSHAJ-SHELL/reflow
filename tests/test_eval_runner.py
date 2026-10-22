@@ -212,10 +212,10 @@ def test_reflow_eval_runs_from_config(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("REFLOW_MODEL", "test-model")
     monkeypatch.setenv("REFLOW_BASE_URL", "https://example.invalid")
     monkeypatch.setenv("REFLOW_PARTS_DB", str(DB))
-    # Pins are bound for real here (V-12): give the board a rules file naming the
-    # MCP9808's KiCad symbol, and reply with the corrected first-real-run board.
-    shutil.copy(ROOT / "docs" / "proposals" / "examples" / "rules.toml", evals / "a" / "rules.toml")
-    _set(evals / "a", "spec.json", '"rules_file": ""', '"rules_file": "rules.toml"')
+    # Pins are bound for real here (V-12): the board's own rules file names the
+    # MCP9808's KiCad symbol, and the model replies with the corrected first-real-run board.
+    assert '"rules_file": "rules.toml"' in (evals / "a" / "spec.json").read_text(encoding="utf-8")
+    assert 'symbol = "Sensor_Temperature:MCP9808_MSOP"' in (evals / "a" / "rules.toml").read_text(encoding="utf-8")
     monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(ROOT / "tests" / "data" / "pinmaps" / "kicad"))
     corrected = (ROOT / "tests" / "data" / "real_runs" / "mcp9808_nemotron_20261022" / "corrected.tsx").read_text(encoding="utf-8")
     monkeypatch.setattr(cli, "load_model", lambda config: Scripted(["```tsx\n" + corrected + "```\n"]))
