@@ -66,6 +66,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 |---|---|---|---|---|---|---|---|
 | M-01 | Model adapters behind `complete(system, prompt)` | config | `reflow/llm.py` | mock-server/unit tests per adapter; errors raise `ModelError` | D-1 | AGENT | todo |
 | M-02 | Config loader (`reflow.toml` + env) | — | config dict | no secrets in repo; missing key → clear error | — | AGENT | todo |
+| M-03 | Reply budget: `max_tokens` in config, and a cut-off reply raises a clear error | config | `max_tokens` key; ModelError on `stop_reason`/`finish_reason` cut-off | config and env set the budget; a cut-off reply says so | M-01, M-02 | AGENT | done (10-21) |
 | K-01 | `compile_board()` via `tsci` | TSX string | `CompileResult` | blinky TSX compiles; a syntax error returns ok=False with ≥1 `CompileError` | — | AGENT | todo |
 | K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | todo |
 
