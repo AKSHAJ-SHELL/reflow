@@ -125,3 +125,26 @@ def test_each_named_symbol_is_in_the_installed_kicad_library(folder, monkeypatch
                 kind, _, pin_name = pin.partition(".")
                 if pin_name and kind in {"ic", "regulator"}:
                     assert pin_name.upper() in names, f"{folder.name}: expected.toml names {pin}, the symbol has {sorted(names)}"
+
+
+@pytest.mark.skipif(__import__("reflow.cli", fromlist=["find_kicad_cli"]).find_kicad_cli() is None,
+                    reason="kicad-cli not found (the installed KiCad symbol library is beside it)")
+@pytest.mark.parametrize("folder", BOARDS, ids=lambda p: p.name)
+def test_each_boards_codegen_rules_carry_its_pin_table(folder, monkeypatch):
+    """The codegen prompt gets every [[part]]'s pinLabels, from the same symbol V-12 binds to."""
+    import dataclasses
+
+    from reflow.parts.pinmap import from_kicad_symbol
+    from reflow.project_rules import rules_prompt_block
+
+    monkeypatch.delenv("REFLOW_KICAD_SYMBOL_DIR", raising=False)
+    spec, plan, _ = _load(folder)
+    rules = _rules(folder)
+    if rules is None:
+        return
+    lines = rules_prompt_block(dataclasses.replace(spec, rules_file=str(folder / spec.rules_file)), plan).splitlines()
+    for part in rules.part:
+        table = [line for line in lines if line.startswith(f"{part.ref} pinLabels, from the KiCad symbol {part.symbol}: ")]
+        assert len(table) == 1, (folder.name, lines)
+        for pin in from_kicad_symbol(part.symbol).pins:
+            assert f'pin{pin.number}: "{pin.name}"' in table[0], (folder.name, pin)

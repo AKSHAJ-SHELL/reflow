@@ -388,3 +388,50 @@ Tests: `pytest -q` → 522 passed, 3 failed:
 - the new rail test (on purpose);
 - the deliberate tscircuit record;
 - test_committed_reflow_toml_is_caps_only (the local reflow.toml was emptied; uncommitted).
+
+## 2026-10-22 · all 5 evals on Lightning (run 20261022T193720Z)
+`reflow eval`, nvidia/nemotron-3.5-lightning:free, max_tokens 32000. 40,156 in / 233,367 out tokens; 0 part numbers outside the resolver.
+- Summary: 2/5 "passed" (led_indicator on attempt 1 and clean; mcp9808_breakout on attempt 2, not clean). Go/no-go undecided, since all 5 expectations are drafts.
+- **Measured against the real bar** (verifier-clean and matching the expectations), it's 1/5: only led_indicator.
+
+**Per board:**
+- **ams1117_regulator** (failed_compile; 1 attempt of 3):
+  - Compile try 1: "Unterminated string literal", with no line from tsci (K-02a).
+  - Try 2: `footprint="SOT-223"` is invalid in tscircuit.
+  - The compile cap (2) ran out inside attempt 1, and the run ended there, without attempts 2 or 3 (loop.py, HUMAN; is this intended?).
+- **at24c02_eeprom** (failed_verify, 3 attempts):
+  - Pinout wrong every time: 5, 5, then 7 pinout.mismatch. Attempt 1 is off by one pin (pin4 WP … pin8 VDD).
+  - Two of the compile tries had "no code fence" replies, which count against the compile cap.
+- **led_indicator** (passed and clean on attempt 1): one "Unterminated string literal" retry first.
+- **mcp9808_breakout** ("passed" on attempt 2, a **false pass**):
+  - Attempt 1: 7 pinout.mismatch, 2 decoupling.missing, 1 i2c.missing_pullup.
+  - Attempt 2 relabelled every pin correctly and the verifier found 0 errors, but:
+    - U1.SDA and U1.SCL are unconnected;
+    - U1.VDD is on `Net-(C1-pin1)` (C1, C3), not V3_3;
+    - U1.GND reaches GND only through C2, a capacitor in series.
+- **pcf8574_expander** (failed_verify, 3 attempts; best is attempt 2):
+  - Attempt 1: 16 pinout.mismatch.
+  - Attempt 2: 1 error (decoupling.missing), but U1 SDA/SCL/GND are unconnected and P0–P7 go to J2 on unnamed nets.
+  - Attempt 3 regressed to 16 pinout.mismatch.
+
+**Findings:**
+1. **The verifier misses chips that aren't wired:** an IC whose SDA/SCL are unconnected triggers no I2C rule (`find_i2c_nets` skips unconnected pins), and an unconnected GND pin isn't an error. The project needs in rules.toml ("U1.SDA pullup to V3_3") would catch it, but R-10 isn't built (HUMAN).
+2. **Wrong feedback led to a wrong fix:** in MCP9808 attempt 1, `decoupling.missing` fired on U1.4, the **GND** pin, which sat on an unconnected net. The model obeyed by adding C2 from the GND pin to GND, which puts a capacitor in series with ground.
+   - Cause: V-12 types ground pins `power_in` (the KiCad convention), and `decoupling.check` tells ground from supply only by `is_ground(net name)`.
+   - Fix options: the rule (HUMAN) skips pins whose function is a ground name, or the human decides another typing in V-12 (O-1b).
+3. **Pinouts don't converge from per-pin hints:** AT24C02 and PCF8574 never got the pinout right in 3 attempts. The codegen prompt has no pin table, so the model guesses the pinout first time. Candidate (AGENT→HUMAN, prompt + cli): put the trusted pin map from the rules [[part]] symbol into the codegen prompt.
+4. **Footprint names:** tscircuit rejects "SOT-223", but the prompt only gives soic8 as an example. There's still no footprint-vs-package check (MCP9808 again used soic8 for MSOP-8).
+5. **Fragile replies:** "no code fence" replies use up compile tries.
+
+## 2026-10-22 · agent (Claude) · V-22a: each chip's trusted pin table goes into the codegen prompt
+Did: at the human's request.
+- **Rendering:** `render_rules(rules, plan, pin_maps=None)` now adds, under each `[[part]]` reference line, that chip's pinout from its pin map, pins in physical order: `U1 pinLabels, from the KiCad symbol Sensor_Temperature:MCP9808_MSOP: pinLabels={{ pin1: "SDA", … pin8: "VDD" }}`. It's the same pin map V-12 binds the design to.
+- **Loading:** `rules_prompt_block` loads the maps with `pin_maps_from_parts`, and a symbol that can't be read raises PinMapError. loop.py (HUMAN) already fills `{project_rules}` from it, so loop.py is unchanged.
+- **codegen.md:** tells the model to copy that line exactly as the chip's pinLabels, to use those labels in traces, and never to take a pinout from memory or from the example.
+- **Scope:** the fix prompt doesn't carry `{project_rules}`, so it has no table; per-pin fix hints stay as they were.
+Tests:
+- 5 new in tests/test_rules_prompt.py failed first: the table comes right after the reference line; physical pin order; the block reads each symbol; an unreadable symbol is loud; the codegen prompt the loop builds carries the table.
+- New in tests/test_evals.py: each IC board's table has every pin of its installed KiCad symbol.
+- test_a_rules_file_is_read_and_rendered now sets REFLOW_KICAD_SYMBOL_DIR to the test symbols, since rendering reads the symbol.
+- Four sabotages each turn the suite red: no pin maps, sorting pins as text, base_name'd labels, dropping the prompt wording.
+- `pytest -q` → 532 passed, 3 failed: the unpowered pull-up rail test (on purpose, HUMAN rule), the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (local reflow.toml).
