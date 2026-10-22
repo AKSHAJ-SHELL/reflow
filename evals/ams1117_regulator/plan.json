@@ -1,0 +1,83 @@
+{
+  "blocks": [
+    {
+      "name": "power",
+      "purpose": "LDO with input and output capacitors",
+      "part_ids": [
+        "p1",
+        "p2",
+        "p3"
+      ]
+    },
+    {
+      "name": "interface",
+      "purpose": "input and output headers",
+      "part_ids": [
+        "p4",
+        "p5"
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "id": "p1",
+      "role": "3.3V LDO",
+      "category": "regulator",
+      "value": "",
+      "package": "SOT-223",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "AMS1117-3.3",
+      "notes": ""
+    },
+    {
+      "id": "p2",
+      "role": "LDO input capacitor",
+      "category": "capacitor",
+      "value": "10uF",
+      "package": "0805",
+      "tolerance": "",
+      "voltage": "10V",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p3",
+      "role": "LDO output capacitor",
+      "category": "capacitor",
+      "value": "22uF",
+      "package": "1206",
+      "tolerance": "",
+      "voltage": "10V",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p4",
+      "role": "5V input header",
+      "category": "connector",
+      "value": "1x2",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header"
+    },
+    {
+      "id": "p5",
+      "role": "3.3V output header",
+      "category": "connector",
+      "value": "1x2",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header"
+    }
+  ],
+  "nets": [
+    "V5",
+    "V3_3",
+    "GND"
+  ]
+}

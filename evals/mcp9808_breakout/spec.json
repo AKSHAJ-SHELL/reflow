@@ -1,0 +1,18 @@
+{
+  "request": "MCP9808 temperature sensor breakout, I2C header, 3.3V",
+  "title": "MCP9808 breakout",
+  "power": "3.3V supplied on the header",
+  "interfaces": [
+    "4-pin 2.54 mm header: 3V3, GND, SDA, SCL"
+  ],
+  "constraints": [
+    "2 layers",
+    "I2C address 0x18"
+  ],
+  "named_parts": [
+    "MCP9808"
+  ],
+  "open_questions": [],
+  "confirmed": true,
+  "rules_file": ""
+}

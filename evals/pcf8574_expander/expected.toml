@@ -1,0 +1,33 @@
+# DRAFT (E-02, O-1): written by the agent. Nothing here counts until a person has
+# checked every line against the datasheets, set status = "checked" and filled checked_by.
+status = "draft"
+checked_by = ""
+outcome = "board"
+
+nets = ["V3_3", "GND", "SDA", "SCL", "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"]
+parts = { ic = 1, capacitor = 1, resistor = 2, connector = 2 }
+violations = []
+
+[[net]]
+name = "V3_3"
+includes = ["ic.VDD", "capacitor", "resistor", "connector"]
+source = "TO CHECK: PCF8574 datasheet pin table (SO16) and decoupling"
+
+[[net]]
+name = "GND"
+includes = ["ic.VSS", "ic.A0", "ic.A1", "ic.A2", "capacitor", "connector"]
+source = "TO CHECK: address 0x20 means A2..A0 low for the PCF8574 (not the PCF8574A)"
+
+[[net]]
+name = "SDA"
+includes = ["ic.SDA", "resistor", "connector"]
+source = "TO CHECK"
+
+[[net]]
+name = "SCL"
+includes = ["ic.SCL", "resistor", "connector"]
+source = "TO CHECK"
+
+[[open]]
+pins = ["ic.INT"]
+source = "TO CHECK: open-drain interrupt output, unused on this board"

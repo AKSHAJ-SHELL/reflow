@@ -104,7 +104,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | todo |
+| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | doing (5 drafts; awaiting human check) |
 | E-01 | Eval runner + metrics (first-pass vs post-retry pass rate, hallucinated-part rate, tokens) | E-02 | `evals/results/*.json` | reproducible with a fixed seed/model | H-07 | AGENT | todo |
 | D-02 | Demo recording (simple board end to end + honest stop on a harder one) | v1 | video | real runs, no staged failures | v1 | HUMAN | todo (10-31) |
 

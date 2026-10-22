@@ -1,0 +1,58 @@
+{
+  "blocks": [
+    {
+      "name": "indicator",
+      "purpose": "LED with its series resistor",
+      "part_ids": [
+        "p1",
+        "p2"
+      ]
+    },
+    {
+      "name": "interface",
+      "purpose": "power header",
+      "part_ids": [
+        "p3"
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "id": "p1",
+      "role": "power indicator LED",
+      "category": "led",
+      "value": "",
+      "package": "0603",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "KT-0603R",
+      "notes": ""
+    },
+    {
+      "id": "p2",
+      "role": "LED series resistor",
+      "category": "resistor",
+      "value": "1k",
+      "package": "0603",
+      "tolerance": "1%",
+      "voltage": "",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p3",
+      "role": "power header",
+      "category": "connector",
+      "value": "1x2",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header"
+    }
+  ],
+  "nets": [
+    "V3_3",
+    "GND"
+  ]
+}

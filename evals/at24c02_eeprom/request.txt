@@ -1,0 +1,1 @@
+AT24C02 I2C EEPROM breakout with a 4-pin header, 3.3V, write enabled
