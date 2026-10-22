@@ -24,7 +24,7 @@ Every row is one component. Do not add a component that has no row. Reference de
 
 ## Project rules: fixed references and pin requirements
 
-These are the project's rules for this board. A line such as "U1 is the MCP9808 (plan part p1). Give it reference U1." fixes that part's reference designator: use exactly that reference. Every other line is a requirement on one pin, written REF.PIN with the part's own pin name. The finished board is checked against every line, so meet each one.
+These are the project's rules for this board. A line such as "U1 is the MCP9808 (plan part p1). Give it reference U1." fixes that part's reference designator: use exactly that reference. A line such as "U1 pinLabels, from the KiCad symbol ...: pinLabels={{ pin1: "SDA", ... }}" is that chip's pinout from a trusted pin map: copy that line exactly as the chip's pinLabels prop, and name the chip's pins in traces by those labels. Do not use a pinout from memory or from the example below. Every other line is a requirement on one pin, written REF.PIN with the part's own pin name. The finished board is checked against every line, so meet each one.
 
 {project_rules}
 

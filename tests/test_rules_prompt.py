@@ -69,7 +69,8 @@ def test_no_rules_file_is_none():
     assert rules_prompt_block(_spec(rules_file=""), _plan()) == "none"
 
 
-def test_a_rules_file_is_read_and_rendered():
+def test_a_rules_file_is_read_and_rendered(monkeypatch):
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(KICAD))  # the [[part]] symbol's pin table is rendered too
     block = rules_prompt_block(_spec(rules_file=str(RULES)), _plan())
     assert "U1.VDD: capacitor to GND, 100nF..1uF" in block
 
@@ -182,3 +183,61 @@ def test_rules_check_warns_about_a_reference_missing_from_the_part_table(tmp_pat
     path.write_text(text, encoding="utf-8")
     assert cli.main(["rules", "check", str(path)]) == 0
     assert "U2" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# pin tables: each [[part]]'s trusted pin map goes into the codegen prompt
+# ---------------------------------------------------------------------------
+# A real run (evals 20261022T193720Z) guessed the AT24C02 and PCF8574 pinouts and
+# never got them right in 3 attempts of per-pin fix hints. The pin map V-12 checks
+# against is known before codegen, so the model gets it up front.
+
+MCP9808_LABELS = ('U1 pinLabels, from the KiCad symbol Sensor_Temperature:MCP9808_MSOP: '
+                  'pinLabels={{ pin1: "SDA", pin2: "SCL", pin3: "Alert", pin4: "GND", '
+                  'pin5: "A2", pin6: "A1", pin7: "A0", pin8: "VDD" }}')
+
+
+def test_each_part_gets_its_pin_table_right_after_its_reference_line():
+    from reflow.parts.pinmap import from_kicad_symbol
+
+    pin_map = from_kicad_symbol("Sensor_Temperature:MCP9808_MSOP", symbols_dir=KICAD)
+    lines = render_rules(load_rules(RULES), _plan(), {"U1": pin_map}).splitlines()
+    assert lines[0].startswith("U1 is the MCP9808")
+    assert lines[1] == MCP9808_LABELS
+    assert sum(line.startswith("U1 pinLabels") for line in lines) == 1
+
+
+def test_pins_are_in_physical_order():
+    from reflow.contracts import CardPin, Citation
+    from reflow.parts.pinmap import PinMap
+
+    pins = [CardPin(n, f"P{n}", "io") for n in ("10", "2", "1", "16", "9")]
+    pin_map = PinMap(part="X", package="SOIC-16", pins=pins, source=Citation("test", "test"))
+    text = render_rules(load_rules(RULES), None, {"U1": pin_map})
+    assert 'pinLabels={{ pin1: "P1", pin2: "P2", pin9: "P9", pin10: "P10", pin16: "P16" }}' in text
+
+
+def test_rules_prompt_block_reads_each_parts_symbol(monkeypatch):
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(KICAD))
+    block = rules_prompt_block(_spec(rules_file=str(RULES)), _plan())
+    assert MCP9808_LABELS in block.splitlines()
+
+
+def test_a_symbol_that_cant_be_read_is_loud(tmp_path, monkeypatch):
+    from reflow.parts.pinmap import PinMapError
+
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(KICAD))
+    bad = tmp_path / "rules.toml"
+    bad.write_text('rule = []\n\n[[part]]\nref = "U1"\nmpn = "MCP9808"\nsymbol = "Nope:Nothing"\n', encoding="utf-8")
+    with pytest.raises(PinMapError):
+        rules_prompt_block(_spec(rules_file=str(bad)), _plan())
+
+
+def test_the_codegen_prompt_carries_the_pin_table(monkeypatch):
+    """What the loop sends: loop.py fills {project_rules} from rules_prompt_block."""
+    from reflow.harness.loop import _codegen_text
+
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(KICAD))
+    text = _codegen_text(_spec(rules_file=str(RULES)), _plan(), ResolvedParts(resolved=[], unresolved=[]))
+    assert MCP9808_LABELS in text.splitlines()
+    assert "copy that line exactly" in text

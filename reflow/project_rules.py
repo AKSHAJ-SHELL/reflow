@@ -5,7 +5,7 @@ Contract
     load_rules(path) -> contracts.ProjectRules
     check_rules(rules, pin_maps) -> RulesCheck
     pin_maps_from_parts(rules) -> (pin_maps, warnings)
-    render_rules(rules, plan) -> str
+    render_rules(rules, plan, pin_maps=None) -> str
     rules_prompt_block(spec, plan) -> str
 
 `load_rules` parses the TOML strictly with `from_dict(ProjectRules, ...)`: a
@@ -30,10 +30,16 @@ data; a part with neither gets a warning. When a `[[part]]` table exists, a
 rule whose reference isn't in it is a warning too.
 
 `render_rules` is what the codegen and fix prompts get (V-22): one line per
-`[[part]]` ("U1 is the MCP9808 (plan part p1). Give it reference U1.") and
-one per rule ("U1.VDD: capacitor to GND, 100nF..1uF"), never `why` or
-`source`. `rules_prompt_block` reads `spec.rules_file` ("none" when empty; a
-missing or invalid file raises).
+`[[part]]` ("U1 is the MCP9808 (plan part p1). Give it reference U1."), then,
+when `pin_maps` has that reference, its pin table as a pinLabels line to copy
+('U1 pinLabels, from the KiCad symbol Lib:Sym: pinLabels={{ pin1: "SDA", ... }}',
+pins in physical order), and one line per rule ("U1.VDD: capacitor to GND,
+100nF..1uF"), never `why` or `source`. The pin table is the same pin map V-12
+binds the design to, so a model that copies it gets every pin right; a real
+run guessed two pinouts and never fixed them from per-pin hints.
+`rules_prompt_block` reads `spec.rules_file` ("none" when empty; a missing or
+invalid file raises) and its pin maps (`pin_maps_from_parts`; a symbol that
+can't be read raises PinMapError).
 
 Must never
 ----------
@@ -195,12 +201,15 @@ def pin_maps_from_parts(rules: ProjectRules) -> tuple[dict[str, PinMap], list[st
     return maps, warnings
 
 
-def render_rules(rules: ProjectRules, plan) -> str:
+def render_rules(rules: ProjectRules, plan, pin_maps: dict[str, PinMap] | None = None) -> str:
     lines = []
     for part in rules.part:
         match = next((p for p in (plan.parts if plan else []) if p.mpn and p.mpn == part.mpn), None)
         where = f" (plan part {match.id})" if match else ""
         lines.append(f"{part.ref} is the {part.mpn}{where}. Give it reference {part.ref}.")
+        pin_map = (pin_maps or {}).get(part.ref)
+        if pin_map is not None:
+            lines.append(_pin_table(part, pin_map))
     for rule in rules.rule:
         wording = _WORDING.get(rule.need, rule.need).format(to=rule.to.strip())
         value = f", {rule.value.strip()}" if rule.value.strip() else ""
@@ -211,4 +220,14 @@ def render_rules(rules: ProjectRules, plan) -> str:
 def rules_prompt_block(spec, plan) -> str:
     if not spec.rules_file.strip():
         return "none"
-    return render_rules(load_rules(spec.rules_file), plan)
+    rules = load_rules(spec.rules_file)
+    pin_maps, _ = pin_maps_from_parts(rules)
+    return render_rules(rules, plan, pin_maps)
+
+
+def _pin_table(part, pin_map: PinMap) -> str:
+    where = (f"the KiCad symbol {part.symbol.strip()}" if part.symbol.strip()
+             else f"{pin_map.source.doc} {pin_map.source.locator}".strip())
+    pins = sorted(pin_map.pins, key=lambda p: (not p.number.isdigit(), int(p.number) if p.number.isdigit() else 0, p.number))
+    labels = ", ".join(f'pin{p.number}: "{p.name}"' for p in pins)
+    return f"{part.ref} pinLabels, from {where}: pinLabels={{{{ {labels} }}}}"
