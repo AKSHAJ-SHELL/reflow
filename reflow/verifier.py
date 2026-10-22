@@ -26,13 +26,17 @@ Not yet included: the `.kicad_pcb` comparison (V-1 d). `reflow.pcb_nets` reads
 the pads (V-14); the rule that compares them is V-13 (HUMAN).
 
 Raises VerifierInputError for a `.kicad_sch` path (tscircuit's schematic
-export loses connectivity, V-1) or a `bind` that does not return a Netlist.
+export loses connectivity, V-1), a circuit.json with no components (nothing
+to check, so 0 violations would pass an empty board; a real run did this
+when tscircuit rejected every part), or a `bind` that does not return a
+Netlist.
 Errors from `load_circuit_json` propagate, including MergedNetsError for two
 named nets wired together, which V-13 decides how to report.
 
 Must never
 ----------
 - verify tscircuit's .kicad_sch,
+- pass a board with no components,
 - type or rename pins itself, or skip `bind`,
 - send anything to a model, or treat a part number the design carries as resolved
   (the binder only matches those against ResolvedParts rows).
@@ -62,7 +66,13 @@ def verify_circuit_json(circuit_json, parts: ResolvedParts, spec: Spec, *, bind:
             f"{path.name}: the design verifier reads circuit.json, never tscircuit's .kicad_sch "
             "(V-1). loop.py must pass compile_result.circuit_json (docs/proposals/V-1-loop-HUMAN.patch)."
         )
-    bound = bind(load_circuit_json(path), parts, spec, part_numbers(path))
+    loaded = load_circuit_json(path)
+    if not loaded.components:
+        raise VerifierInputError(
+            f"{path.name} has no components, so there is nothing to verify. tscircuit drops a "
+            "component it can't create and records why in circuit.json (source_*_error)."
+        )
+    bound = bind(loaded, parts, spec, part_numbers(path))
     netlist, bind_violations = getattr(bound, "netlist", bound), list(getattr(bound, "violations", []))
     if not isinstance(netlist, Netlist):
         raise VerifierInputError(f"bind returned {type(bound).__name__}, not a Netlist or BindResult")

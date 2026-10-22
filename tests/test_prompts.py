@@ -253,3 +253,13 @@ def test_planner_example_plan_is_strict_and_its_header_is_findable():
     for part in headers:
         assert (part.value, part.package) == ("1x4", "2.54mm")
         assert search(part, db_path=db), f"{part.id}: the local catalog finds no header for this encoding"
+
+
+def test_codegen_shows_the_supplier_part_numbers_object():
+    """A real run wrote supplierPartNumbers={["C…"]}; tscircuit rejected every part
+    (tests/data/real_runs/mcp9808_lightning_20261022). The prompt shows the object shape,
+    with a placeholder, never a real LCSC id the model could copy."""
+    text = _read("codegen")
+    assert 'supplierPartNumbers={{ jlcpcb: ["<lcsc cell>"] }}' in text
+    assert "not a bare list" in text
+    assert not re.search(r"\bC\d{3,}\b", text)

@@ -1,0 +1,280 @@
+[
+  {
+    "type": "source_group",
+    "source_group_id": "source_group_0",
+    "is_subcircuit": true,
+    "was_automatically_named": true,
+    "subcircuit_id": "subcircuit_source_group_0"
+  },
+  {
+    "type": "source_failed_to_create_component_error",
+    "source_failed_to_create_component_error_id": "source_failed_to_create_component_error_0",
+    "component_name": "U1",
+    "error_type": "source_failed_to_create_component_error",
+    "message": "Could not create chip \"U1\". Invalid props for chip \"U1\": supplierPartNumbers (Expected object, received array) Details: Props: {\n  \"name\": \"U1\",\n  \"footprint\": \"soic8\",\n  \"pinLabels\": {\n    \"pin1\": \"VDD\",\n    \"pin2\": \"GND\",\n    \"pin3\": \"SDA\",\n    \"pin4\": \"SCL\",\n    \"pin5\": \"A0\",\n    \"pin6\": \"A1\",\n    \"pin7\": \"A2\",\n    \"pin8\": \"ALERT\"\n  },\n  \"manufacturerPartNumber\": \"MCP9808T-E/MS\",\n  \"supplierPartNumbers\": [\n    \"C129490\"\n  ],\n  \"jlcpcb\": \"C129490\",\n  \"componentType\": \"chip\",\n  \"error\": {\n    \"componentName\": \"chip\",\n    \"originalProps\": {\n      \"name\": \"U1\",\n      \"footprint\": \"soic8\",\n      \"pinLabels\": {\n        \"pin1\": \"VDD\",\n        \"pin2\": \"GND\",\n        \"pin3\": \"SDA\",\n        \"pin4\": \"SCL\",\n        \"pin5\": \"A0\",\n        \"pin6\": \"A1\",\n        \"pin7\": \"A2\",\n        \"pin8\": \"ALERT\"\n      },\n      \"manufacturerPartNumber\": \"MCP9808T-E/MS\",\n      \"supplierPartNumbers\": \"[Circular]\",\n      \"jlcpcb\": \"C129490\"\n    },\n    \"formattedError\": {\n      \"_errors\": [],\n      \"supplierPartNumbers\": {\n        \"_errors\": [\n          \"Expected object, received array\"\n        ]\n      }\n    }\n  },\n  \"type\": \"unknown\",\n  \"component_name\": \"U1\",\n  \"error_type\": \"source_failed_to_create_component_error\",\n  \"message\": \"Invalid props for chip \\\"U1\\\": supplierPartNumbers (Expected object, received array)\",\n  \"pcbX\": 0,\n  \"pcbY\": 0\n}",
+    "pcb_center": {
+      "x": 0,
+      "y": 0
+    },
+    "schematic_center": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "type": "source_failed_to_create_component_error",
+    "source_failed_to_create_component_error_id": "source_failed_to_create_component_error_1",
+    "component_name": "C1",
+    "error_type": "source_failed_to_create_component_error",
+    "message": "Could not create capacitor \"C1\". Invalid props for capacitor \"C1\": supplierPartNumbers (Expected object, received array) Details: Props: {\n  \"name\": \"C1\",\n  \"capacitance\": \"100nF\",\n  \"footprint\": \"0402\",\n  \"manufacturerPartNumber\": \"CL05B104KB54PNC\",\n  \"supplierPartNumbers\": [\n    \"C307331\"\n  ],\n  \"jlcpcb\": \"C307331\",\n  \"componentType\": \"capacitor\",\n  \"error\": {\n    \"componentName\": \"capacitor\",\n    \"originalProps\": {\n      \"name\": \"C1\",\n      \"capacitance\": \"100nF\",\n      \"footprint\": \"0402\",\n      \"manufacturerPartNumber\": \"CL05B104KB54PNC\",\n      \"supplierPartNumbers\": \"[Circular]\",\n      \"jlcpcb\": \"C307331\"\n    },\n    \"formattedError\": {\n      \"_errors\": [],\n      \"supplierPartNumbers\": {\n        \"_errors\": [\n          \"Expected object, received array\"\n        ]\n      }\n    }\n  },\n  \"type\": \"unknown\",\n  \"component_name\": \"C1\",\n  \"error_type\": \"source_failed_to_create_component_error\",\n  \"message\": \"Invalid props for capacitor \\\"C1\\\": supplierPartNumbers (Expected object, received array)\",\n  \"pcbX\": 0,\n  \"pcbY\": 0\n}",
+    "pcb_center": {
+      "x": 0,
+      "y": 0
+    },
+    "schematic_center": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "type": "source_failed_to_create_component_error",
+    "source_failed_to_create_component_error_id": "source_failed_to_create_component_error_2",
+    "component_name": "R1",
+    "error_type": "source_failed_to_create_component_error",
+    "message": "Could not create resistor \"R1\". Invalid props for resistor \"R1\": supplierPartNumbers (Expected object, received array) Details: Props: {\n  \"name\": \"R1\",\n  \"resistance\": \"4.7k\",\n  \"footprint\": \"0402\",\n  \"manufacturerPartNumber\": \"0402WGF4701TCE\",\n  \"supplierPartNumbers\": [\n    \"C25900\"\n  ],\n  \"jlcpcb\": \"C25900\",\n  \"componentType\": \"resistor\",\n  \"error\": {\n    \"componentName\": \"resistor\",\n    \"originalProps\": {\n      \"name\": \"R1\",\n      \"resistance\": \"4.7k\",\n      \"footprint\": \"0402\",\n      \"manufacturerPartNumber\": \"0402WGF4701TCE\",\n      \"supplierPartNumbers\": \"[Circular]\",\n      \"jlcpcb\": \"C25900\"\n    },\n    \"formattedError\": {\n      \"_errors\": [],\n      \"supplierPartNumbers\": {\n        \"_errors\": [\n          \"Expected object, received array\"\n        ]\n      }\n    }\n  },\n  \"type\": \"unknown\",\n  \"component_name\": \"R1\",\n  \"error_type\": \"source_failed_to_create_component_error\",\n  \"message\": \"Invalid props for resistor \\\"R1\\\": supplierPartNumbers (Expected object, received array)\",\n  \"pcbX\": 0,\n  \"pcbY\": 0\n}",
+    "pcb_center": {
+      "x": 0,
+      "y": 0
+    },
+    "schematic_center": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "type": "source_failed_to_create_component_error",
+    "source_failed_to_create_component_error_id": "source_failed_to_create_component_error_3",
+    "component_name": "R2",
+    "error_type": "source_failed_to_create_component_error",
+    "message": "Could not create resistor \"R2\". Invalid props for resistor \"R2\": supplierPartNumbers (Expected object, received array) Details: Props: {\n  \"name\": \"R2\",\n  \"resistance\": \"4.7k\",\n  \"footprint\": \"0402\",\n  \"manufacturerPartNumber\": \"0402WGF4701TCE\",\n  \"supplierPartNumbers\": [\n    \"C25900\"\n  ],\n  \"jlcpcb\": \"C25900\",\n  \"componentType\": \"resistor\",\n  \"error\": {\n    \"componentName\": \"resistor\",\n    \"originalProps\": {\n      \"name\": \"R2\",\n      \"resistance\": \"4.7k\",\n      \"footprint\": \"0402\",\n      \"manufacturerPartNumber\": \"0402WGF4701TCE\",\n      \"supplierPartNumbers\": \"[Circular]\",\n      \"jlcpcb\": \"C25900\"\n    },\n    \"formattedError\": {\n      \"_errors\": [],\n      \"supplierPartNumbers\": {\n        \"_errors\": [\n          \"Expected object, received array\"\n        ]\n      }\n    }\n  },\n  \"type\": \"unknown\",\n  \"component_name\": \"R2\",\n  \"error_type\": \"source_failed_to_create_component_error\",\n  \"message\": \"Invalid props for resistor \\\"R2\\\": supplierPartNumbers (Expected object, received array)\",\n  \"pcbX\": 0,\n  \"pcbY\": 0\n}",
+    "pcb_center": {
+      "x": 0,
+      "y": 0
+    },
+    "schematic_center": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "type": "source_failed_to_create_component_error",
+    "source_failed_to_create_component_error_id": "source_failed_to_create_component_error_4",
+    "component_name": "J1",
+    "error_type": "source_failed_to_create_component_error",
+    "message": "Could not create pinheader \"J1\". Invalid props for pinheader \"J1\": supplierPartNumbers (Expected object, received array) Details: Props: {\n  \"name\": \"J1\",\n  \"pinCount\": 4,\n  \"supplierPartNumbers\": [\n    \"C32713270\"\n  ],\n  \"jlcpcb\": \"C32713270\",\n  \"componentType\": \"pinheader\",\n  \"error\": {\n    \"componentName\": \"pinheader\",\n    \"originalProps\": {\n      \"name\": \"J1\",\n      \"pinCount\": 4,\n      \"supplierPartNumbers\": \"[Circular]\",\n      \"jlcpcb\": \"C32713270\"\n    },\n    \"formattedError\": {\n      \"_errors\": [],\n      \"supplierPartNumbers\": {\n        \"_errors\": [\n          \"Expected object, received array\"\n        ]\n      }\n    }\n  },\n  \"type\": \"unknown\",\n  \"component_name\": \"J1\",\n  \"error_type\": \"source_failed_to_create_component_error\",\n  \"message\": \"Invalid props for pinheader \\\"J1\\\": supplierPartNumbers (Expected object, received array)\",\n  \"pcbX\": 0,\n  \"pcbY\": 0\n}",
+    "pcb_center": {
+      "x": 0,
+      "y": 0
+    },
+    "schematic_center": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  {
+    "type": "source_net",
+    "source_net_id": "source_net_0",
+    "name": "GND",
+    "member_source_group_ids": [],
+    "is_ground": true,
+    "is_power": false,
+    "is_positive_voltage_source": false,
+    "subcircuit_id": "subcircuit_source_group_0",
+    "subcircuit_connectivity_map_key": "unnamedsubcircuitsubcircuit_source_group_0_connectivity_net0"
+  },
+  {
+    "type": "source_net",
+    "source_net_id": "source_net_1",
+    "name": "SDA",
+    "member_source_group_ids": [],
+    "is_ground": false,
+    "is_power": false,
+    "is_positive_voltage_source": false,
+    "subcircuit_id": "subcircuit_source_group_0",
+    "subcircuit_connectivity_map_key": "unnamedsubcircuitsubcircuit_source_group_0_connectivity_net1"
+  },
+  {
+    "type": "source_net",
+    "source_net_id": "source_net_2",
+    "name": "V3_3",
+    "member_source_group_ids": [],
+    "is_ground": false,
+    "is_power": true,
+    "is_positive_voltage_source": true,
+    "subcircuit_id": "subcircuit_source_group_0",
+    "subcircuit_connectivity_map_key": "unnamedsubcircuitsubcircuit_source_group_0_connectivity_net2"
+  },
+  {
+    "type": "source_net",
+    "source_net_id": "source_net_3",
+    "name": "SCL",
+    "member_source_group_ids": [],
+    "is_ground": false,
+    "is_power": false,
+    "is_positive_voltage_source": false,
+    "subcircuit_id": "subcircuit_source_group_0",
+    "subcircuit_connectivity_map_key": "unnamedsubcircuitsubcircuit_source_group_0_connectivity_net3"
+  },
+  {
+    "type": "source_board",
+    "source_board_id": "source_board_0",
+    "source_group_id": "source_group_0"
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_0",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".C1 > .pin1\". Component \".C1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".C1 > .pin1"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_1",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".C1 > .pin2\". Component \".C1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".C1 > .pin2"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_2",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".R1 > .pin1\". Component \".R1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".R1 > .pin1"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_3",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".R1 > .pin2\". Component \".R1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".R1 > .pin2"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_4",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".R2 > .pin1\". Component \".R2 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".R2 > .pin1"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_5",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".R2 > .pin2\". Component \".R2 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".R2 > .pin2"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_6",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".U1 > .A0\". Component \".U1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".U1 > .A0"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_7",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".U1 > .A1\". Component \".U1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".U1 > .A1"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_8",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".U1 > .A2\". Component \".U1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".U1 > .A2"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_9",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".J1 > .pin1\". Component \".J1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".J1 > .pin1"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_10",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".J1 > .pin2\". Component \".J1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".J1 > .pin2"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_11",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".J1 > .pin3\". Component \".J1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".J1 > .pin3"
+    ]
+  },
+  {
+    "type": "source_trace_not_connected_error",
+    "source_trace_not_connected_error_id": "source_trace_not_connected_error_12",
+    "error_type": "source_trace_not_connected_error",
+    "message": "Could not find port for selector \".J1 > .pin4\". Component \".J1 > \" not found",
+    "subcircuit_id": "subcircuit_source_group_0",
+    "source_group_id": "source_group_0",
+    "selectors_not_found": [
+      ".J1 > .pin4"
+    ]
+  },
+  {
+    "type": "source_project_metadata",
+    "source_filesystem_md5_hash": "f1743d3dc87bed3090adef3a73b86bc4"
+  }
+]
