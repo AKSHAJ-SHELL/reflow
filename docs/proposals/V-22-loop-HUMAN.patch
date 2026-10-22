@@ -1,0 +1,18 @@
+--- a/reflow/harness/loop.py
++++ b/reflow/harness/loop.py
+@@ -43,6 +43,7 @@
+ from reflow.harness.feedback import fill, load_prompt, render_feedback, to_feedback
+ from reflow.harness.runs import RunStore, create_run
+ from reflow.llm import Model, ModelError
++from reflow.project_rules import rules_prompt_block
+ 
+ _CODEGEN_SYSTEM = "Follow the user message. Return one tsx code fence and no other fence."
+ _PLAN_SYSTEM = "Follow the user message. Reply with JSON only."
+@@ -354,6 +355,7 @@
+         "spec": _render_spec(spec),
+         "plan": _render_plan(plan),
+         "resolved_parts": _render_parts(plan, parts),
++        "project_rules": rules_prompt_block(spec, plan),
+     })
+ 
+ 
