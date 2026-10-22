@@ -104,6 +104,8 @@ class _HttpModel:
         budget = self._max_tokens if max_tokens is None else max_tokens
         url, headers, body = self._build(system, prompt, budget)
         data = _post_once(url, headers, body, self._timeout_s)
+        if isinstance(data.get("error"), dict) and not data.get("choices") and not data.get("content"):
+            raise ModelError(_error_text(data["error"], None))
         if _cut_off(data):
             raise ModelError(
                 f"reply was cut off at max_tokens={budget}; raise the max_tokens setting, "
@@ -189,9 +191,9 @@ def _provider_message(status: int, raw: bytes) -> str:
     if isinstance(data, dict):
         err = data.get("error")
         if isinstance(err, dict) and err.get("message"):
-            return str(err["message"])
+            return _error_text(err, status)
         if isinstance(err, str) and err:
-            return err
+            return f"{err} (HTTP {status})"
     if text:
         return f"HTTP {status}: {text}"
     return f"HTTP {status}"
@@ -204,6 +206,24 @@ def _cut_off(data: dict) -> bool:
     if isinstance(choices, list) and choices and isinstance(choices[0], dict):
         return choices[0].get("finish_reason") == "length"
     return False
+
+
+def _error_text(err: dict, status: int | None) -> str:
+    """The provider's message plus what a router says about the upstream failure."""
+    parts = [str(err.get("message") or "provider error")]
+    if status is not None:
+        parts.append(f"HTTP {status}")
+    elif err.get("code"):
+        parts.append(f"code {err['code']}")
+    meta = err.get("metadata")
+    if isinstance(meta, dict):
+        if meta.get("provider_name"):
+            parts.append(f"provider {meta['provider_name']}")
+        raw = meta.get("raw")
+        if raw:
+            text = raw if isinstance(raw, str) else json.dumps(raw)
+            parts.append(text.strip()[:500])
+    return parts[0] + (" (" + "; ".join(parts[1:]) + ")" if len(parts) > 1 else "")
 
 
 def _anthropic_text(data: dict) -> str:
