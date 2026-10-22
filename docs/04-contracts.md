@@ -26,7 +26,7 @@ Example: [spec.json](examples/spec.json)
 
 ## 0b · `rules.toml` → `ProjectRules` (project rules, written by the student)
 
-`ProjectRules{rule: list[ProjectRule]}` · `ProjectRule{on, need, source, why, to, value}`
+`ProjectRules{rule: list[ProjectRule], part: list[RulePart]}` · `ProjectRule{on, need, source, why, to, value}` · `RulePart{ref, mpn, symbol}`
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -38,6 +38,7 @@ Example: [spec.json](examples/spec.json)
 | value | str | `"100nF"` or a range `"100nF..1uF"`; `""` = any value |
 
 - The file on disk is TOML with one `[[rule]]` table per rule, so `tomllib.load` gives a dict that parses with `from_dict(ProjectRules, …)` directly.
+- **`[[part]]` (V-2a)** says which part each reference in the rules is: `ref` ("U1"), `mpn` (a `Spec.named_parts` string, e.g. "MCP9808"), and optionally `symbol` (a KiCad library id for its pin map). Codegen is told to give that part that reference, so `U1.VDD` means the same pin to the student, the model and the verifier. `reflow rules check` builds pin maps from it. `part` defaults to `[]`, so rules files without it still parse.
 - **Codegen and fix prompts** get one line per rule (`U1.VDD: cap to GND, 100nF..1uF`). `why` and `source` are never sent.
 - **Verify** checks every rule deterministically against the pin map (V-1) and the `circuit.json` netlist. A failure is a `Violation` with `rule_id = "project.<need>"`, a generated `fix_hint`, and `why` = the student's `why` plus `source`.
 

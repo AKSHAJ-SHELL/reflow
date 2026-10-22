@@ -1,6 +1,13 @@
 # rules.toml for "MCP9808 breakout, I2C header, 3.3V" (V-2 example, proposed format)
 # Sources: Microchip MCP9808 datasheet DS20005095B. Net names match the plan (V3_3, GND).
 
+# Which part each reference in the rules is (V-2a). mpn is a part the user named;
+# symbol (optional) is the KiCad symbol for its pin map.
+[[part]]
+ref    = "U1"
+mpn    = "MCP9808"
+symbol = "Sensor_Temperature:MCP9808_MSOP"
+
 [[rule]]
 on     = "U1.VDD"
 need   = "cap"
