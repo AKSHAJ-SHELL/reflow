@@ -333,3 +333,25 @@ def test_a_normal_stop_is_fine(server, provider, field, value):
         body["choices"][0][field] = value
     server.body = json.dumps(body).encode()
     assert load_model(_config(server, provider=provider)).complete("S", "U").text
+
+
+def test_an_upstream_provider_error_keeps_its_details(server):
+    """OpenRouter wraps an upstream failure as "Provider returned error"; the cause is in metadata."""
+    server.status = 502
+    server.body = json.dumps({"error": {
+        "message": "Provider returned error", "code": 502,
+        "metadata": {"provider_name": "Upstream-AI", "raw": "context length exceeded: 40000 > 32768"},
+    }}).encode()
+    with pytest.raises(ModelError) as caught:
+        load_model(_config(server, provider="openai-compatible")).complete("S", "U")
+    message = str(caught.value)
+    assert "Provider returned error" in message and "HTTP 502" in message
+    assert "Upstream-AI" in message and "context length exceeded" in message
+
+
+def test_an_error_inside_a_200_reply_is_raised_with_its_details(server):
+    """Some routers answer 200 with an error object instead of choices."""
+    server.body = json.dumps({"error": {"message": "Provider returned error", "code": 429,
+                                        "metadata": {"provider_name": "Upstream-AI", "raw": "rate limited"}}}).encode()
+    with pytest.raises(ModelError, match="rate limited"):
+        load_model(_config(server, provider="openai-compatible")).complete("S", "U")
