@@ -2,10 +2,16 @@
 
 Contract
 --------
-complete(system: str, prompt: str, *, max_tokens: int = 4096) -> Completion
+complete(system: str, prompt: str, *, max_tokens: int | None = None) -> Completion
 
-load_model(config) reads provider, model, api_key, base_url, and timeout_s
-from the dict the caller passes. max_attempts and compile_cap belong to the
+load_model(config) reads provider, model, api_key, base_url, timeout_s, and
+(optionally) max_tokens from the dict the caller passes. max_tokens, default
+4096, is the reply budget for every call that doesn't pass its own.
+
+A reply the provider cut off at max_tokens (Anthropic stop_reason
+"max_tokens", OpenAI finish_reason "length") raises ModelError saying so,
+instead of returning half a reply. Reasoning models can spend the budget
+before they write any answer. max_attempts and compile_cap belong to the
 harness and are not applied here. The model id is config["model"] only.
 
 Must never
@@ -41,7 +47,7 @@ class Completion:
 
 
 class Model(Protocol):
-    def complete(self, system: str, prompt: str, *, max_tokens: int = 4096) -> Completion: ...
+    def complete(self, system: str, prompt: str, *, max_tokens: int | None = None) -> Completion: ...
 
 
 class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
@@ -78,20 +84,31 @@ def load_model(config: dict) -> Model:
         raise ModelError("timeout_s must be a number") from exc
     if timeout_s <= 0:
         raise ModelError("timeout_s must be positive")
-    return _HttpModel(provider, model, api_key, base_url, timeout_s)
+    max_tokens = config.get("max_tokens", 4096)
+    if isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or max_tokens < 1:
+        raise ModelError(f"max_tokens must be a positive integer, got {max_tokens!r}")
+    return _HttpModel(provider, model, api_key, base_url, timeout_s, max_tokens)
 
 
 class _HttpModel:
-    def __init__(self, provider: str, model: str, api_key: str, base_url: str, timeout_s: float) -> None:
+    def __init__(self, provider: str, model: str, api_key: str, base_url: str, timeout_s: float,
+                 max_tokens: int = 4096) -> None:
+        self._max_tokens = max_tokens
         self._provider = provider
         self._model = model
         self._api_key = api_key
         self._base_url = base_url.rstrip("/")
         self._timeout_s = timeout_s
 
-    def complete(self, system: str, prompt: str, *, max_tokens: int = 4096) -> Completion:
-        url, headers, body = self._build(system, prompt, max_tokens)
+    def complete(self, system: str, prompt: str, *, max_tokens: int | None = None) -> Completion:
+        budget = self._max_tokens if max_tokens is None else max_tokens
+        url, headers, body = self._build(system, prompt, budget)
         data = _post_once(url, headers, body, self._timeout_s)
+        if _cut_off(data):
+            raise ModelError(
+                f"reply was cut off at max_tokens={budget}; raise the max_tokens setting, "
+                "especially for a reasoning model"
+            )
         if self._provider == "anthropic":
             text = _anthropic_text(data)
         else:
@@ -178,6 +195,15 @@ def _provider_message(status: int, raw: bytes) -> str:
     if text:
         return f"HTTP {status}: {text}"
     return f"HTTP {status}"
+
+
+def _cut_off(data: dict) -> bool:
+    if data.get("stop_reason") == "max_tokens":
+        return True
+    choices = data.get("choices")
+    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
+        return choices[0].get("finish_reason") == "length"
+    return False
 
 
 def _anthropic_text(data: dict) -> str:

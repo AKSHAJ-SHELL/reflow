@@ -260,3 +260,12 @@ Did: the human applied `docs/proposals/V-22-loop-HUMAN.patch` to `reflow/harness
 Tests: `tests/test_rules_prompt.py` → 15 passed. `pytest -q` → 468 passed, 1 failed. The failure is the deliberate record `test_schematic_export_keeps_the_traced_nets` (tscircuit's .kicad_sch exports R1.pin1 as unconnected instead of on SDA; the verifier reads circuit.json since V-1).
 Next: the human decides whether to retire that record test (removing a test needs the human's OK). V-22 can be marked done.
 - 2026-10-21 · agent re-run on a68b49c (this checkout, loop change 30cc4b4 in place): `pytest -q` → 468 passed, 1 failed (`test_schematic_export_keeps_the_traced_nets`, the deliberate tscircuit record). It matches the entry above. KiCad 10 via KICAD_CLI, tsci 0.0.2768.
+
+## 2026-10-21 · agent (Claude) · M-03 (reply budget)
+Did: for reasoning models (the human's free OpenRouter model has reasoning on by default), reflow's fixed 4096-token reply budget could be spent before any TSX was written.
+- `reflow.toml` / REFLOW_MAX_TOKENS gain `max_tokens` (int ≥ 1, default 4096).
+- `load_model` takes it as every call's default budget; a call can still pass its own.
+- A reply the provider cut off (Anthropic stop_reason "max_tokens", OpenAI finish_reason "length") now raises ModelError "reply was cut off at max_tokens=N; raise the max_tokens setting". Before, it surfaced as a confusing "no code fence" compile try, or "no text" when a reasoning model used the whole budget. The design CLI exits 2 with that message; the eval runner records it on the board.
+- tests/test_config.py's key list and clean-env variables gain max_tokens (additions only).
+Tests: 12 new checks failed first. One bad-value check passed early only because the key used to be unknown; it now passes because the value is bad. My first error message named reflow.toml, which an existing test forbids in llm.py (the adapter never reads config); reworded. Three in-process sabotages (ignore the config budget, no cut-off check, Anthropic-only check) → red each time. `pytest -q` → 484 passed, 1 failed (the deliberate tscircuit record).
+Next: the human sets max_tokens (e.g. 12000) for the reasoning model and runs the smoke eval.
