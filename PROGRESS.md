@@ -501,3 +501,13 @@ Did: recorded the human's answers in the proposal and the DECISIONS.md row:
 - Q2: the confirmed_by name is typed at the prompt, defaulting to git user.name.
 All five questions are now answered. V-2b stays PROPOSED until the human accepts it, and the contract patch (V-23) waits on that.
 Tests: none (docs only).
+
+## 2026-10-22 · agent (Claude) · V-2b accepted; tasks added
+Did: the human accepted V-2b in chat. Moved its row to Accepted in DECISIONS.md (2026-10-22), with the answers folded into the decision, and set the proposal's status to ACCEPTED. Added to TASKS.md, all todo:
+- V-23: the contract patch and unconfirmed labels (AGENT→HUMAN);
+- V-24: `reflow rules confirm`;
+- I-01: `reflow init`;
+- H-08b: the skill and AGENTS.md text (AGENT→HUMAN);
+- L-04: `reflow learn`.
+No code.
+Tests: none (docs only).
