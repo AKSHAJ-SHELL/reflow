@@ -9,6 +9,7 @@ import pytest
 from reflow.compile import (
     TsciMissingError,
     TsciTimeoutError,
+    circuit_json_errors,
     compile_board,
     format_compile_errors,
     parse_compile_errors,
@@ -18,6 +19,8 @@ from reflow.contracts import CompileError
 
 ROOT = Path(__file__).resolve().parents[1]
 TAIL_LIMIT = 40
+# tsci exits 0 on this board but writes its errors into circuit.json (see its README).
+LIGHTNING = ROOT / "tests" / "data" / "real_runs" / "mcp9808_lightning_20261022"
 
 
 def _install_tsci(directory: Path, body: str) -> None:
@@ -311,3 +314,108 @@ def test_real_tsci_syntax_error(tmp_path):
     assert result.errors
     assert len(result.stderr_tail.splitlines()) <= TAIL_LIMIT
     assert (tmp_path / "index.circuit.tsx").read_text(encoding="utf-8") == tsx
+
+
+# ---------------------------------------------------------------------------
+# errors tsci writes into circuit.json while exiting 0
+# ---------------------------------------------------------------------------
+
+def test_circuit_json_errors_from_the_empty_real_board():
+    errors = circuit_json_errors(LIGHTNING / "circuit.json")
+    assert len(errors) == 18
+    assert errors[0] == CompileError(
+        'Could not create chip "U1". Invalid props for chip "U1": '
+        "supplierPartNumbers (Expected object, received array)"
+    )
+    assert [e.message.split(" ")[4] for e in errors[:5]] == ['"U1".', '"C1".', '"R1".', '"R2".', '"J1".']
+    assert errors[5].message == 'Could not find port for selector ".C1 > .pin1". Component ".C1 > " not found'
+    for err in errors:
+        assert "\n" not in err.message and "Details:" not in err.message
+        assert (err.line, err.column, err.file) == (0, 0, "index.circuit.tsx")
+    assert parse_compile_errors(format_compile_errors(errors)) == errors
+
+
+def test_circuit_json_warnings_are_not_errors():
+    assert circuit_json_errors(ROOT / "tests" / "data" / "circuit_json" / "sensor_good.circuit.json") == []
+
+
+def test_layout_errors_in_circuit_json_are_not_compile_errors(tmp_path):
+    """blinky compiles with an autorouter pcb_port_not_connected_error; layout is checked later (V-13)."""
+    import json
+
+    path = tmp_path / "circuit.json"
+    path.write_text(json.dumps([
+        {"type": "pcb_port_not_connected_error", "message": "Port [D1.pin2] is not connected to net [GND] by a PCB trace."},
+        {"type": "schematic_layout_error", "message": "overlap"},
+        {"type": "source_no_power_pin_defined_warning", "message": "No power pin defined"},
+    ]), encoding="utf-8")
+    assert circuit_json_errors(path) == []
+
+
+def test_zero_exit_with_errors_in_circuit_json_is_not_ok(tmp_path, monkeypatch):
+    """tsci exits 0 and writes every file, but circuit.json says no component was created."""
+    _install_tsci(
+        tmp_path / "bin",
+        textwrap.dedent(
+            f"""
+            import pathlib, shutil, sys
+            args = sys.argv[1:]
+            out = pathlib.Path(args[args.index("-o") + 1])
+            fmt = args[args.index("-f") + 1]
+            if fmt == "circuit-json":
+                shutil.copy({str(LIGHTNING / "circuit.json")!r}, out)
+            else:
+                out.write_text("(" + fmt + " (version 20250114))\\n")
+            """
+        ),
+    )
+    _use_tsci(monkeypatch, tmp_path / "bin")
+    result = compile_board("export default () => (<board />)", tmp_path / "work")
+    assert result.ok is False
+    assert result.errors == circuit_json_errors(LIGHTNING / "circuit.json")
+    assert (result.kicad_sch, result.kicad_pcb, result.circuit_json) == ("", "", "")
+
+
+def test_unreadable_circuit_json_is_not_ok(tmp_path, monkeypatch):
+    _install_tsci(
+        tmp_path / "bin",
+        textwrap.dedent(
+            """
+            import pathlib, sys
+            args = sys.argv[1:]
+            pathlib.Path(args[args.index("-o") + 1]).write_text("not json\\n")
+            """
+        ),
+    )
+    _use_tsci(monkeypatch, tmp_path / "bin")
+    result = compile_board("export default () => (<board />)", tmp_path / "work")
+    assert result.ok is False
+    assert "circuit.json" in result.errors[0].message
+
+
+@pytest.mark.skipif(shutil.which("tsci") is None, reason="tsci not installed")
+def test_real_tsci_empty_board_is_a_compile_error(tmp_path):
+    tsx = (LIGHTNING / "index.circuit.tsx").read_text(encoding="utf-8")
+    result = compile_board(tsx, tmp_path, timeout_s=180)
+    assert result.ok is False
+    assert "supplierPartNumbers (Expected object, received array)" in result.errors[0].message
+
+
+@pytest.mark.skipif(shutil.which("tsci") is None, reason="tsci not installed")
+def test_real_tsci_compiles_the_supplier_shape_codegen_teaches(tmp_path):
+    """The same board with prompts/codegen.md's supplierPartNumbers shape compiles all 5 parts."""
+    import json
+    import re
+
+    shape = 'supplierPartNumbers={{ jlcpcb: ["<lcsc cell>"] }}'
+    assert shape in (ROOT / "prompts" / "codegen.md").read_text(encoding="utf-8")
+    tsx = re.sub(
+        r'supplierPartNumbers=\{\["(C\d+)"\]\}',
+        lambda m: shape.replace("<lcsc cell>", m.group(1)),
+        (LIGHTNING / "index.circuit.tsx").read_text(encoding="utf-8"),
+    )
+    assert tsx.count("jlcpcb: [") == 5
+    result = compile_board(tsx, tmp_path, timeout_s=180)
+    assert result.ok is True, result.errors
+    elements = json.loads(Path(result.circuit_json).read_text(encoding="utf-8"))
+    assert sorted(e["name"] for e in elements if e["type"] == "source_component") == ["C1", "J1", "R1", "R2", "U1"]

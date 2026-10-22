@@ -3,6 +3,7 @@
 Contract
 --------
     compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> contracts.CompileResult
+    circuit_json_errors(path) -> list[contracts.CompileError]
 
 - Writes `tsx` unchanged to workdir/index.circuit.tsx and runs `tsci export`
   for circuit-json, kicad_sch, and kicad_pcb.
@@ -10,16 +11,28 @@ Contract
   <= 40 lines of stderr. Never raises for a compile error; raises only if
   `tsci` itself is missing or times out (exit code 2 territory, like
   `reflow check`).
+- tsci exits 0 even when it could not build the board: it writes the errors
+  into circuit.json as `source_*_error` elements (e.g. a component with
+  invalid props is dropped, with `source_failed_to_create_component_error`).
+  `circuit_json_errors` reads them, one CompileError per element in file
+  order, each message on one line and without tscircuit's "Details:" dump.
+  Any of them, or an unreadable circuit.json, makes the compile not ok.
+  `*_warning` elements are not errors. Neither are `pcb_*` / `schematic_*`
+  errors: they are layout results (blinky compiles with a
+  `pcb_port_not_connected_error` from the autorouter), which the PCB checks
+  report (V-13), not the compiler.
 
 Must never
 ----------
 - edit or "repair" the model's code,
 - write outside `workdir`,
 - treat a non-zero exit as success, or a zero exit as proof the files exist,
+- treat a zero exit as proof the board was built (circuit.json may hold errors),
 - copy a part number out of the TSX into an MPN or LCSC id.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -232,6 +245,16 @@ def compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> CompileRe
             return _failed("".join(stderr_parts), proc.returncode, files_ok=False)
 
     circuit_json, kicad_sch, kicad_pcb = (root / name for _, name in _EXPORTS)
+    built = circuit_json_errors(circuit_json)
+    if built:
+        return CompileResult(
+            ok=False,
+            errors=built,
+            stderr_tail=trim_stderr("".join(stderr_parts)),
+            kicad_sch="",
+            kicad_pcb="",
+            circuit_json="",
+        )
     return CompileResult(
         ok=True,
         errors=[],
@@ -240,6 +263,26 @@ def compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> CompileRe
         kicad_pcb=str(kicad_pcb),
         circuit_json=str(circuit_json),
     )
+
+
+def circuit_json_errors(path) -> list[CompileError]:
+    """The `source_*_error` elements tsci wrote into circuit.json, as CompileErrors."""
+    try:
+        elements = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return [CompileError(f"tsci wrote an unreadable circuit.json ({exc.__class__.__name__})")]
+    if not isinstance(elements, list):
+        return [CompileError("tsci wrote a circuit.json that is not a list of elements")]
+    errors: list[CompileError] = []
+    for element in elements:
+        kind = element.get("type", "") if isinstance(element, dict) else ""
+        if not isinstance(kind, str) or not (kind.startswith("source_") and kind.endswith("_error")):
+            continue
+        message = element.get("message")
+        text = message if isinstance(message, str) and message.strip() else kind
+        text = " ".join(text.split(" Details:", 1)[0].split())
+        errors.append(CompileError(text))
+    return errors
 
 
 def _run(cmd: list[str], cwd: Path, deadline: float, timeout_s: int) -> subprocess.CompletedProcess[str]:

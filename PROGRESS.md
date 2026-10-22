@@ -325,3 +325,32 @@ Tests:
   - Both are recorded in evals/results/ (uncommitted) with status error and 0 tokens.
   - Side finding: run.json labels these "failed_compile" with 0 attempts, although nothing was compiled. The status comes from harness/loop.py (HUMAN).
   - Next: rerun when the free model is responsive, or try another model through REFLOW_MODEL.
+
+## 2026-10-22 · agent (Claude) · smoke eval on Nemotron 3.5 Lightning: a false pass
+Did: at the human's request, switched the local .env (uncommitted) to `REFLOW_MODEL=nvidia/nemotron-3.5-lightning:free`. A tiny probe answered in 2.2 s.
+- Run 20261022T190328Z: cut off at max_tokens=12000, so I raised `REFLOW_MAX_TOKENS` to 32000.
+- Run 20261022T190601Z "passed" on attempt 1 (1750 in / 14345 out tokens, 0 foreign part numbers), but the board is empty.
+**Finding (integrity, blocks trusting any pass):**
+- The model wrote `supplierPartNumbers={["C…"]}` (an array; tscircuit wants `{ jlcpcb: ["C…"] }`). tscircuit could not create any of the 5 components.
+- `tsci` still exited 0. circuit.json held 5 `source_failed_to_create_component_error` and 13 `source_trace_not_connected_error`, and no source_component.
+- `compile_board` reported ok. The verifier saw 0 components / 0 nets, so 0 violations, and the run was marked passed.
+- Only the draft expectation check noticed (every net and part missing).
+- The model's pinLabels were wrong again (pin1 VDD …). V-12 would have flagged it if U1 had existed.
+Proposed fix (needs the human's OK, not started):
+- (a) compile_board (K-02, AGENT) turns every `*_error` element in circuit.json into a CompileError, so the loop sends it back to the model as a compile error;
+- (b) the verifier refuses a circuit.json with no components;
+- (c) prompts/codegen.md shows the `supplierPartNumbers={{ jlcpcb: ["C…"] }}` shape.
+
+## 2026-10-22 · agent (Claude) · K-02: empty boards no longer pass
+Did: at the human's request, closed the false pass from run 20261022T190601Z.
+- **compile:** `reflow/compile.py` has `circuit_json_errors(path)`. After tsci exits 0, every `source_*_error` element in circuit.json becomes a CompileError, in file order, on one line, without tscircuit's "Details:" dump. Any of them makes the compile not ok, so the loop sends them to the model as compile errors. An unreadable circuit.json does too.
+  - On the real board, the first error is `Could not create chip "U1". Invalid props for chip "U1": supplierPartNumbers (Expected object, received array)`.
+  - **Departure from the request ("*_error"), for the human to confirm:** only `source_*` errors count. blinky compiles with a `pcb_port_not_connected_error` (the autorouter left D1.pin2 → GND unrouted). That's a layout result, and the model can't fix the autorouter from TSX. Nothing reports `pcb_*` / `schematic_*` errors yet; that belongs with the PCB checks (V-13, HUMAN).
+- **verifier:** `verify_circuit_json` raises VerifierInputError for a circuit.json with no components. `reflow design` exits with an error, and an eval records that board as an error, never as passed.
+- **prompts/codegen.md:** shows `supplierPartNumbers={{ jlcpcb: ["<lcsc cell>"] }}`, says it isn't a bare list, and says tscircuit drops a component whose value is a bare list. It uses a placeholder, never a real LCSC id (rule 5).
+- **Fixture:** `tests/data/real_runs/mcp9808_lightning_20261022/`: the model's TSX, its circuit.json source_* elements, parts.json and a README.
+Tests:
+- New, failed first: 7 in test_compile (circuit.json errors from the real board; warnings and layout errors aren't errors; fake tsci exiting 0 with error elements → not ok; unreadable circuit.json; real tsci on the real board → not ok; the same board with codegen's shape compiles all 5 parts), 1 in test_verifier (no components → refused), 1 in test_prompts (shape shown, no real LCSC id).
+- Five sabotages each turn the suite red: ignore the circuit.json errors, let the verifier pass an empty board, count layout errors, keep the Details dump, drop the shape from the prompt.
+- `pytest -q` → 521 passed, 2 failed: the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (the local reflow.toml was emptied; uncommitted).
+- Local .env (uncommitted) now has REFLOW_MODEL=nvidia/nemotron-3.5-lightning:free and REFLOW_MAX_TOKENS=32000.

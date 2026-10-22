@@ -98,3 +98,11 @@ def test_make_verifier_has_the_loop_signature():
 def test_make_verifier_requires_bind():
     with pytest.raises(TypeError):
         make_verifier()
+
+
+def test_a_board_with_no_components_is_refused():
+    """The empty real board (tests/data/real_runs/mcp9808_lightning_20261022): tscircuit
+    created none of its parts, so there is nothing to check, and 0 violations must not pass."""
+    empty = ROOT / "tests" / "data" / "real_runs" / "mcp9808_lightning_20261022" / "circuit.json"
+    with pytest.raises(VerifierInputError, match="no components"):
+        verify_circuit_json(empty, PARTS, _spec(), bind=unbound)

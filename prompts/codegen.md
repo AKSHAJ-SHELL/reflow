@@ -33,7 +33,7 @@ These are the project's rules for this board. A line such as "U1 is the MCP9808 
 Copy. Do not fill a part number from memory.
 
 - manufacturerPartNumber is the mpn cell of that row, or a string that appears in Spec.named_parts. Omit the prop when neither source has a string for that part.
-- supplierPartNumbers is set only from the lcsc cell. The jlcpcb entry is a one-element list holding that lcsc string. Omit supplierPartNumbers when the row has no lcsc.
+- supplierPartNumbers is set only from the lcsc cell. Its value is an object whose jlcpcb key holds a one-element list with that lcsc string, not a bare list: `supplierPartNumbers={{ jlcpcb: ["<lcsc cell>"] }}`. tscircuit drops a component whose supplierPartNumbers is a bare list. Omit supplierPartNumbers when the row has no lcsc.
 - jlcpcb here is the supplier key on the component. The value is the lcsc cell from the table.
 
 A passive footprint is the package cell, such as 0402 or 0603. For an IC, use a footprint name for that same package, such as soic8, and still copy lcsc and mpn from the same row.
