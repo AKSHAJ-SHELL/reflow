@@ -213,3 +213,15 @@ Clean = passed + no foreign + no misses. Go/no-go is "undecided" while any eval 
 Tests: `tests/test_eval_runner.py` (12) failed first (module missing), then passed (about 2 minutes: real tsci compiles). Four in-process sabotages (no foreign scan, no expectation check, ignore drafts, first pass = passed) → red each time. My first sabotage run used -k filters that matched no tests; rerun with correct filters, all red. `pytest -q` → 4 failed, 419 passed: the same 4 known failures. The suite now takes about 3 minutes.
 Not done: no run against a real model; the five evals are still drafts, so any real result is "undecided".
 Next: the human reviews P-02b and checks the eval drafts. Then a real `reflow eval` with REFLOW_API_KEY. AGENT next: P-06 (needs the human's OK to remove the jlcsearch tests), or V-21 (rules.toml).
+
+## 2026-10-21 · agent (Claude) · P-06
+Did: the human approved removing the jlcsearch client and its tests.
+- Removed the HTTP client from `reflow/parts/catalog.py` (search, transport, endpoints, cache dir, REFLOW_CATALOG_* env). Kept `CatalogPart`, `CatalogError` and `parse_value`, which the resolver, local catalog, CLI and evals import.
+- Deleted `reflow/parts/cache.py`, `tests/test_parts_integration.py` and `tests/data/jlcsearch_plan/`.
+- Replaced `tests/test_catalog.py` (the old jlcsearch client tests, live test included) with tests for what remains: parse_value, CatalogPart defaults, and that the client and cache are gone.
+- In `tests/test_resolver.py`, `test_resolver_does_not_call_catalog_search` monkeypatched `reflow.parts.catalog.search`, which no longer exists. It now patches `reflow.parts.local_catalog.search`, the catalog that fetches today. Checked: a resolver that calls it turns the test red.
+- Docs: A8 in docs/00, the parts README, the tests README, and the `ResolvedPart.source` comment in contracts.py (comment only; no field changed).
+- TASKS: P-01 retired, P-03 done via the snapshot, P-06 done.
+Left alone: `reflow/parts/resolver.py` docstrings still say '"" means the source did not say (the jlcsearch client)'. The file is under the human's P-02b review, so the wording is the human's to update.
+Tests: new `tests/test_catalog.py` failed first on the two "gone" checks (17 tests; the parse_value cases already passed). `pytest -q` → 1 failed, 425 passed. The one failure is the deliberate record of tscircuit's broken .kicad_sch export (`test_schematic_export_keeps_the_traced_nets`). The live jlcsearch test and both C2 jlcsearch tests are gone with the client. No HUMAN-owned file changed.
+Next: the human reviews P-02b and checks the eval drafts; then a real `reflow eval`. AGENT options: V-21 (rules.toml parser), O-02 (report.json/md).

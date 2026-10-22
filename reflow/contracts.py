@@ -130,7 +130,7 @@ class ResolvedPart:
     stock: int
     basic: bool                 # JLCPCB basic/preferred part
     unit_price_usd: float
-    source: str                 # "jlcsearch" | "jlcparts-local" | "spec" | ...
+    source: str                 # "jlcparts" | "spec" | ...
     fetched_at: str             # ISO-8601 UTC
 
 

@@ -29,7 +29,7 @@ Written 2026-10-17. Stage: **verifier done, harness next.** v1 launch target: **
 | A5 | Learn mode and sign-off run in the terminal in v1, with a generated `report.html` for viewing. A local web app is v2. | UI discussion 2026-10-13. Decision D-5 still open. |
 | A6 | Routing default is tscircuit's built-in autorouter; freerouting is the fallback through KiCad 10's SWIG `pcbnew` DSN/SES bridge. KiCad is pinned to 10.x. | KiCad has no CLI/IPC DSN path until 11; SWIG is slated for removal in 11. |
 | A7 | One model interface (prompt in, text out). Provider not chosen yet. | Decision D-1 open. |
-| A8 | Parts backend candidate is tscircuit's `jlcsearch` (trimmed jlcparts), with a local snapshot for offline use. Not decided. | Research 2026-10-17. Decision D-6 open. |
+| A8 | Parts come from a local jlcparts snapshot (`reflow parts update`); the jlcsearch API was retired after its stock data and search broke. | Decided: D-6a (2026-10-21), P-06. |
 | A9 | "Weekend 1 done" meant the toolchain round trip (KiCad → DSN → freerouting → SES → KiCad). **No LLM code exists yet.** | Repo state 2026-10-17. |
 | A10 | Schedule: harness go/no-go **Sun 2026-10-25**, v1 launch **Sun 2026-11-01**. Hard stop: AMC 12A on Thu 2026-11-05, MTFC from 2026-11-08. | Author's calendar. |
 | A11 | Public framing: an open-source alternative to tools like another tool. Never "killing another tool"; comparisons are factual and reproducible. | Author's rule. |

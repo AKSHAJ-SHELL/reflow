@@ -5,6 +5,7 @@
 | `conftest.py` | Finds every fixture, exports a fresh netlist per test | yes |
 | `test_netlist.py` | Invariants + hand-checked nets + expected violations per fixture | yes |
 | `test_cli.py` | `reflow check` exit codes and output | yes (skips if missing) |
+| `test_catalog.py` | `parse_value`, `CatalogPart` defaults, and that the jlcsearch client and cache are gone | no |
 | `test_contracts.py` | Frozen schemas, strict example parsing, stub honesty | no |
 | `test_circuit_netlist.py` | `circuit.json` → `Netlist` on recorded boards (`data/circuit_json/`), the rules on that netlist, and malformed input | no |
 | `test_pcb_nets.py` | `.kicad_pcb` pad nets: tscircuit export vs its `circuit.json`, the club KiCad board vs its schematic, syntax and error cases | club case only (skips if missing) |
@@ -16,6 +17,5 @@
 | `test_evals.py` | Structure of every `evals/` board: strict spec and plan, named parts verbatim in the request, D-6a headers, expected.toml agrees with the plan | no |
 | `test_eval_runner.py` | The eval runner with a scripted model, real tsci and verifier, and the parts fixture: pass rates, foreign part numbers, expectation misses, errors, go/no-go, results file, `reflow eval` | tsci (skips if missing); about 2 minutes |
 | `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
-| `test_parts_integration.py` | Plan → catalog → resolver on recorded jlcsearch responses (`data/jlcsearch_plan/`) | no |
 
 Run: `pytest -q`. **Never weaken a test** (docs/agents/04-testing-rules.md).
