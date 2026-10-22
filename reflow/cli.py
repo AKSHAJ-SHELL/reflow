@@ -386,7 +386,51 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--runs", metavar="DIR", default="runs/evals", help="run folders for each board")
     evaluate.add_argument("--only", metavar="NAME", action="append", help="run only this board (repeatable)")
     evaluate.set_defaults(func=cmd_eval)
+    rules = sub.add_parser("rules", help="work with a project's rules.toml")
+    rules_sub = rules.add_subparsers(dest="rules_command", required=True)
+    check_rules_cmd = rules_sub.add_parser(
+        "check",
+        help="check a rules.toml against its parts' pin maps",
+        description=(
+            "Parse a rules.toml strictly and report errors (bad fields, blank why/source, pins that "
+            "aren't on the part) and warnings (power, ground, reset and boot pins no rule mentions). "
+            "Say which part each reference is with --symbol REF=Library:Symbol (KiCad) or "
+            "--mpn REF=MPN (vendor pin data). Exit 1 on errors, 2 if the input can't be used."
+        ),
+    )
+    check_rules_cmd.add_argument("rules_file", metavar="RULES", help="path to rules.toml")
+    check_rules_cmd.add_argument("--symbol", metavar="REF=LIB:SYMBOL", action="append", default=[],
+                                 help="pin map for REF from a KiCad symbol (repeatable)")
+    check_rules_cmd.add_argument("--mpn", metavar="REF=MPN", action="append", default=[],
+                                 help="pin map for REF from vendor pin data (repeatable)")
+    check_rules_cmd.set_defaults(func=cmd_rules_check)
     return parser
+
+
+def cmd_rules_check(args) -> int:
+    from reflow.parts.pinmap import PinMapError, from_kicad_symbol, import_pin_map
+    from reflow.project_rules import RulesFileError, check_rules, load_rules
+
+    try:
+        pin_maps = {}
+        for option, build in (("symbol", lambda v: from_kicad_symbol(v)),
+                              ("mpn", lambda v: import_pin_map(v).pin_map)):
+            for pair in getattr(args, option):
+                ref, sep, value = pair.partition("=")
+                if not sep or not ref.strip() or not value.strip():
+                    raise InputError(f"--{option} takes REF=VALUE, got {pair!r}")
+                pin_maps[ref.strip()] = build(value.strip())
+        rules = load_rules(Path(args.rules_file))
+    except (InputError, PinMapError, RulesFileError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    result = check_rules(rules, pin_maps)
+    for error in result.errors:
+        print(f"error: {error}")
+    for warning in result.warnings:
+        print(f"warning: {warning}")
+    print(f"{result.rules} rules, {len(result.errors)} errors, {len(result.warnings)} warnings")
+    return 1 if result.errors else 0
 
 
 def cmd_eval(args) -> int:

@@ -16,6 +16,7 @@
 | `test_local_catalog.py` | Local-snapshot queries on 27 real rows (`data/parts_db/`): values, tolerance, voltage, headers, MPN prefix, category mapping, the MCP9808 plan through the resolver | no |
 | `test_evals.py` | Structure of every `evals/` board: strict spec and plan, named parts verbatim in the request, D-6a headers, expected.toml agrees with the plan | no |
 | `test_eval_runner.py` | The eval runner with a scripted model, real tsci and verifier, and the parts fixture: pass rates, foreign part numbers, expectation misses, errors, go/no-go, results file, `reflow eval` | tsci (skips if missing); about 2 minutes |
+| `test_project_rules.py` | `rules.toml` parsing and `reflow rules check`: required why/source, field errors, unknown pins, uncovered power/reset/boot pins | no |
 | `test_integration.py` | Real tsci + kicad-cli + rules, and the design loop with a scripted model (inputs in `data/integration/`) | yes, and tsci (skips if missing) |
 
 Run: `pytest -q`. **Never weaken a test** (docs/agents/04-testing-rules.md).
