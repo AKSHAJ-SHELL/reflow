@@ -16,6 +16,7 @@ Next: ...
 
 - 2026-10-20 · verifier input (docs/04 §5) · tscircuit's `.kicad_sch` export has wrong connectivity (traced pins split across nets or `unconnected`, rails become fake `V`/`GND` components, all pins `passive`). The verifier gives both false positives and false negatives on I2C boards; `.kicad_pcb` and `circuit.json` are correct. Choosing a new verifier input is a contract change and HUMAN. Evidence: `tests/test_integration.py`, REVIEW.md §9.
 - 2026-10-20 · P-02 (HUMAN) + P-01 · resolver picks a part of the wrong kind (I2C header → LED C2286) and a named IC is never searched by its MPN. Catalog query half is AGENT (P-01); the resolver category check is HUMAN. Evidence: `tests/test_parts_integration.py`.
+- 2026-10-22 · i2c rule (HUMAN, reflow/rules/i2c.py) · a pull-up to a rail the chip isn't powered from passes `i2c.missing_pullup`, so a real eval board (Lightning, run 20261022T192231Z attempt 2) was verifier-clean with SDA/SCL pulled up to a dead V3_3. Failing test: `tests/test_i2c_pullup_rail.py::test_pullups_to_an_unpowered_rail_fail_verify`. The human is writing the rule.
 - 2026-10-20 · D-6 / P-03 · jlcsearch stock data and free-text search are broken upstream. Proposed: jlcparts SQLite snapshot (~205 MB). Needs a DECISIONS.md amendment and the human's OK to download.
 
 ---
@@ -354,3 +355,36 @@ Tests:
 - Five sabotages each turn the suite red: ignore the circuit.json errors, let the verifier pass an empty board, count layout errors, keep the Details dump, drop the shape from the prompt.
 - `pytest -q` → 521 passed, 2 failed: the deliberate tscircuit record, and test_committed_reflow_toml_is_caps_only (the local reflow.toml was emptied; uncommitted).
 - Local .env (uncommitted) now has REFLOW_MODEL=nvidia/nemotron-3.5-lightning:free and REFLOW_MAX_TOKENS=32000.
+
+## 2026-10-22 · smoke eval on Lightning after K-02 (run 20261022T192231Z)
+`reflow eval --only mcp9808_breakout`, nvidia/nemotron-3.5-lightning:free, max_tokens 32000. Took 2 attempts: 5625 in / 34740 out tokens, 0 part numbers outside the resolver. supplierPartNumbers had the object shape both times, and both attempts compiled.
+- **Attempt 1:** 5 parts, 7 nets, 10 errors.
+  - 7 pinout.mismatch: the pinout was mirrored, pin1 A2 … pin7 VDD, pin8 ALERT.
+  - 2 decoupling.missing, on the real GND pin 4 and on pin 8 (VDD), which the design left unconnected.
+  - 1 i2c.missing_pullup: the model's "SCL" landed on GND.
+- **Attempt 2:** the pinout is right on every pin and the verifier finds 0 errors, but the board doesn't work.
+  - U1.VDD, C1.pin1 and J1.pin1 sit on an unnamed net, `Net-(C1-pin1)`.
+  - The pull-ups R1/R2 go to `V3_3`, which connects to nothing else, so they pull SDA/SCL up to a rail nothing powers.
+  - Only the draft expectation check caught it ("net V3_3 should include ic.VDD / capacitor / connector"). The run is marked passed, not clean.
+**Gap, HUMAN-owned (reflow/rules/, R-10):** no rule checks that a pull-up's rail is the chip's supply, or that a named power rail reaches any supply pin or connector. The MCP9808 rules.toml wouldn't catch it either: "U1.SDA pullup to V3_3" holds, and "U1.VDD cap to GND" holds. Candidates:
+- (a) i2c.missing_pullup requires the pull-up rail to be the IC's VDD net;
+- (b) a rule for a named rail that has only passive pins on it;
+- (c) a project need stating which net U1.VDD must be on.
+Until one exists, a verifier pass doesn't mean the board is wired right; the checked expectations (E-02) are the only backstop.
+Minor: pinout.mismatch messages say "KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP" (doc and locator both carry the library name).
+
+## 2026-10-22 · agent (Claude) · failing test for the unpowered pull-up rail (rule is HUMAN)
+Did: at the human's request, saved attempt 2 of run 20261022T192231Z as `tests/data/real_runs/mcp9808_lightning_pullup_rail_20261022/`: the model's TSX, its circuit.json source_* elements, parts.json and a README with the net table. Added `tests/test_i2c_pullup_rail.py`. Nothing in reflow/rules/ was touched.
+- `test_pullups_to_an_unpowered_rail_fail_verify` (red, on purpose):
+  - the board binds with 0 pinout.* errors;
+  - verify must give an `i2c.*` error on SDA and one on SCL;
+  - each error's fix_hint must name `V3_3` and the chip's supply net `Net-(C1-pin1)`, so the model can act on it;
+  - the rule id is the human's to choose.
+- `test_pullups_to_the_chips_supply_stay_clean` (green): the corrected first real board, where R1/R2 and U1.VDD share V3_3, keeps 0 i2c errors and 0 errors.
+For the human writing the rule:
+- The supply is only known once V-12 has bound the IC (power pins become `power_in`). Several tests verify with `unbound` (tests/test_integration.py, tests/test_verifier.py), where no pin is typed. If the rule fires whenever no supply is found, those tests go red; it should probably skip, or warn, when the IC has no typed power pin.
+- `fixtures/` boards come through the KiCad netlist with real pin types, so they exercise the rule directly.
+Tests: `pytest -q` → 522 passed, 3 failed:
+- the new rail test (on purpose);
+- the deliberate tscircuit record;
+- test_committed_reflow_toml_is_caps_only (the local reflow.toml was emptied; uncommitted).
