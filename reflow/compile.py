@@ -22,6 +22,11 @@ Contract
   `pcb_port_not_connected_error` from the autorouter), which the PCB checks
   report (V-13), not the compiler.
 
+- After a successful export, `board.kicad_pro` is written next to the board
+  with the fab's design rules (`reflow.fab_rules`, JLCPCB standard 2-layer),
+  so KiCad's DRC checks the board against what the fab can build, not
+  KiCad's defaults. The board files themselves are tsci's, unchanged.
+
 Must never
 ----------
 - edit or "repair" the model's code,
@@ -255,6 +260,9 @@ def compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> CompileRe
             kicad_pcb="",
             circuit_json="",
         )
+    from reflow.fab_rules import write_kicad_project
+
+    write_kicad_project(kicad_pcb)
     return CompileResult(
         ok=True,
         errors=[],
