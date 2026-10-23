@@ -35,9 +35,14 @@ export type Interaction = {
   hint: string
 }
 
+type NextCommon = { skipped: string[]; recall?: Record<string, number> }
+
 export type Next =
-  | { done: false; index: number; total: number; interaction: Interaction; skipped: string[]; notes: string[] }
-  | { done: true; reason: string; skipped: string[]; notes: string[] }
+  | ({ done: false; index: number; total: number; interaction: Interaction } & NextCommon)
+  | ({ done: true; reason: string; notes: string[] } & NextCommon)
+
+export type VaultNode = { id: string; kind: string; title: string; path: string; obsidian: string }
+export type VaultGraph = { nodes: VaultNode[]; links: { source: string; target: string }[] }
 
 export type Answer =
   | { outcome: "try_again"; hint: string }
@@ -70,6 +75,8 @@ export const api = {
   next: () => call<Next>("/api/learn/next"),
   hint: (id: string) => call<{ hint: string }>("/api/learn/hint", { id }),
   answer: (id: string, ref: string, why: string) => call<Answer>("/api/learn/answer", { id, ref, why }),
+  unskip: (concept: string) => call<{ skipped: string[] }>("/api/learn/unskip", { concept }),
+  vaultGraph: () => call<VaultGraph>("/api/vault/graph"),
   signoffState: () => call<SignOffState>("/api/signoff"),
   signoff: (accepted: boolean, overrides: string[]) => call<unknown>("/api/signoff", { accepted, overrides }),
 }

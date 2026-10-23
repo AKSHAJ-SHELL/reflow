@@ -568,3 +568,30 @@ Checked in the built-in browser on a copy of the MCP9808 run:
 - no console errors.
 Not done here (L-11 onward): SSE `/api/events`, concept cards and the vault, simulation. The PCB has no traces because tscircuit didn't route these boards.
 Tests: tests/test_learn_server.py (14) and tests/test_learn_cli.py (3) failed first, then passed. Four sabotages each turn them red: leaking the answer, no CSP, no learn.json, listening on 0.0.0.0. `pytest -q` → 571 passed, 3 failed (the same three as before). Upstream warning: Starlette deprecates `httpx` in its test client in favour of `httpx2`.
+
+## 2026-10-22 · agent (Claude) · L-11: concept cards, skip logic and the vault (learn mode phase 2)
+Did:
+- **Contracts:** `ConceptCard{concept, fsrs, last_reviewed, ratings}` and `VaultNote{path, kind, title, links}` (approved by L-2) in reflow/contracts.py, docs/04 §8, the frozen field list, and `docs/examples/concept_card.json` / `vault_note.json`. The contract loader doesn't check dict fields, so `fsrs` is the scheduler card as a JSON string and VaultNote has no frontmatter field.
+- **`reflow/learn/vault.py`:** `Vault(root, now=)`, at `REFLOW_VAULT`, else `~/.reflow/vault`:
+  - one fsrs 6.3.2 card per concept, in the frontmatter of `concepts/<concept>.md`, written as JSON values (valid YAML);
+  - `known()` = recall above 0.9;
+  - `review()` takes good/hard/again from what the user did;
+  - `write_mistake()` / `write_board()` write Obsidian-style notes joined by [[wikilinks]], and `graph()` returns the same graph;
+  - a concept note's `## My notes` survives rewrites, and the reader also accepts the simple YAML Obsidian might write back.
+- **Server:**
+  - concepts known in the vault are skipped, with their recall;
+  - `POST /api/learn/unskip` asks one anyway;
+  - each finished interaction rates its card and writes the mistake and board notes, and sign-off updates the board note;
+  - `GET /api/vault/graph`;
+  - `reflow learn --vault DIR`.
+- **Fixed after a browser check:** the "why some checks aren't asked" notes named the part and the rules in the pending response. They now come only once nothing is left to answer, and the test checks that the whole pending response doesn't name the part.
+- **UI:** "Skipped: pinout, you've got it (recall 100%). [Do it anyway]", a Vault tab with a force graph (react-force-graph-2d 1.29.2) plus a note list with obsidian:// links, and "noted in your vault" after a reveal. No scores are shown.
+Checked in the built-in browser on a copy of the MCP9808 run with a scratch vault (the user's ~/.reflow was never written):
+- answering wrote three linked notes, and the Vault tab drew them;
+- a second session on a fresh copy skipped pinout, and Do it anyway brought the question back;
+- no console errors.
+For the human reviewer:
+- one good answer puts recall above 0.9 for about two days, so the next board skips the concept;
+- a concept note's "why" is the latest violation's why, which names that board's nets.
+Tests: tests/test_learn_vault.py (9) and 6 new in tests/test_learn_server.py failed first, then passed; tests/test_contracts.py covers the two contracts. The server tests now use a temporary vault, so a test run never writes to ~/.reflow. Four sabotages each turn the suite red: never skip, drop My notes, always rate good, no sign-off on the board note.
+`pytest -q` → 590 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).

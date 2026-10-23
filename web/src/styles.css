@@ -59,3 +59,9 @@ select { background: var(--bg); border: 1px solid var(--line); border-radius: 6p
 .reveal.correct { background: var(--good-bg); color: var(--fg); border-left: 3px solid var(--good); }
 .reveal.wrong { background: var(--bad-bg); color: var(--fg); border-left: 3px solid var(--bad); }
 details { margin-top: 10px; }
+.vault { min-height: 520px; }
+.legend span { margin-right: 6px; }
+.note-list { list-style: none; padding: 0; margin: 8px 0 0; font-size: 14px; }
+.note-list li { margin: 2px 0; }
+.skipped button { padding: 1px 8px; font-size: 13px; }
+a { color: var(--accent); }

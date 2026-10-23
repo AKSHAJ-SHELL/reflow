@@ -2,8 +2,8 @@
 
 Contract
 --------
-    create_app(run_dir) -> fastapi.FastAPI
-    serve(run_dir, *, port=0, open_browser=True) -> None
+    create_app(run_dir, *, vault=None, now=None) -> fastapi.FastAPI
+    serve(run_dir, *, port=0, open_browser=True, vault=None) -> None
 
 Serves one run folder to the browser on 127.0.0.1 only. The run folder is the
 single source of truth: the server reads it, asks the learn engine
@@ -13,13 +13,21 @@ talks only to this server; nothing is sent anywhere else.
 
     GET  /api/run              spec, plan, parts, run result, attempts with their violations
     GET  /api/circuit/{n}      attempt n's circuit.json (for the schematic and PCB viewers)
-    GET  /api/learn/next       the next interaction, without its answer; or done + why
+    GET  /api/learn/next       the next interaction, without its answer; or done + why;
+                               concepts skipped as known, with their recall
+    POST /api/learn/unskip     {concept} -> ask a skipped concept anyway
     POST /api/learn/hint       {id} -> the hint; counts as hinted when grading
     POST /api/learn/answer     {id, ref, why} -> try_again + hint, or the outcome with the
                                why, the fix and the right part; learn.json is rewritten
     GET  /api/signoff          whether the run is signed off, and the warnings to acknowledge
     POST /api/signoff          {accepted, overrides} -> SignOff, written with learn.json
+    GET  /api/vault/graph      the vault's notes and [[wikilinks]] (L-11)
     GET  /                     the web UI (reflow/learn/static, built from web/)
+
+Memory (L-11): `vault` (default `reflow.learn.vault.default_vault_dir()`) holds
+one fsrs card per concept. A concept recalled above 0.9 is skipped and listed,
+and each finished interaction rates its card and writes a mistake note and the
+board note. Sign-off updates the board note.
 
 Not yet included: `/api/events` (SSE). In phase 1 the run is finished before
 the server starts, so there's nothing to push; simulation (L-12) adds it.
@@ -30,7 +38,8 @@ Must never
 ----------
 - listen on anything but 127.0.0.1, or serve a page allowed to reach another origin (CSP),
 - send an interaction's answer, why or fix before the user has answered,
-- call a model or change any file in the run folder other than learn.json and signoff.json.
+- call a model or change any file in the run folder other than learn.json and signoff.json,
+- write learning notes anywhere but the vault.
 """
 from __future__ import annotations
 
@@ -46,7 +55,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from reflow.contracts import LearnRecord, SignOff, to_dict
-from reflow.learn.engine import grade, load_run, pick
+from reflow.learn.engine import concept_of, grade, load_run, pick
+from reflow.learn.vault import Vault, default_vault_dir
 
 HOST = "127.0.0.1"
 STATIC = Path(__file__).resolve().parent / "static"
@@ -73,18 +83,49 @@ class _SignOff(BaseModel):
     overrides: list[str] = []
 
 
+class _Unskip(BaseModel):
+    concept: str
+
+
 class _Session:
     """What the user has done in this run's learn session."""
 
-    def __init__(self, run_dir: Path) -> None:
+    def __init__(self, run_dir: Path, vault: Vault) -> None:
         self.run_dir = run_dir
+        self.vault = vault
         self.run = load_run(run_dir)
-        self.selection = pick(self.run)
-        self.by_id = {p.id: p for p in self.selection.interactions}
+        concepts = {concept_of(v.rule_id) for a in self.run.attempts if a.verify for v in a.verify.violations}
+        self.recall = {c: round(vault.recall(c), 3) for c in sorted(concepts)}
+        self.skip = vault.known(concepts)
         self.tries: dict[str, int] = {}
         self.hinted: set[str] = set()
         self.finished: dict[str, object] = {}
+        self.mistakes: list[str] = []
         self.lock = threading.Lock()
+        self.repick()
+
+    def repick(self) -> None:
+        self.selection = pick(self.run, skip=self.skip)
+        self.by_id = {p.id: p for p in self.selection.interactions}
+
+    def remember(self, item, result) -> None:
+        """Rate the concept's card and write the mistake and board notes (L-11)."""
+        self.vault.review(item.concept, result.rating, rule_id=item.rule_id, why=item.why)
+        note = self.vault.write_mistake(
+            board=self.run.spec.title, concept=item.concept, rule_id=item.rule_id, found=item.message,
+            answer=result.interaction.user_answer, right_refs=result.answer_refs, correct=result.interaction.correct,
+            why=item.why, fix=item.fix_hint,
+        )
+        self.mistakes.append(note.path)
+        self.write_board(signed_off=None)
+
+    def write_board(self, *, signed_off) -> None:
+        parts = [f"{p.request_id}: {p.mpn or p.value} ({p.lcsc})" for p in (self.run.parts.resolved if self.run.parts else [])]
+        done = [self.by_id[i].concept for i in self.finished if i in self.by_id]
+        self.vault.write_board(
+            board=self.run.spec.title, request=self.run.spec.request, run_dir=str(self.run_dir.resolve()),
+            status=self.run.result.status, parts=parts, concepts=done, mistakes=self.mistakes, signed_off=signed_off,
+        )
 
     def record(self) -> LearnRecord:
         done = [self.finished[p.id] for p in self.selection.interactions if p.id in self.finished]
@@ -94,8 +135,8 @@ class _Session:
         _write_json(self.run_dir / "learn.json", to_dict(self.record()))
 
 
-def create_app(run_dir) -> FastAPI:
-    session = _Session(Path(run_dir))
+def create_app(run_dir, *, vault=None, now=None) -> FastAPI:
+    session = _Session(Path(run_dir), Vault(vault if vault is not None else default_vault_dir(), now=now))
     app = FastAPI(title="reflow learn", docs_url=None, redoc_url=None, openapi_url=None)
 
     @app.middleware("http")
@@ -140,10 +181,13 @@ def create_app(run_dir) -> FastAPI:
         selection = session.selection
         with session.lock:
             remaining = [p for p in selection.interactions if p.id not in session.finished]
-        common = {"skipped": list(selection.skipped), "notes": list(selection.notes)}
+        common = {"skipped": list(selection.skipped)}
+        if selection.skipped:
+            common["recall"] = {c: session.recall.get(c, 0.0) for c in selection.skipped}
         if not remaining:
             reason = "all done" if selection.interactions else selection.reason
-            return {"done": True, "reason": reason, **common}
+            # The notes name parts and rules, so they come only once nothing is left to answer.
+            return {"done": True, "reason": reason, "notes": list(selection.notes), **common}
         item = remaining[0]
         return {
             "done": False,
@@ -175,11 +219,23 @@ def create_app(run_dir) -> FastAPI:
                 return {"outcome": "try_again", "hint": result.hint}
             session.finished[item.id] = result.interaction
             session.write_record()
+            session.remember(item, result)
         return {
             "outcome": result.outcome, "rating": result.rating, "answer_refs": result.answer_refs,
             "why": result.why, "fix_hint": result.fix_hint, "message": result.message,
             "rule_id": item.rule_id, "concept": item.concept,
         }
+
+    @app.post("/api/learn/unskip")
+    def learn_unskip(body: _Unskip) -> dict:
+        with session.lock:
+            session.skip.discard(body.concept)
+            session.repick()
+        return {"skipped": list(session.selection.skipped)}
+
+    @app.get("/api/vault/graph")
+    def vault_graph() -> dict:
+        return session.vault.graph()
 
     @app.get("/api/signoff")
     def signoff_state() -> dict:
@@ -196,6 +252,7 @@ def create_app(run_dir) -> FastAPI:
         with session.lock:
             session.write_record()
             _write_json(session.run_dir / "signoff.json", to_dict(signed))
+            session.write_board(signed_off=body.accepted)
         return to_dict(signed)
 
     if (STATIC / "assets").is_dir():
@@ -214,12 +271,12 @@ def create_app(run_dir) -> FastAPI:
     return app
 
 
-def serve(run_dir, *, port: int = 0, open_browser: bool = True) -> None:
+def serve(run_dir, *, port: int = 0, open_browser: bool = True, vault=None) -> None:
     import socket
 
     import uvicorn
 
-    app = create_app(run_dir)
+    app = create_app(run_dir, vault=vault)
     if port == 0:
         with socket.socket() as probe:
             probe.bind((HOST, 0))

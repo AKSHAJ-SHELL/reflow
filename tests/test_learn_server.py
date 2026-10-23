@@ -29,8 +29,9 @@ def run(tmp_path) -> Path:
     return folder
 
 
-def _client(run_dir: Path) -> TestClient:
-    return TestClient(create_app(run_dir))
+def _client(run_dir: Path, *, vault: Path | None = None, now=None) -> TestClient:
+    """Each test gets its own vault next to its run copy, never the user's ~/.reflow/vault."""
+    return TestClient(create_app(run_dir, vault=vault or run_dir.parent / "vault", now=now))
 
 
 def test_run_gives_the_viewers_what_they_need(run):
@@ -55,7 +56,7 @@ def test_next_interaction_hides_the_answer(run):
     item = nxt["interaction"]
     assert item["kind"] == "spot_bug" and item["attempt"] == 1
     assert "answer_refs" not in item and "why" not in item and "fix_hint" not in item and "message" not in item
-    assert "U1" not in json.dumps(item)
+    assert "U1" not in json.dumps(nxt), "the pending response must not name the part anywhere (notes included)"
 
 
 def test_answering_right_reveals_the_why_and_records_it(run):
@@ -63,7 +64,7 @@ def test_answering_right_reveals_the_why_and_records_it(run):
     nxt = client.get("/api/learn/next").json()
     item = nxt["interaction"]
     assert (nxt["index"], nxt["total"]) == (1, 1)
-    assert any("consequence" in note for note in nxt["notes"])
+    assert "notes" not in nxt
     result = client.post("/api/learn/answer", json={"id": item["id"], "ref": "U1", "why": "labels are wrong"}).json()
     assert result["outcome"] == "correct" and result["rating"] == "good"
     assert result["answer_refs"] == ["U1"] and result["why"] and result["fix_hint"]
@@ -71,7 +72,9 @@ def test_answering_right_reveals_the_why_and_records_it(run):
     assert [(i.rule_id, i.correct, i.user_answer) for i in record.interactions] == [
         ("pinout.mismatch", True, "U1: labels are wrong"),
     ]
-    assert client.get("/api/learn/next").json() == {"done": True, "reason": "all done", "skipped": [], "notes": nxt["notes"]}
+    done = client.get("/api/learn/next").json()
+    assert (done["done"], done["reason"], done["skipped"]) == (True, "all done", [])
+    assert any("consequence" in note for note in done["notes"])
 
 
 def test_a_wrong_click_gets_the_hint_then_the_answer(run):
@@ -153,3 +156,79 @@ def test_the_shipped_bundle_does_not_fetch_parts_or_code_from_the_internet():
     bundle = "".join(p.read_text(encoding="utf-8") for p in (STATIC / "assets").glob("*.js"))
     assert "reflow learn runs offline" in bundle          # the CDN importer is replaced
     assert "reflow learn makes no network requests" in bundle  # the part-availability fetch is replaced
+
+
+
+# ---------------------------------------------------------------------------
+# L-11: concept cards, skip logic and the vault
+# ---------------------------------------------------------------------------
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+
+T0 = datetime(2026, 10, 22, 12, 0, tzinfo=timezone.utc)
+
+
+def _answer_right(client):
+    item = client.get("/api/learn/next").json()["interaction"]
+    return client.post("/api/learn/answer", json={"id": item["id"], "ref": "U1", "why": "labels"}).json()
+
+
+def test_an_answer_updates_the_concept_card_and_writes_the_notes(run):
+    vault = run.parent / "vault"
+    _answer_right(_client(run, vault=vault, now=lambda: T0))
+    concept = (vault / "concepts" / "pinout.md").read_text(encoding="utf-8")
+    assert '"2026-10-22T12:00:00Z good"' in concept
+    mistakes = list((vault / "mistakes").glob("*.md"))
+    assert [m.name for m in mistakes] == ["2026-10-22-mcp9808-breakout-pinout.md"]
+    assert "U1: labels" in mistakes[0].read_text(encoding="utf-8")
+    board = (vault / "boards" / "mcp9808-breakout.md").read_text(encoding="utf-8")
+    assert "[[concepts/pinout]]" in board and "[[mistakes/2026-10-22-mcp9808-breakout-pinout]]" in board
+
+
+def test_a_known_concept_is_skipped_next_time_and_can_be_asked_anyway(run, tmp_path):
+    vault = tmp_path / "vault"
+    _answer_right(_client(run, vault=vault, now=lambda: T0))
+    again = tmp_path / "run2"
+    shutil.copytree(FAILED_FIRST, again)
+    client = _client(again, vault=vault, now=lambda: T0 + timedelta(days=1))
+    nxt = client.get("/api/learn/next").json()
+    assert nxt["done"] is True and nxt["skipped"] == ["pinout"]
+    assert nxt["recall"]["pinout"] > 0.9
+    assert client.post("/api/learn/unskip", json={"concept": "pinout"}).json()["skipped"] == []
+    asked = client.get("/api/learn/next").json()
+    assert asked["done"] is False and asked["interaction"]["concept"] == "pinout"
+
+
+def test_a_wrong_answer_keeps_the_concept_asked(run, tmp_path):
+    vault = tmp_path / "vault"
+    client = _client(run, vault=vault, now=lambda: T0)
+    item = client.get("/api/learn/next").json()["interaction"]
+    client.post("/api/learn/answer", json={"id": item["id"], "ref": "C1", "why": ""})
+    client.post("/api/learn/answer", json={"id": item["id"], "ref": "R1", "why": ""})
+    again = tmp_path / "run2"
+    shutil.copytree(FAILED_FIRST, again)
+    nxt = _client(again, vault=vault, now=lambda: T0 + timedelta(days=1)).get("/api/learn/next").json()
+    assert nxt["done"] is False and nxt["skipped"] == []
+
+
+def test_sign_off_is_recorded_on_the_board_note(run):
+    vault = run.parent / "vault"
+    client = _client(run, vault=vault, now=lambda: T0)
+    client.post("/api/signoff", json={"accepted": False, "overrides": []})
+    board = (vault / "boards" / "mcp9808-breakout.md").read_text(encoding="utf-8")
+    assert "signed_off: false" in board and "**Signed off:** no" in board
+
+
+def test_the_vault_graph_endpoint(run):
+    vault = run.parent / "vault"
+    client = _client(run, vault=vault, now=lambda: T0)
+    _answer_right(client)
+    graph = client.get("/api/vault/graph").json()
+    assert {n["kind"] for n in graph["nodes"]} == {"concept", "mistake", "board"}
+    assert {"source": "boards/mcp9808-breakout", "target": "concepts/pinout"} in graph["links"]
+
+
+def test_without_a_vault_argument_it_uses_reflow_vault(run, tmp_path, monkeypatch):
+    monkeypatch.setenv("REFLOW_VAULT", str(tmp_path / "env-vault"))
+    _answer_right(TestClient(create_app(run, now=lambda: T0)))
+    assert (tmp_path / "env-vault" / "concepts" / "pinout.md").is_file()

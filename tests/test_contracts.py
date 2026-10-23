@@ -53,6 +53,8 @@ FROZEN = {
                          "explanation"),
     "LearnRecord": ("interactions", "skipped_concepts"),
     "SignOff": ("accepted", "warnings_acknowledged", "overrides", "at"),
+    "ConceptCard": ("concept", "fsrs", "last_reviewed", "ratings"),
+    "VaultNote": ("path", "kind", "title", "links"),
     "DrcSummary": ("errors", "warnings", "unconnected", "report_path"),
     "RouteResult": ("status", "router", "tries", "routed_nets", "total_nets", "unrouted_nets",
                     "refused_nets", "drc", "kicad_pcb"),
@@ -73,6 +75,8 @@ EXAMPLE_FILES = {
     "run_result.json": c.RunResult,
     "learn_record.json": c.LearnRecord,
     "signoff.json": c.SignOff,
+    "concept_card.json": c.ConceptCard,
+    "vault_note.json": c.VaultNote,
     "route_result.json": c.RouteResult,
     "fab_package.json": c.FabPackage,
 }

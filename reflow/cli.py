@@ -413,6 +413,8 @@ def build_parser() -> argparse.ArgumentParser:
     learn.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
     learn.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: any free port)")
     learn.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    learn.add_argument("--vault", metavar="DIR", type=Path, default=None,
+                       help="your learning vault (default: REFLOW_VAULT, else ~/.reflow/vault)")
     learn.set_defaults(func=cmd_learn)
     rules = sub.add_parser("rules", help="work with a project's rules.toml")
     rules_sub = rules.add_subparsers(dest="rules_command", required=True)
@@ -473,7 +475,7 @@ def cmd_learn(args) -> int:
         print(f"reflow: learn mode needs its optional extra ({exc}). Install it with: "
               "pip install 'reflow-pcb[learn]'", file=sys.stderr)
         return 2
-    serve(run_dir, port=args.port, open_browser=not args.no_browser)
+    serve(run_dir, port=args.port, open_browser=not args.no_browser, vault=args.vault)
     return 0
 
 

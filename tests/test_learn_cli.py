@@ -17,7 +17,11 @@ def test_reflow_learn_serves_the_run_folder(monkeypatch):
     fake.serve = lambda run_dir, **kw: calls.append((Path(run_dir), kw))
     monkeypatch.setitem(sys.modules, "reflow.learn.server", fake)
     assert cli.main(["learn", str(RUN), "--port", "8765", "--no-browser"]) == 0
-    assert calls == [(RUN, {"port": 8765, "open_browser": False})]
+    assert cli.main(["learn", str(RUN), "--vault", "/tmp/my-vault"]) == 0
+    assert calls == [
+        (RUN, {"port": 8765, "open_browser": False, "vault": None}),
+        (RUN, {"port": 0, "open_browser": True, "vault": Path("/tmp/my-vault")}),
+    ]
 
 
 def test_a_folder_that_is_not_a_run_is_refused(tmp_path, capsys):
