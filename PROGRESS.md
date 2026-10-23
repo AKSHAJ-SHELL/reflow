@@ -543,3 +543,28 @@ For the human reviewer:
 - a run with no failed attempt gets no interaction (make-the-call is L-13);
 - skip logic arrives with concept cards in L-11.
 Tests: tests/test_learn_engine.py (14) failed first (module missing), then passed. Four sabotages each turn it red: teaching consequences, a leaky prompt, retrying until right, ignoring skip. `pytest -q` → 554 passed, 3 failed (the unpowered pull-up rail test on purpose, the deliberate tscircuit record, and the caps-only config test from the local reflow.toml).
+
+## 2026-10-22 · agent (Claude) · L-10: learn mode web UI, phase 1
+Did:
+- **Server:** `reflow/learn/server.py` (FastAPI, 127.0.0.1 only):
+  - `/api/run`, `/api/circuit/{n}`, `/api/learn/next` (without the answer), `/api/learn/hint`, `/api/learn/answer`;
+  - `/api/signoff` writes a strict `SignOff` plus `learn.json` (`LearnRecord`), and nothing else in the run folder changes;
+  - every response sends a same-origin Content-Security-Policy.
+- **Command:** `reflow learn RUN_DIR [--port] [--no-browser]` opens the browser, and says how to install the extra when FastAPI is missing.
+- **Packaging:** `pyproject.toml` gets the `[learn]` extra (fastapi 0.161.1, uvicorn 0.54.0, fsrs 6.3.2) and a `[test]` extra (pytest>=8, httpx 0.28.1); reflow/learn/static is package data.
+- **Front end:** `web/` (Vite 8.3.5 + React 19.3.1, exact pins), with the schematic viewer 2.0.105 and PCB viewer 1.11.433 wrapped in one component (`BoardView.tsx`). It has:
+  - Schematic/PCB tabs and a board picker (the AI's draft vs the final board);
+  - the spot-the-bug panel: click a part in the schematic or use part buttons, write a one-sentence why, check, hint, reveal with what the check found, why it matters, your sentence and the fix;
+  - sign-off with the remaining warnings and overrides.
+  The build (2.7 MB JS) is committed under reflow/learn/static, so users don't need Node.
+- **Offline:** the schematic viewer's CDN importer is aliased to a stub, its jlcsearch price lookup gets a failing fetch, and the CSP blocks anything else. A browser check confirmed every request stayed on localhost.
+- **Found and fixed in the browser:** duplicate React copies (Vite `dedupe`), and a stale click handler that changed the shown pick after the reveal.
+Checked in the built-in browser on a copy of the MCP9808 run:
+- the draft schematic renders with the mirrored pinout;
+- clicking U1 selects it, and a right answer reveals the why;
+- a wrong pick gets the hint, and a second wrong pick shows "It was U1";
+- Next → "That's everything" → sign-off writes signoff.json;
+- the PCB tab renders (unrouted);
+- no console errors.
+Not done here (L-11 onward): SSE `/api/events`, concept cards and the vault, simulation. The PCB has no traces because tscircuit didn't route these boards.
+Tests: tests/test_learn_server.py (14) and tests/test_learn_cli.py (3) failed first, then passed. Four sabotages each turn them red: leaking the answer, no CSP, no learn.json, listening on 0.0.0.0. `pytest -q` → 571 passed, 3 failed (the same three as before). Upstream warning: Starlette deprecates `httpx` in its test client in favour of `httpx2`.

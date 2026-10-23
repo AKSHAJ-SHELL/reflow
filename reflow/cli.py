@@ -401,6 +401,19 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--repeat", metavar="N", type=_positive_int, default=1,
                           help="run each board N times and report pass rates (default: 1)")
     evaluate.set_defaults(func=cmd_eval)
+    learn = sub.add_parser(
+        "learn",
+        help="open learn mode for a run folder in your browser",
+        description=(
+            "Serve learn mode for a finished run on 127.0.0.1 and open it in your browser: the AI's "
+            "failed draft in the schematic and PCB viewers, spot-the-bug, then sign-off. Writes "
+            "learn.json and signoff.json into the run folder. Needs pip install 'reflow-pcb[learn]'."
+        ),
+    )
+    learn.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    learn.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: any free port)")
+    learn.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    learn.set_defaults(func=cmd_learn)
     rules = sub.add_parser("rules", help="work with a project's rules.toml")
     rules_sub = rules.add_subparsers(dest="rules_command", required=True)
     check_rules_cmd = rules_sub.add_parser(
@@ -447,6 +460,21 @@ def cmd_rules_check(args) -> int:
         print(f"warning: {warning}")
     print(f"{result.rules} rules, {len(result.errors)} errors, {len(result.warnings)} warnings")
     return 1 if result.errors else 0
+
+
+def cmd_learn(args) -> int:
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        from reflow.learn.server import serve
+    except ModuleNotFoundError as exc:
+        print(f"reflow: learn mode needs its optional extra ({exc}). Install it with: "
+              "pip install 'reflow-pcb[learn]'", file=sys.stderr)
+        return 2
+    serve(run_dir, port=args.port, open_browser=not args.no_browser)
+    return 0
 
 
 def _positive_int(text: str) -> int:
