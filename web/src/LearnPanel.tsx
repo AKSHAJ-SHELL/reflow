@@ -6,7 +6,7 @@ type Props = {
   selectedRef: string | null
   parts: string[]
   onSelect: (ref: string) => void
-  onReveal: (refs: string[]) => void
+  onReveal: (refs: string[], concept: string) => void
   onShowDraft: (attempt: number) => void
   onFinished: () => void
 }
@@ -76,7 +76,7 @@ export function LearnPanel({ selectedRef, parts, onSelect, onReveal, onShowDraft
     setSubmitted(selectedRef)
     setResult(answer)
     if (answer.outcome === "try_again") setHint(answer.hint)
-    else onReveal(answer.answer_refs)
+    else onReveal(answer.answer_refs, answer.concept)
   }
 
   return (

@@ -65,3 +65,21 @@ details { margin-top: 10px; }
 .note-list li { margin: 2px 0; }
 .skipped button { padding: 1px 8px; font-size: 13px; }
 a { color: var(--accent); }
+.field { display: inline-flex; flex-direction: column; gap: 2px; margin: 4px 8px 4px 0; font-size: 13px; }
+.field input:not([type="checkbox"]) { background: var(--bg); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; width: 120px; }
+.fields { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 6px; }
+.edits { margin: 8px 0; padding-left: 20px; font-size: 14px; }
+button.small { padding: 0 6px; font-size: 12px; }
+.sims { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+.sim h4 { margin: 0 0 4px; font-size: 14px; }
+.sim p { margin: 4px 0; font-size: 13px; }
+.plot { width: 100%; height: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; }
+.plot-bg { fill: none; }
+.plot-grid { stroke: var(--line); stroke-width: 0.5; }
+.plot-label { fill: var(--muted); font-size: 9px; font-family: system-ui, sans-serif; }
+pre.diff { font-size: 12px; overflow-x: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+pre.diff .add { color: var(--good); }
+pre.diff .del { color: var(--bad); }
+h3 { margin: 14px 0 6px; font-size: 16px; }
+.route { font-size: 13px; margin: 8px 0; }
+.route.ok strong { color: var(--good); }

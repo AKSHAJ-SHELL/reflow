@@ -232,3 +232,109 @@ def test_without_a_vault_argument_it_uses_reflow_vault(run, tmp_path, monkeypatc
     monkeypatch.setenv("REFLOW_VAULT", str(tmp_path / "env-vault"))
     _answer_right(TestClient(create_app(run, now=lambda: T0)))
     assert (tmp_path / "env-vault" / "concepts" / "pinout.md").is_file()
+
+
+# ---------------------------------------------------------------------------
+# L-14 / L-12: fix-it and simulation through the server
+# ---------------------------------------------------------------------------
+
+from reflow.compile import find_tsci  # noqa: E402
+
+needs_tsci = pytest.mark.skipif(find_tsci() is None, reason="tsci not installed")
+DATASHEET = {"1": "SDA", "2": "SCL", "3": "Alert", "4": "GND", "5": "A2", "6": "A1", "7": "A0", "8": "VDD"}
+WIRING = [{"kind": "connect", "a": "U1.SDA", "b": "SDA"}, {"kind": "connect", "a": "U1.SCL", "b": "SCL"},
+          {"kind": "connect", "a": "U1.VDD", "b": "V3_3"}, {"kind": "connect", "a": "U1.GND", "b": "GND"}]
+
+
+@pytest.fixture
+def symbols(monkeypatch):
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(ROOT / "tests" / "data" / "pinmaps" / "kicad"))
+
+
+@needs_tsci
+def test_a_fix_is_compiled_and_verified_and_its_board_is_served(run, symbols):
+    client = _client(run)
+    edits = [{"kind": "set_label", "ref": "U1", "pin": n, "value": l} for n, l in DATASHEET.items()] + WIRING
+    result = client.post("/api/fix", json={"edits": edits}).json()
+    assert result["number"] == 1 and result["base_attempt"] == 1
+    assert result["compiled"] and result["errors"] == 0 and not result["refused"], result["violations"]
+    circuit = client.get("/api/fix/1/circuit").json()
+    assert any(e["type"] == "source_component" and e["name"] == "U1" for e in circuit)
+
+
+def test_a_bad_edit_is_a_400_with_the_reason(run):
+    response = _client(run).post("/api/fix", json={"edits": [{"kind": "set_value", "ref": "R9", "value": "1k"}]})
+    assert response.status_code == 400 and "R9" in response.json()["detail"]
+
+
+@needs_tsci
+def test_the_ais_fix_is_shown_only_after_the_user_tries(run, symbols):
+    client = _client(run)
+    assert client.get("/api/fix/ai").status_code == 403
+    client.post("/api/fix", json={"edits": [{"kind": "set_label", "ref": "U1", "pin": "1", "value": "SDA"}]})
+    ai = client.get("/api/fix/ai").json()
+    assert ai["attempt"] == 2 and ai["diff"]
+    assert any(line.startswith("+") and 'pin1: "SDA"' in line for line in ai["diff"])
+
+
+def test_simulating_a_concept_without_a_testbench_says_so(run, symbols):
+    result = _client(run).post("/api/sim", json={"concept": "pinout", "attempt": 1}).json()
+    assert result["ran"] is False and "can't simulate" in result["notes"][0]
+
+
+def test_simulating_a_board_the_testbench_cant_represent_says_why(run, symbols):
+    """The AI's draft left the real VDD pin unconnected: no supply to simulate."""
+    pytest.importorskip("reflow.learn.sim").find_ngspice() or pytest.skip("ngspice not installed")
+    result = _client(run).post("/api/sim", json={"concept": "decoupling", "attempt": 1}).json()
+    assert result["ran"] is False and "not connected" in result["notes"][0]
+
+
+@needs_tsci
+def test_the_users_fix_and_the_ais_final_are_simulated(run, symbols):
+    from reflow.learn import sim
+
+    if sim.find_ngspice() is None:
+        pytest.skip("ngspice not installed")
+    client = _client(run)
+    edits = [{"kind": "set_label", "ref": "U1", "pin": n, "value": l} for n, l in DATASHEET.items()] + WIRING
+    client.post("/api/fix", json={"edits": edits})
+    yours = client.post("/api/sim", json={"concept": "decoupling", "fix": 1}).json()
+    assert yours["ran"] and yours["variant"] == "yours" and yours["verdict"] == "good"
+    assert yours["signals"][0]["name"] == "V(chip)" and yours["refs"] == ["C1", "U1"]
+    pcb = client.post("/api/sim", json={"concept": "decoupling", "fix": 1, "pcb": True}).json()
+    assert pcb["ran"] and any("mm" in a for a in pcb["assumptions"])
+    i2c = client.post("/api/sim", json={"concept": "i2c-pullup", "fix": 1}).json()
+    assert i2c["ran"] and i2c["verdict"] == "good" and "rise time" in i2c["notes"][0]
+
+
+
+@needs_tsci
+def test_route_status_of_a_fix_comes_from_our_drc(run, symbols):
+    from reflow.cli import find_kicad_cli
+
+    if find_kicad_cli() is None:
+        pytest.skip("kicad-cli not found")
+    client = _client(run)
+    edits = [{"kind": "set_label", "ref": "U1", "pin": n, "value": l} for n, l in DATASHEET.items()] + WIRING
+    client.post("/api/fix", json={"edits": edits})
+    unrouted = client.post("/api/route", json={"fix": 1}).json()
+    assert unrouted["status"] == "failed" and unrouted["routed_nets"] == 0
+    client.post("/api/fix", json={"edits": edits + [{"kind": "set_trace_limit", "ref": "C1", "value": "3mm"}]})
+    routed = client.post("/api/route", json={"fix": 2}).json()
+    assert routed["unrouted_nets"] == [] and routed["drc"]["unconnected"] == 0
+    pcb = client.post("/api/sim", json={"concept": "decoupling", "fix": 2, "pcb": True}).json()
+    assert pcb["ran"] and any("routed trace length" in a for a in pcb["assumptions"])
+
+
+def test_route_status_needs_a_board_with_a_pcb(run):
+    assert _client(run).post("/api/route", json={"attempt": 1}).status_code == 404
+
+
+
+@needs_tsci
+def test_fixes_made_this_session_are_listed_for_a_reloaded_page(run, symbols):
+    client = _client(run)
+    assert client.get("/api/fixes").json() == []
+    client.post("/api/fix", json={"edits": [{"kind": "set_label", "ref": "U1", "pin": "1", "value": "SDA"}]})
+    listed = client.get("/api/fixes").json()
+    assert [f["number"] for f in listed] == [1] and listed[0]["edits"][0]["kind"] == "set_label"

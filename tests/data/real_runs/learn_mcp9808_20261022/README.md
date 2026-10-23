@@ -10,3 +10,5 @@ spec/plan/parts/run.json, plus each attempt's verify.json and full circuit.json
   consequence of the wrong labels), and 1 `i2c.missing_pullup` with no refs.
 - Attempt 2 passed verify. (It's the false pass noted in PROGRESS.md: SDA/SCL
   are unconnected, which no rule catches yet.)
+
+`rules.toml` is a copy of evals/mcp9808_breakout/rules.toml, so the folder works wherever it's copied (spec.json says `"rules_file": "rules.toml"`).

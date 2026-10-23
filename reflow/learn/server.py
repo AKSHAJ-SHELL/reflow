@@ -22,6 +22,14 @@ talks only to this server; nothing is sent anywhere else.
     GET  /api/signoff          whether the run is signed off, and the warnings to acknowledge
     POST /api/signoff          {accepted, overrides} -> SignOff, written with learn.json
     GET  /api/vault/graph      the vault's notes and [[wikilinks]] (L-11)
+    POST /api/fix              {base_attempt?, edits} -> FixResult: the user's edits to the AI's draft,
+                               compiled with tsci and verified like a run (L-14); 400 for a bad edit
+    GET  /api/fixes            the fixes made in this session (a reloaded page gets them back)
+    GET  /api/fix/{n}/circuit  fix n's circuit.json
+    GET  /api/fix/ai           the AI's own fix (a diff of its final TSX); 403 until the user has tried
+    POST /api/sim              {concept, attempt | fix, pcb?} -> SimResult + refs (L-12); a concept with no
+                               testbench, or a board the testbench can't represent, says why
+    POST /api/route            {attempt | fix} -> RouteResult: what tscircuit routed, checked by our KiCad DRC
     GET  /                     the web UI (reflow/learn/static, built from web/)
 
 Memory (L-11): `vault` (default `reflow.learn.vault.default_vault_dir()`) holds
@@ -39,7 +47,8 @@ Must never
 - listen on anything but 127.0.0.1, or serve a page allowed to reach another origin (CSP),
 - send an interaction's answer, why or fix before the user has answered,
 - call a model or change any file in the run folder other than learn.json and signoff.json,
-- write learning notes anywhere but the vault.
+- write learning notes anywhere but the vault, or fixes and decks anywhere but the run's learn/,
+- show the AI's fix before the user has tried one.
 """
 from __future__ import annotations
 
@@ -55,6 +64,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from reflow.contracts import LearnRecord, SignOff, to_dict
+from reflow.contracts import FixEdit
 from reflow.learn.engine import concept_of, grade, load_run, pick
 from reflow.learn.vault import Vault, default_vault_dir
 
@@ -87,6 +97,34 @@ class _Unskip(BaseModel):
     concept: str
 
 
+class _Edit(BaseModel):
+    kind: str
+    ref: str = ""
+    pin: str = ""
+    value: str = ""
+    part: str = ""
+    a: str = ""
+    b: str = ""
+
+
+class _Fix(BaseModel):
+    edits: list[_Edit]
+    base_attempt: int | None = None
+
+
+class _Board(BaseModel):
+    attempt: int | None = None
+    fix: int | None = None
+
+
+class _Sim(BaseModel):
+    concept: str
+    attempt: int | None = None
+    fix: int | None = None
+    pcb: bool = False
+    ic_ref: str = ""
+
+
 class _Session:
     """What the user has done in this run's learn session."""
 
@@ -101,6 +139,8 @@ class _Session:
         self.hinted: set[str] = set()
         self.finished: dict[str, object] = {}
         self.mistakes: list[str] = []
+        self.fixes: dict[int, object] = {}
+        self.draft = next((a.number for a in self.run.attempts if a.compiled and a.verify and a.verify.errors), None)
         self.lock = threading.Lock()
         self.repick()
 
@@ -237,6 +277,65 @@ def create_app(run_dir, *, vault=None, now=None) -> FastAPI:
     def vault_graph() -> dict:
         return session.vault.graph()
 
+    @app.post("/api/fix")
+    def fix(body: _Fix) -> dict:
+        from reflow.learn.fixit import EditError, check_fix
+
+        base = body.base_attempt or session.draft
+        if base is None:
+            raise HTTPException(409, "there's no failed draft to fix: the AI's first draft passed")
+        with session.lock:
+            number = len(session.fixes) + 1
+            try:
+                result = check_fix(session.run, base_attempt=base, number=number,
+                                   edits=[FixEdit(**e.model_dump()) for e in body.edits])
+            except EditError as exc:
+                raise HTTPException(400, str(exc))
+            session.fixes[number] = result
+        return to_dict(result)
+
+    @app.get("/api/fixes")
+    def fixes() -> list:
+        return [to_dict(session.fixes[n]) for n in sorted(session.fixes)]
+
+    @app.get("/api/fix/{number}/circuit")
+    def fix_circuit(number: int):
+        result = session.fixes.get(number)
+        if result is None or not result.circuit_json:
+            raise HTTPException(404, f"fix {number} has no circuit.json")
+        return json.loads(Path(result.circuit_json).read_text(encoding="utf-8"))
+
+    @app.get("/api/fix/ai")
+    def ai_fix() -> dict:
+        import difflib
+
+        if not session.fixes:
+            raise HTTPException(403, "try a fix of your own first")
+        best = session.run.best_attempt
+        draft = session.run.path / "attempts" / f"{session.draft:02d}" / "index.circuit.tsx"
+        final = session.run.path / "attempts" / f"{best:02d}" / "index.circuit.tsx"
+        if not best or not draft.is_file() or not final.is_file():
+            raise HTTPException(404, "the run has no final board to compare")
+        diff = difflib.unified_diff(draft.read_text(encoding="utf-8").splitlines(),
+                                    final.read_text(encoding="utf-8").splitlines(),
+                                    f"attempt {session.draft}", f"attempt {best}", lineterm="", n=1)
+        return {"attempt": best, "diff": list(diff)}
+
+    @app.post("/api/sim")
+    def simulate(body: _Sim) -> dict:
+        return _simulate(session, body)
+
+    @app.post("/api/route")
+    def route_status(body: _Board) -> dict:
+        from reflow.route import route_report
+
+        circuit, folder = _board_files(session, body.fix, body.attempt)
+        pcb = circuit.parent / "board.kicad_pcb"
+        if not pcb.is_file():
+            raise HTTPException(404, "this board has no .kicad_pcb in the run folder")
+        result = route_report(circuit, pcb, session.run_dir / "learn" / "route" / folder)
+        return to_dict(result)
+
     @app.get("/api/signoff")
     def signoff_state() -> dict:
         return {"signed": (session.run_dir / "signoff.json").is_file(), "warnings": _warnings(session)}
@@ -286,6 +385,60 @@ def serve(run_dir, *, port: int = 0, open_browser: bool = True, vault=None) -> N
     if open_browser:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     uvicorn.run(app, host=HOST, port=port, log_level="warning")
+
+
+def _simulate(session: _Session, body: _Sim) -> dict:
+    from reflow.contracts import SimResult
+    from reflow.learn import sim
+    from reflow.learn.board_values import decoupling_board, i2c_board, supply_volts
+    from reflow.learn.fixit import bound_netlist
+
+    if body.fix is not None:
+        fixed = session.fixes.get(body.fix)
+        if fixed is None or not fixed.circuit_json:
+            raise HTTPException(404, f"fix {body.fix} has no board")
+        circuit, variant, folder = Path(fixed.circuit_json), "yours", f"fix-{body.fix:02d}"
+    else:
+        attempt = next((a for a in session.run.attempts if a.number == body.attempt), None)
+        if attempt is None or attempt.circuit_json is None:
+            raise HTTPException(404, f"attempt {body.attempt} has no board")
+        circuit, folder = attempt.circuit_json, f"attempt-{attempt.number:02d}"
+        variant = "as_designed" if attempt.number == session.run.best_attempt else "broken"
+    if body.pcb:
+        folder += "-pcb"
+
+    def refuse(reason: str) -> dict:
+        return {**to_dict(SimResult(concept=body.concept, variant=variant, signals=[], exit_code=-1, deck_path="",
+                                    ran=False, notes=[reason])), "refs": []}
+
+    if body.concept not in ("decoupling", "i2c-pullup"):
+        return refuse(f"can't simulate {body.concept} yet: there's no validated testbench for it")
+    netlist = bound_netlist(session.run, circuit)
+    ic = body.ic_ref or next((r for r in sorted(netlist.components) if netlist.components[r].prefix == "U"), "")
+    supply = supply_volts(session.run.spec.power) or 3.3
+    if body.concept == "decoupling":
+        found = decoupling_board(netlist, circuit, ic_ref=ic, supply_v=supply, pcb=body.pcb)
+    else:
+        found = i2c_board(netlist, ic_ref=ic, line="SDA", supply_v=supply)
+    if found.board is None:
+        return refuse(f"can't simulate this board: {found.reason}")
+    workdir = session.run_dir / "learn" / "sim" / folder
+    bench = (sim.decoupling if body.concept == "decoupling" else sim.i2c_pullup)(found.board, workdir, variant=variant)
+    if supply_volts(session.run.spec.power) is None:
+        bench.assumptions.append("supply 3.3 V (the spec doesn't name a voltage)")
+    return {**to_dict(bench.to_contract()), "refs": found.refs}
+
+
+def _board_files(session: _Session, fix: int | None, attempt: int | None) -> tuple[Path, str]:
+    if fix is not None:
+        fixed = session.fixes.get(fix)
+        if fixed is None or not fixed.circuit_json:
+            raise HTTPException(404, f"fix {fix} has no board")
+        return Path(fixed.circuit_json), f"fix-{fix:02d}"
+    found = next((a for a in session.run.attempts if a.number == attempt), None)
+    if found is None or found.circuit_json is None:
+        raise HTTPException(404, f"attempt {attempt} has no board")
+    return found.circuit_json, f"attempt-{found.number:02d}"
 
 
 def _open(session: _Session, interaction_id: str):

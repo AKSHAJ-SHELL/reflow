@@ -337,6 +337,66 @@ class VaultNote:
     links: list[str]            # [[wikilink]] targets without .md: "boards/mcp9808-breakout"
 
 
+# Learn mode simulation (DECISIONS L-2, L-2a): ngspice testbenches, run as a separate process.
+@dataclass
+class SimSignal:
+    name: str                   # "V(chip)", "V(SDA)"
+    unit: str                   # "V", "A"
+    t: list[float]              # seconds
+    v: list[float]              # same length as t
+
+
+@dataclass
+class SimRequest:
+    concept: str                # "decoupling", "i2c-pullup"
+    target_refs: list[str]      # the parts it is about, e.g. ["C1", "U1"]
+    variant: str                # "broken" (the AI's draft), "yours" (the user's fix), "as_designed" (the AI's final)
+    change: str = ""            # what differs from as designed, e.g. "remove C1", "R1=47k"
+
+
+@dataclass
+class SimResult:
+    concept: str
+    variant: str
+    signals: list[SimSignal]    # empty unless ngspice ran
+    exit_code: int              # ngspice's; -1 when it didn't run
+    deck_path: str
+    ran: bool                   # False: nothing is plotted, and notes say why
+    verdict: str = "unknown"    # good | bad | unknown, from the testbench's measured values
+    notes: list[str] = field(default_factory=list)        # measured values in words
+    assumptions: list[str] = field(default_factory=list)  # every value the board file doesn't contain
+
+
+# Fix-it tools (DECISIONS L-2a): the user's edits to the AI's failed draft, checked like a run.
+FIX_KINDS = {"add_part", "set_value", "connect", "disconnect", "delete", "set_label", "set_trace_limit"}
+
+
+@dataclass
+class FixEdit:
+    kind: str                   # one of FIX_KINDS
+    ref: str = ""               # the part: "R1" (set_value, delete, set_label)
+    pin: str = ""               # a physical pin number: "8" (set_label)
+    value: str = ""             # "4.7k", "100nF", a pin label "VDD", or a length "3mm" (set_trace_limit)
+    part: str = ""              # add_part: "resistor" | "capacitor"
+    a: str = ""                 # a pin "U1.SDA" or a net "V3_3"
+    b: str = ""
+
+
+@dataclass
+class FixResult:
+    number: int                 # learn/fix/<number>/ in the run folder
+    base_attempt: int           # the attempt whose TSX was edited
+    edits: list[FixEdit]
+    compiled: bool
+    compile_errors: list[str]
+    errors: int                 # from the same verifier a run uses; 0 when it didn't compile
+    warnings: int
+    violations: list[Violation]
+    refused: str = ""           # the verifier refused the board (e.g. two named nets shorted)
+    tsx_path: str = ""
+    circuit_json: str = ""
+
+
 # ----------------------------------------------------------------------------
 # 9. kicad_pcb -> RouteResult  (ROUTER, deterministic)
 # ----------------------------------------------------------------------------
@@ -380,7 +440,9 @@ ALL_CONTRACTS = {
         OpenQuestion, Spec, ProjectRule, RulePart, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
         ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
-        LearnInteraction, LearnRecord, SignOff, ConceptCard, VaultNote, DrcSummary, RouteResult, FabPackage,
+        LearnInteraction, LearnRecord, SignOff, ConceptCard, VaultNote, SimSignal, SimRequest, SimResult,
+        FixEdit, FixResult,
+        DrcSummary, RouteResult, FabPackage,
     )
 }
 

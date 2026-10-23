@@ -1,0 +1,12 @@
+# rules.toml for evals/at24c02_eeprom (DRAFT, E-02 / O-1).
+# [[part]] tells reflow's pin binding (V-12) which pin map U1 uses.
+# KiCad's AT24CS02-SSHM (the serial-number variant) has the AT24C02's SOIC-8 pinout; its pin names match the
+# EasyEDA symbol for the resolved part C688857 pin for pin (checked 2026-10-22).
+# The rule list is empty on purpose: write each rule from the datasheet, with its page (V-2).
+
+rule = []
+
+[[part]]
+ref    = "U1"
+mpn    = "AT24C02"
+symbol = "Memory_EEPROM:AT24CS02-SSHM"

@@ -14,5 +14,5 @@
   ],
   "open_questions": [],
   "confirmed": true,
-  "rules_file": "/Users/akshaj/Desktop/openflux/evals/mcp9808_breakout/rules.toml"
+  "rules_file": "rules.toml"
 }

@@ -1,0 +1,13 @@
+{
+  "concept": "i2c-pullup",
+  "variant": "as_designed",
+  "signals": [
+    {"name": "V(SDA)", "unit": "V", "t": [0.0, 1e-06, 1.2e-06, 1.4e-06, 3e-06], "v": [0.0132, 0.0132, 1.17, 2.11, 3.29]}
+  ],
+  "exit_code": 0,
+  "deck_path": "runs/x/learn/sim/i2c-pullup-as_designed.cir",
+  "ran": true,
+  "verdict": "good",
+  "notes": ["30%→70% rise time 398 ns: inside standard mode (1000 ns), outside fast mode (300 ns), NXP UM10204 Table 10"],
+  "assumptions": ["bus capacitance 100 pF (the board file has none)"]
+}

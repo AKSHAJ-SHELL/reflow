@@ -263,3 +263,10 @@ def test_codegen_shows_the_supplier_part_numbers_object():
     assert 'supplierPartNumbers={{ jlcpcb: ["<lcsc cell>"] }}' in text
     assert "not a bare list" in text
     assert not re.search(r"\bC\d{3,}\b", text)
+
+
+def test_codegen_gives_decoupling_caps_a_routable_length_limit():
+    """tscircuit gives a decoupling cap's traces a 1 mm limit and skips routing the whole board when
+    placement can't meet it (tests/data/routing/README.md); 3 mm routes the eval board."""
+    text = _read("codegen")
+    assert 'maxDecouplingTraceLength="3mm"' in text
