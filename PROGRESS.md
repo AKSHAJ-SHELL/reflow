@@ -511,3 +511,17 @@ Did: the human accepted V-2b in chat. Moved its row to Accepted in DECISIONS.md 
 - L-04: `reflow learn`.
 No code.
 Tests: none (docs only).
+
+## 2026-10-22 · agent (Claude) · learn mode v2 accepted (L-2, D-4, D-5, O-1c); tasks added
+Did: the human pasted their learn-mode v2 system design and answered four questions in chat:
+- accept it, with its four contracts;
+- O-1c: the agent writes L-01 and the testbenches, and the human reviews them;
+- FastAPI as an optional `[learn]` extra;
+- phases 1–2 first.
+Saved the design as `docs/proposals/L-2-learn-mode-v2.md`, with the choices on top. In DECISIONS.md, D-4 and D-5 moved to Accepted, and L-2 and O-1c were added. TASKS.md: L-01 is now AGENT→HUMAN under O-1c; added L-10 (phase 1), L-11 (phase 2), L-12 (phase 3, after the human looks) and L-13 (phase 4).
+Interim answers, for the human to confirm:
+- the free-text why is shown, not graded;
+- break-it runs only on request;
+- V-2b's `reflow learn REF` is renamed `reflow study REF`, so `reflow learn RUN_DIR` opens learn mode.
+Dependencies checked (PyPI/npm, 2026-10-22): FastAPI 0.161.1 MIT, uvicorn 0.54.0 BSD-3, fsrs 6.3.2 MIT, httpx 0.28.1 BSD-3; React 19.3.1, Vite 8.3.5, @vitejs/plugin-react 6.1.2, @tscircuit/pcb-viewer 1.11.433, react-force-graph-2d 1.29.2, all MIT. @tscircuit/schematic-viewer 2.0.105 has no license on npm, but its GitHub LICENSE is MIT; its peer dependencies are `tscircuit` and `typescript`.
+Tests: none (docs only).

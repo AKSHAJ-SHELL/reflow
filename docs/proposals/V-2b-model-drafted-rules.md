@@ -77,7 +77,9 @@ confirmed_by = ""                             # written only by `reflow rules co
 - `reflow eval`: a board with an unconfirmed rule is "unchecked" and left out of the go/no-go, the same as a draft `expected.toml`.
 - A violation from an unconfirmed rule says so in its message, so the student knows the rule itself may be wrong.
 
-### D. `reflow learn REF [--datasheet PATH]` opens a separate study session (optional)
+### D. `reflow study REF [--datasheet PATH]` opens a separate study session (optional)
+
+(Renamed from `reflow learn REF` on 2026-10-22 by L-2, so that `reflow learn RUN_DIR` opens learn mode.)
 
 Opens a new Claude Code session for studying one chip, separate from the session the student designs in:
 
