@@ -164,6 +164,21 @@ Learn mode v2 memory (DECISIONS L-2): `ConceptCard{concept, fsrs, last_reviewed,
 
 Examples: [concept_card.json](examples/concept_card.json), [vault_note.json](examples/vault_note.json)
 
+Simulation (DECISIONS L-2, L-2a): `SimRequest{concept, target_refs, variant, change}` · `SimResult{concept, variant, signals: list[SimSignal], exit_code, deck_path, ran, verdict, notes, assumptions}` · `SimSignal{name, unit, t, v}`
+
+- ngspice runs as a separate process on a hand-written testbench per concept. `ran = false` means nothing is plotted, and `notes` say why.
+- `assumptions` lists every value the board file doesn't contain (load step, bus capacitance, wiring inductance, nH per mm), so the UI shows them with the plot.
+- Plotted signals are thinned for the browser, but each bucket keeps its minimum and maximum, so a spike is never hidden.
+
+Example: [sim_result.json](examples/sim_result.json)
+
+Fix-it (DECISIONS L-2a): `FixEdit{kind, ref, pin, value, part, a, b}` · `FixResult{number, base_attempt, edits, compiled, compile_errors, errors, warnings, violations, refused, tsx_path, circuit_json}`
+
+- `kind` ∈ `add_part | set_value | connect | disconnect | delete | set_label | set_trace_limit` (a decoupling cap's maximum trace length to the pin, e.g. `3mm`). `a`/`b` are a pin (`U1.SDA`, `U1.pin3`) or a net (`V3_3`). A part the user adds carries no part number.
+- Each fix is recompiled with tsci and verified by the same binder and rules as a run. It's saved in the run folder under `learn/fix/<number>/`. `refused` is set when the verifier won't take the board at all (two named nets shorted, no components).
+
+Example: [fix_result.json](examples/fix_result.json)
+
 ## 9 · `.kicad_pcb` → `RouteResult` (router)
 
 `RouteResult{status, router, tries, routed_nets, total_nets, unrouted_nets, refused_nets, drc: DrcSummary, kicad_pcb}` · `DrcSummary{errors, warnings, unconnected, report_path}`

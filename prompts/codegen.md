@@ -73,6 +73,7 @@ Selectors follow `.R1 > .pin1`, `.D1 > .anode`, `.D1 > .cathode`, and `net.GND`.
 Wiring rules for this board:
 
 - A decoupling capacitor has one pin on the IC supply net and the other pin on GND. Do not insert that capacitor between the rail and the IC pin.
+- Give every decoupling capacitor `maxDecouplingTraceLength="3mm"`, for example `<capacitor name="C1" capacitance="100nF" footprint="0402" maxDecouplingTraceLength="3mm" />`. Without it tscircuit limits that trace to 1 mm, and when placement can't meet the limit it routes nothing on the board.
 - SDA has one resistor to the positive rail. SCL has one resistor to the positive rail.
 - Connect A0, A1, A2, and ADDR to the rail or to GND so the address matches the spec. Each of those pins has a net.
 - An LED has a series resistor. Do not tie an LED across a supply by itself.

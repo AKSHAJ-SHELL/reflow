@@ -1,0 +1,16 @@
+{
+  "number": 1,
+  "base_attempt": 1,
+  "edits": [
+    {"kind": "set_label", "ref": "U1", "pin": "8", "value": "VDD", "part": "", "a": "", "b": ""},
+    {"kind": "connect", "ref": "", "pin": "", "value": "", "part": "", "a": "U1.VDD", "b": "V3_3"}
+  ],
+  "compiled": true,
+  "compile_errors": [],
+  "errors": 0,
+  "warnings": 0,
+  "violations": [],
+  "refused": "",
+  "tsx_path": "runs/x/learn/fix/01/index.circuit.tsx",
+  "circuit_json": "runs/x/learn/fix/01/build/circuit.json"
+}

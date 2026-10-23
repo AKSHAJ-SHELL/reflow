@@ -15,5 +15,5 @@
   ],
   "open_questions": [],
   "confirmed": true,
-  "rules_file": "/Users/akshaj/Desktop/reflow/evals/at24c02_eeprom/rules.toml"
+  "rules_file": "rules.toml"
 }

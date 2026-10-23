@@ -7,6 +7,8 @@ Contract
     grade(pending, ref, why, *, tries, hinted) -> Graded
     concept_of(rule_id) -> str
 
+`load_run` resolves a relative `Spec.rules_file` against the run folder.
+
 Spot-the-bug only (DECISIONS D-4, L-2 phase 1). Interactions come from the
 violations of the run's **first failed attempt** (the first compiled attempt
 with verify errors), never from a question bank:
@@ -44,7 +46,7 @@ Must never
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from reflow.circuit_netlist import CircuitJsonError, load_circuit_json
@@ -147,9 +149,12 @@ def load_run(run_dir) -> RunView:
             verify=from_dict(VerifyReport, _json(verify)) if verify.is_file() else None,
             circuit_json=circuit if circuit.is_file() else None,
         ))
+    spec = from_dict(Spec, _json(path / "spec.json"))
+    if spec.rules_file.strip() and not Path(spec.rules_file).is_absolute():
+        spec = replace(spec, rules_file=str((path / spec.rules_file).resolve()))
     return RunView(
         path=path,
-        spec=from_dict(Spec, _json(path / "spec.json")),
+        spec=spec,
         plan=from_dict(Plan, _json(path / "plan.json")) if (path / "plan.json").is_file() else None,
         parts=from_dict(ResolvedParts, _json(path / "parts.json")) if (path / "parts.json").is_file() else None,
         result=result,

@@ -604,3 +604,39 @@ Did: the human asked in chat for fix-it tools with schematic simulation (decoupl
 - New contracts: SimRequest, SimResult, SimSignal, FixEdit, FixResult.
 - TASKS: L-12 rewritten (doing), L-14 added (doing), X-01 doing.
 Tests: none (docs only).
+
+## 2026-10-22 · agent (Claude) · L-12, L-14, X-01, X-04: simulation, fix-it tools, routing (L-2a)
+Did: one commit for the three requests (they share server.py, contracts.py and the UI).
+- **L-12 testbenches (O-1c, awaiting review):** `reflow/learn/sim.py` runs ngspice as a separate process.
+  - Decoupling: wiring 20 nH and 0.05 Ω; a 330 Ω DC load plus a 50 mA step in 1 ns; the cap with 0.01 Ω ESR and 0.4 nH ESL; a series-cap case; and, at PCB level, the cap-to-pin path at 1 nH/mm.
+  - I²C: pull-up, 100 pF bus, open-drain switch, 30→70% rise time against UM10204's 1000/300 ns.
+  - Measured against hand calculations: no cap 1.012 V (1.0 by hand); 100 nF 22.45 mV (22.36); series cap at τ 1.214 V (1.214); PCB 20 mm 0.506 V (0.505); PCB 2 mm 108 mV (107); 4.7k rise 397 ns (398); 1k 84 ns (84.7); 47k 3.98 µs, bad.
+  - Every assumption is listed with the plot. Thinning the plot keeps each bucket's min and max, so spikes aren't hidden. Without ngspice nothing is plotted.
+- **Board values:** `reflow/learn/board_values.py` reads the cap and pull-up values, the supply from spec.power, and the PCB path (routed trace length, or the pad distance as a labelled lower bound) from the bound netlist. It refuses a supply pin connected to nothing, or an I²C pin on no bus, and says why.
+- **L-14 fix-it:** `reflow/learn/fixit.py` edits the draft's TSX: add_part, set_value, connect, disconnect, delete, set_label, set_trace_limit.
+  - Endpoints are validated, so an edit can't inject text into the TSX, and added parts carry no part number.
+  - `check_fix` recompiles with tsci and verifies with the run's binder and rules (no model call), saving to `learn/fix/<n>/`. A board the verifier refuses (a short) comes back with `refused` set.
+- **Contracts (L-2a):** SimSignal, SimRequest, SimResult, FixEdit (`FIX_KINDS` includes set_trace_limit), FixResult, plus docs/04, the frozen fields, and examples sim_result.json / fix_result.json.
+- **Server:** POST /api/fix, GET /api/fixes, GET /api/fix/{n}/circuit, GET /api/fix/ai (a diff of the AI's final vs the draft; 403 until the user has tried a fix), POST /api/sim, POST /api/route.
+- **UI:**
+  - a Fix it yourself panel (tools, an edit list, Check my fix, Show the AI's fix) with a simulate section: the draft vs your fix vs the AI's final, an SVG plot, verdicts, notes, assumptions, and a PCB-path toggle;
+  - the board picker lists your fixes, and the page now opens on the AI's draft (it used to fetch the final board first);
+  - the PCB view has a route status line.
+- **X-01/X-04 routing:**
+  - Found why nothing routed: @tscircuit/core gives a decoupling cap's traces `DEFAULT_MAX_DECOUPLING_TRACE_LENGTH_MM = 1` and skips routing the whole board when placement can't meet it. With 3 mm the eval board routes (C1→VDD 2.89 mm); 2 mm doesn't.
+  - codegen.md now asks for `maxDecouplingTraceLength="3mm"` on decoupling caps (H-08, for the human's review).
+  - `reflow/route.py` `route_report` reads the router's outcome and runs `kicad-cli pcb drc` itself. It says `routed` only with every net in copper and 0 DRC errors.
+  - The routed eval board has 0 unconnected items, but 38 DRC errors against KiCad's default board rules: tscircuit's 0.15 mm tracks vs a 0.2 mm minimum, 0.3/0.2 mm vias, 0.1075 mm clearance. So it's reported as `partial`. Which fab's rules to check against is the human's decision.
+- **Fixtures:** the learn fixture gained each attempt's TSX and a copy of rules.toml (spec.json now says "rules.toml", so the folder works when copied); `tests/data/routing/mcp9808_fixed.tsx` + README. `load_run` resolves a relative rules_file against the run folder.
+Checked in the built-in browser:
+- the real draft fixed through the UI (8 relabels + 4 connects + C1 within 3 mm) passes every check;
+- decoupling: the draft is refused (U1.VDD connected to nothing), your fix dips 22 mV, the AI's final 22 mV;
+- I²C: the draft never rises, your fix 397 ns, the AI's final is refused (SDA on no bus, the known false pass);
+- PCB level on the routed fix: 2.9 mm routed trace → 142 mV (hand: 141.6);
+- the route status line shows "partly routed" with the counts.
+Found while checking: `kicad-cli pcb drc` hangs when the learn server is started by the desktop app's preview launcher (it runs inside the app's process context), but runs in 0.9 s when `reflow learn` is started from a normal shell. Subprocesses now get an empty stdin anyway.
+Tests:
+- New, all failing first: tests/test_learn_sim.py (14, ngspice), tests/test_learn_board_values.py (6), tests/test_learn_fixit.py (17, 3 with real tsci), tests/test_route.py (3, tsci + kicad-cli), 9 new in tests/test_learn_server.py, a codegen prompt test, and the contract entries.
+- Exception: the /api/fixes test was written together with the endpoint, not before it.
+- Sabotages each turn the suite red: ignoring the PCB path, thinning that hides minima, a slow edge, I²C always good (caught only after adding the 47k case), no endpoint check, routed despite DRC errors, an ungated AI fix, simulating an unpowered chip.
+`pytest -q` → 648 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).

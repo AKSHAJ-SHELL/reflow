@@ -59,6 +59,39 @@ export type Answer =
 
 export type SignOffState = { signed: boolean; warnings: string[] }
 
+export type FixEdit = { kind: string; ref?: string; pin?: string; value?: string; part?: string; a?: string; b?: string }
+export type FixResult = {
+  number: number
+  base_attempt: number
+  edits: FixEdit[]
+  compiled: boolean
+  compile_errors: string[]
+  errors: number
+  warnings: number
+  violations: Violation[]
+  refused: string
+}
+export type SimSignal = { name: string; unit: string; t: number[]; v: number[] }
+export type SimResult = {
+  concept: string
+  variant: string
+  signals: SimSignal[]
+  ran: boolean
+  verdict: string
+  notes: string[]
+  assumptions: string[]
+  refs: string[]
+}
+export type Source = { attempt: number } | { fix: number }
+export type RouteResult = {
+  status: string
+  router: string
+  routed_nets: number
+  total_nets: number
+  unrouted_nets: string[]
+  drc: { errors: number; warnings: number; unconnected: number; report_path: string }
+}
+
 async function call<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(path, {
     method: body === undefined ? "GET" : "POST",
@@ -77,6 +110,12 @@ export const api = {
   answer: (id: string, ref: string, why: string) => call<Answer>("/api/learn/answer", { id, ref, why }),
   unskip: (concept: string) => call<{ skipped: string[] }>("/api/learn/unskip", { concept }),
   vaultGraph: () => call<VaultGraph>("/api/vault/graph"),
+  fix: (edits: FixEdit[]) => call<FixResult>("/api/fix", { edits }),
+  fixes: () => call<FixResult[]>("/api/fixes"),
+  fixCircuit: (n: number) => call<any[]>(`/api/fix/${n}/circuit`),
+  aiFix: () => call<{ attempt: number; diff: string[] }>("/api/fix/ai"),
+  route: (source: Source) => call<RouteResult>("/api/route", source),
+  sim: (concept: string, source: Source, pcb: boolean) => call<SimResult>("/api/sim", { concept, ...source, pcb }),
   signoffState: () => call<SignOffState>("/api/signoff"),
   signoff: (accepted: boolean, overrides: string[]) => call<unknown>("/api/signoff", { accepted, overrides }),
 }
