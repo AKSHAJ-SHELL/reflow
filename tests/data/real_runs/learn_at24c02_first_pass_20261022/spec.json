@@ -1,0 +1,19 @@
+{
+  "request": "AT24C02 I2C EEPROM breakout with a 4-pin header, 3.3V, write enabled",
+  "title": "AT24C02 EEPROM breakout",
+  "power": "3.3V supplied on the header",
+  "interfaces": [
+    "4-pin 2.54 mm header: 3V3, GND, SDA, SCL"
+  ],
+  "constraints": [
+    "2 layers",
+    "I2C address 0x50",
+    "write protect off"
+  ],
+  "named_parts": [
+    "AT24C02"
+  ],
+  "open_questions": [],
+  "confirmed": true,
+  "rules_file": "/Users/akshaj/Desktop/reflow/evals/at24c02_eeprom/rules.toml"
+}

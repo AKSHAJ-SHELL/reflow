@@ -90,7 +90,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| L-01 | Interaction selection + grading + skip logic | run folder, violations, concept cards | `LearnInteraction` list | every interaction's `rule_id` is a real violation from the run; graded by the part clicked; a concept with recall above 0.9 is skipped and the skip is shown | H-03, D-4 | AGENT→HUMAN (O-1c: human reviews line by line) | todo |
+| L-01 | Interaction selection + grading + skip logic | run folder, violations, concept cards | `LearnInteraction` list | every interaction's `rule_id` is a real violation from the run; graded by the part clicked; a concept with recall above 0.9 is skipped and the skip is shown | H-03, D-4 | AGENT→HUMAN (O-1c: human reviews line by line) | doing (10-22: spot-the-bug selection + grading built, awaiting human review; skip logic comes with L-11) |
 | L-02 | Terminal screens for spot-the-bug | L-01 output | interactive prompts | scripted-input test records a `LearnRecord` | L-01 | AGENT | todo |
 | L-03 | Sign-off gate | warnings, overrides | `SignOff` | `n` stops before export | — | AGENT | todo |
 | L-04 | `reflow study REF [--datasheet PATH] [--print-command]` | rules.toml `[[part]]` | a separate Claude Code session | macOS: opens a Terminal window and runs `claude --name … "<first message>"` in the project folder (never `-p`); `--print-command`, or no `claude` on PATH: prints the commands; Windows/Linux print (later); reads nothing back | I-01, H-08b | AGENT | todo |

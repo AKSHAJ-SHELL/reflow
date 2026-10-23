@@ -525,3 +525,21 @@ Interim answers, for the human to confirm:
 - V-2b's `reflow learn REF` is renamed `reflow study REF`, so `reflow learn RUN_DIR` opens learn mode.
 Dependencies checked (PyPI/npm, 2026-10-22): FastAPI 0.161.1 MIT, uvicorn 0.54.0 BSD-3, fsrs 6.3.2 MIT, httpx 0.28.1 BSD-3; React 19.3.1, Vite 8.3.5, @vitejs/plugin-react 6.1.2, @tscircuit/pcb-viewer 1.11.433, react-force-graph-2d 1.29.2, all MIT. @tscircuit/schematic-viewer 2.0.105 has no license on npm, but its GitHub LICENSE is MIT; its peer dependencies are `tscircuit` and `typescript`.
 Tests: none (docs only).
+
+## 2026-10-22 · agent (Claude) · L-01: spot-the-bug selection and grading (O-1c, awaiting human review)
+Did: new `reflow/learn/engine.py`: `load_run`, `pick`, `grade`, `concept_of`.
+- **What's asked:** interactions come from the first failed attempt's verify errors only, one per concept, at most `limit` (default 3).
+- **Root cause first:** a part with `pinout.mismatch` gets that interaction, and that attempt's other errors on the same part are left out as consequences, with a note. The fixture's decoupling error is on the real GND pin, so teaching it would teach wrong physics.
+- **The right answer:** the violation's refs; for a violation with no refs (`i2c.missing_pullup`), any part on its nets.
+- **What the user sees first:** the prompt never names the part or the rule, and the hint names the area only.
+- **Grading** is by the part clicked:
+  - right on the first try without the hint → good;
+  - right with the hint or on the second try → hard;
+  - wrong twice → again, the answer is shown, and the user moves on.
+  The free-text why is recorded, not graded (L-2 interim).
+- Fixtures: `tests/data/real_runs/learn_mcp9808_20261022/` (eval 20261022T193720Z, attempt 1 failed with 10 errors, attempt 2 passed) and `learn_at24c02_first_pass_20261022/` (passed on attempt 1), with READMEs.
+For the human reviewer:
+- the consequence rule only keys on `pinout.*`;
+- a run with no failed attempt gets no interaction (make-the-call is L-13);
+- skip logic arrives with concept cards in L-11.
+Tests: tests/test_learn_engine.py (14) failed first (module missing), then passed. Four sabotages each turn it red: teaching consequences, a leaky prompt, retrying until right, ignoring skip. `pytest -q` → 554 passed, 3 failed (the unpowered pull-up rail test on purpose, the deliberate tscircuit record, and the caps-only config test from the local reflow.toml).

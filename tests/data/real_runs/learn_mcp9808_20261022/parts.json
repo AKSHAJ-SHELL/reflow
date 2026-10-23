@@ -1,0 +1,70 @@
+{
+  "resolved": [
+    {
+      "request_id": "p1",
+      "lcsc": "C129490",
+      "mpn": "MCP9808T-E/MS",
+      "manufacturer": "Microchip Tech",
+      "package": "MSOP-8",
+      "value": "",
+      "stock": 716,
+      "basic": false,
+      "unit_price_usd": 2.3227,
+      "source": "jlcparts",
+      "fetched_at": "2026-10-16T08:10:02Z"
+    },
+    {
+      "request_id": "p2",
+      "lcsc": "C307331",
+      "mpn": "CL05B104KB54PNC",
+      "manufacturer": "Samsung Electro Mechanics",
+      "package": "0402",
+      "value": "100nF",
+      "stock": 24005815,
+      "basic": true,
+      "unit_price_usd": 0.0099,
+      "source": "jlcparts",
+      "fetched_at": "2026-10-17T14:30:04Z"
+    },
+    {
+      "request_id": "p3",
+      "lcsc": "C25900",
+      "mpn": "0402WGF4701TCE",
+      "manufacturer": "UNI ROYAL Uniroyal Elec",
+      "package": "0402",
+      "value": "4.7kΩ",
+      "stock": 16063321,
+      "basic": true,
+      "unit_price_usd": 0.0023,
+      "source": "jlcparts",
+      "fetched_at": "2026-10-15T08:22:17Z"
+    },
+    {
+      "request_id": "p4",
+      "lcsc": "C25900",
+      "mpn": "0402WGF4701TCE",
+      "manufacturer": "UNI ROYAL Uniroyal Elec",
+      "package": "0402",
+      "value": "4.7kΩ",
+      "stock": 16063321,
+      "basic": true,
+      "unit_price_usd": 0.0023,
+      "source": "jlcparts",
+      "fetched_at": "2026-10-15T08:22:17Z"
+    },
+    {
+      "request_id": "p5",
+      "lcsc": "C32713270",
+      "mpn": "HX PZ2.54-1x4P ZZ",
+      "manufacturer": "hanxia",
+      "package": "插件,P=2.54mm",
+      "value": "",
+      "stock": 135024,
+      "basic": false,
+      "unit_price_usd": 0.0328,
+      "source": "jlcparts",
+      "fetched_at": "2026-10-09T17:52:37Z"
+    }
+  ],
+  "unresolved": []
+}
