@@ -1,0 +1,19 @@
+{
+  "run_id": "at24c02_eeprom",
+  "status": "passed",
+  "attempts": [
+    {
+      "attempt": 1,
+      "compile_tries": 1,
+      "compiled": true,
+      "errors": 0,
+      "warnings": 0,
+      "rule_ids": [],
+      "dir": "runs/evals/20261022T204747Z/at24c02_eeprom/attempts/01"
+    }
+  ],
+  "best_attempt": 1,
+  "run_dir": "runs/evals/20261022T204747Z/at24c02_eeprom",
+  "input_tokens": 1880,
+  "output_tokens": 16434
+}

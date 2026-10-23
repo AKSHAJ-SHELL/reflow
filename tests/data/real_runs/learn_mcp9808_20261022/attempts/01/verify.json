@@ -1,0 +1,137 @@
+{
+  "schematic": "circuit.json",
+  "components": 5,
+  "nets": 9,
+  "errors": 10,
+  "warnings": 0,
+  "violations": [
+    {
+      "rule_id": "decoupling.missing",
+      "severity": "error",
+      "message": "U1.4 (unconnected-(U1-SCL-Pad4)) has no decoupling capacitor to ground.",
+      "why": "A chip can draw a lot of current in a very short time. Without a capacitor to supply that current, the voltage drops and the chip may reset or misbehave.",
+      "fix_hint": "Add a 100nF capacitor with one pin on unconnected-(U1-SCL-Pad4) and the other on GND, placed right next to U1.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-SCL-Pad4)"
+      ]
+    },
+    {
+      "rule_id": "decoupling.missing",
+      "severity": "error",
+      "message": "U1.8 (unconnected-(U1-ALERT-Pad8)) has no decoupling capacitor to ground.",
+      "why": "A chip can draw a lot of current in a very short time. Without a capacitor to supply that current, the voltage drops and the chip may reset or misbehave.",
+      "fix_hint": "Add a 100nF capacitor with one pin on unconnected-(U1-ALERT-Pad8) and the other on GND, placed right next to U1.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-ALERT-Pad8)"
+      ]
+    },
+    {
+      "rule_id": "i2c.missing_pullup",
+      "severity": "error",
+      "message": "I²C SDA line (Net-(C1-pin1)) has no pull-up resistor.",
+      "why": "I²C pins can only pull the line low. Without a resistor pulling it high, the line never returns to 1 and nothing on the bus can talk.",
+      "fix_hint": "Add a 4.7k resistor from Net-(C1-pin1) to the logic supply (e.g. +3.3V).",
+      "refs": [],
+      "nets": [
+        "Net-(C1-pin1)"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 1 is labelled VDD, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 1 is SDA",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, Net-(C1-pin1) lands on SDA, not on VDD.",
+      "fix_hint": "Set U1 pinLabels pin1: \"SDA\" and re-route the traces you meant for VDD to the pin the pin map gives VDD.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "Net-(C1-pin1)"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 2 is labelled GND, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 2 is SCL",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, unconnected-(U1-GND-Pad2) lands on SCL, not on GND.",
+      "fix_hint": "Set U1 pinLabels pin2: \"SCL\" and re-route the traces you meant for GND to the pin the pin map gives GND.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-GND-Pad2)"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 3 is labelled SDA, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 3 is Alert",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, unconnected-(U1-SDA-Pad3) lands on Alert, not on SDA.",
+      "fix_hint": "Set U1 pinLabels pin3: \"Alert\" and re-route the traces you meant for SDA to the pin the pin map gives SDA.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-SDA-Pad3)"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 4 is labelled SCL, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 4 is GND",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, unconnected-(U1-SCL-Pad4) lands on GND, not on SCL.",
+      "fix_hint": "Set U1 pinLabels pin4: \"GND\" and re-route the traces you meant for SCL to the pin the pin map gives SCL.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-SCL-Pad4)"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 5 is labelled A0, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 5 is A2",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, GND lands on A2, not on A0.",
+      "fix_hint": "Set U1 pinLabels pin5: \"A2\" and re-route the traces you meant for A0 to the pin the pin map gives A0.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "GND"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 7 is labelled A2, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 7 is A0",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, GND lands on A0, not on A2.",
+      "fix_hint": "Set U1 pinLabels pin7: \"A0\" and re-route the traces you meant for A2 to the pin the pin map gives A2.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "GND"
+      ]
+    },
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 8 is labelled ALERT, but KiCad symbol library Sensor_Temperature Sensor_Temperature:MCP9808_MSOP says pin 8 is VDD",
+      "why": "The labels in the design decide which physical pin each trace reaches. With this label, unconnected-(U1-ALERT-Pad8) lands on VDD, not on ALERT.",
+      "fix_hint": "Set U1 pinLabels pin8: \"VDD\" and re-route the traces you meant for ALERT to the pin the pin map gives ALERT.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-ALERT-Pad8)"
+      ]
+    }
+  ]
+}
