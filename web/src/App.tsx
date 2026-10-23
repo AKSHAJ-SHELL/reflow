@@ -5,16 +5,18 @@ import { BoardView } from "./BoardView"
 import { partIds } from "./circuit"
 import { LearnPanel } from "./LearnPanel"
 import { SignOffPanel } from "./SignOffPanel"
+import { VaultView } from "./VaultView"
 
 export function App() {
   const [run, setRun] = useState<RunInfo | null>(null)
   const [error, setError] = useState("")
   const [attempt, setAttempt] = useState<number | null>(null)
   const [circuits, setCircuits] = useState<Record<number, any[]>>({})
-  const [view, setView] = useState<"schematic" | "pcb">("schematic")
+  const [view, setView] = useState<"schematic" | "pcb" | "vault">("schematic")
   const [selected, setSelected] = useState<string | null>(null)
   const [focus, setFocus] = useState<string | null>(null)
   const [learnDone, setLearnDone] = useState(false)
+  const [vaultVersion, setVaultVersion] = useState(0)
   const [locked, setLockedState] = useState(false)
   // The viewers may keep the first click handler they're given, so it reads `locked` through a ref.
   const lockedRef = useRef(false)
@@ -51,6 +53,7 @@ export function App() {
             <div role="tablist" aria-label="View">
               <button role="tab" aria-selected={view === "schematic"} onClick={() => setView("schematic")}>Schematic</button>
               <button role="tab" aria-selected={view === "pcb"} onClick={() => setView("pcb")}>PCB</button>
+              <button role="tab" aria-selected={view === "vault"} onClick={() => setView("vault")}>Vault</button>
             </div>
             <label>
               Board:{" "}
@@ -66,7 +69,9 @@ export function App() {
             </label>
           </div>
           {locked && <p className="muted">Showing the AI's draft. Its check results stay hidden until you answer.</p>}
-          {circuit ? (
+          {view === "vault" ? (
+            <VaultView key={vaultVersion} />
+          ) : circuit ? (
             <BoardView circuit={circuit} view={view} focusRef={focus}
                        onPartClicked={(ref) => { if (lockedRef.current) setSelected(ref) }} />
           ) : (
@@ -84,7 +89,7 @@ export function App() {
             selectedRef={selected}
             parts={parts}
             onSelect={(ref) => { setSelected(ref); setFocus(ref) }}
-            onReveal={(refs) => { setLocked(false); setFocus(refs[0] ?? null) }}
+            onReveal={(refs) => { setLocked(false); setFocus(refs[0] ?? null); setVaultVersion((v) => v + 1) }}
             onShowDraft={(n) => { setAttempt(n); setLocked(true); setSelected(null); setFocus(null); setView("schematic") }}
             onFinished={() => { setLocked(false); setLearnDone(true) }}
           />

@@ -317,6 +317,26 @@ class SignOff:
     at: str                     # ISO-8601 UTC
 
 
+# Learn mode v2 memory (DECISIONS L-2): one card per concept, notes in the user's vault.
+VAULT_KINDS = {"concept", "mistake", "board"}
+
+
+@dataclass
+class ConceptCard:
+    concept: str                # "decoupling", same names as LearnInteraction.concept
+    fsrs: str                   # the scheduler's card as JSON (fsrs 6.3.2 Card.to_dict()); opaque to reflow
+    last_reviewed: str = ""     # ISO-8601 UTC; "" = never reviewed
+    ratings: list[str] = field(default_factory=list)   # "2026-10-22T12:00:00Z good", oldest first
+
+
+@dataclass
+class VaultNote:
+    path: str                   # relative to the vault: "concepts/decoupling.md"
+    kind: str                   # one of VAULT_KINDS
+    title: str
+    links: list[str]            # [[wikilink]] targets without .md: "boards/mcp9808-breakout"
+
+
 # ----------------------------------------------------------------------------
 # 9. kicad_pcb -> RouteResult  (ROUTER, deterministic)
 # ----------------------------------------------------------------------------
@@ -360,7 +380,7 @@ ALL_CONTRACTS = {
         OpenQuestion, Spec, ProjectRule, RulePart, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
         ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
-        LearnInteraction, LearnRecord, SignOff, DrcSummary, RouteResult, FabPackage,
+        LearnInteraction, LearnRecord, SignOff, ConceptCard, VaultNote, DrcSummary, RouteResult, FabPackage,
     )
 }
 

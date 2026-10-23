@@ -38,9 +38,17 @@ export function LearnPanel({ selectedRef, parts, onSelect, onReveal, onShowDraft
   const extras = (
     <>
       {next.skipped.length > 0 && (
-        <p className="muted">Skipped: {next.skipped.join(", ")} (you've shown you know these).</p>
+        <div className="skipped">
+          {next.skipped.map((concept) => (
+            <p key={concept} className="muted">
+              Skipped: {concept}, you've got it
+              {next.recall?.[concept] !== undefined ? ` (recall ${Math.round(next.recall[concept] * 100)}%)` : ""}.{" "}
+              <button onClick={() => api.unskip(concept).then(load)}>Do it anyway</button>
+            </p>
+          ))}
+        </div>
       )}
-      {next.notes.length > 0 && (
+      {next.done && next.notes.length > 0 && (
         <details className="muted">
           <summary>Why some checks aren't asked</summary>
           <ul>{next.notes.map((n) => <li key={n}>{n}</li>)}</ul>
@@ -112,7 +120,7 @@ export function LearnPanel({ selectedRef, parts, onSelect, onReveal, onShowDraft
           <p><strong>Why it matters:</strong> {result.why}</p>
           {why.trim() && <p><strong>You said:</strong> {why.trim()}</p>}
           <p><strong>The fix:</strong> {result.fix_hint}</p>
-          <p className="muted">Check: {result.rule_id}</p>
+          <p className="muted">Check: {result.rule_id} · noted in your vault under concepts/{result.concept}</p>
           <button className="primary" onClick={load}>Next</button>
         </div>
       )}

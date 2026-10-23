@@ -157,6 +157,13 @@ Example: [run_result.json](examples/run_result.json)
 
 Examples: [learn_record.json](examples/learn_record.json), [signoff.json](examples/signoff.json)
 
+Learn mode v2 memory (DECISIONS L-2): `ConceptCard{concept, fsrs, last_reviewed, ratings}` · `VaultNote{path, kind, title, links}`
+
+- One `ConceptCard` per concept. It lives in the frontmatter of the vault's `concepts/<concept>.md` (`~/.reflow/vault/`, or `REFLOW_VAULT`). `fsrs` is the scheduler's card as JSON, opaque to reflow. `ratings` are `"<ISO UTC> good|hard|again"`, from what the user did, never from self-rating.
+- `kind` ∈ `concept | mistake | board`; `links` are the note's `[[wikilinks]]`, so Obsidian's graph and `/api/vault/graph` show the same thing.
+
+Examples: [concept_card.json](examples/concept_card.json), [vault_note.json](examples/vault_note.json)
+
 ## 9 · `.kicad_pcb` → `RouteResult` (router)
 
 `RouteResult{status, router, tries, routed_nets, total_nets, unrouted_nets, refused_nets, drc: DrcSummary, kicad_pcb}` · `DrcSummary{errors, warnings, unconnected, report_path}`
