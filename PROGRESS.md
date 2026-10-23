@@ -595,3 +595,12 @@ For the human reviewer:
 - a concept note's "why" is the latest violation's why, which names that board's nets.
 Tests: tests/test_learn_vault.py (9) and 6 new in tests/test_learn_server.py failed first, then passed; tests/test_contracts.py covers the two contracts. The server tests now use a temporary vault, so a test run never writes to ~/.reflow. Four sabotages each turn the suite red: never skip, drop My notes, always rate good, no sign-off on the board note.
 `pytest -q` → 590 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).
+
+## 2026-10-22 · agent (Claude) · L-2a accepted: fix-it tools and simulation; tasks L-12, L-14, X-01
+Did: the human asked in chat for fix-it tools with schematic simulation (decoupling, I²C pull-ups), routing, and PCB-level simulation. Wrote that up as `docs/proposals/L-2a-fix-it-and-simulation.md` and added DECISIONS row L-2a (accepted in chat).
+- Fix-it edits the draft's TSX and re-verifies it locally with tsci, with no model call.
+- The ngspice testbenches each have a hand-calculated value and known-good/bad tests, and their assumptions are labelled.
+- PCB-level uses the cap-to-pin path (trace length, or the pad distance as a lower bound) at ~1 nH/mm.
+- New contracts: SimRequest, SimResult, SimSignal, FixEdit, FixResult.
+- TASKS: L-12 rewritten (doing), L-14 added (doing), X-01 doing.
+Tests: none (docs only).
