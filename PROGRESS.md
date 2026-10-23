@@ -640,3 +640,23 @@ Tests:
 - Exception: the /api/fixes test was written together with the endpoint, not before it.
 - Sabotages each turn the suite red: ignoring the PCB path, thinning that hides minima, a slow edge, I²C always good (caught only after adding the 47k case), no endpoint check, routed despite DRC errors, an ungated AI fix, simulating an unpowered chip.
 `pytest -q` → 648 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).
+
+## 2026-10-23 · agent (Claude) · exported boards use JLCPCB standard 2-layer rules
+Did: the human chose JLCPCB's standard 2-layer rules. Read https://jlcpcb.com/capabilities/pcb-capabilities (2026-10-23) twice, the second time for verbatim rows:
+- track width / spacing (1 oz) 0.10 / 0.10 mm; pad-to-track 0.1 mm;
+- via hole / diameter 0.15 / 0.25 mm (0.1/0.2 mm only for boards ≤ 1 mm thick with ENIG/OSP, not used); via diameter 0.1 mm larger than the hole, so a 0.05 mm ring;
+- 2-layer drill 0.15–6.3 mm; via hole-to-hole 0.2 mm; copper to a routed edge ≥ 0.2 mm;
+- silkscreen line ≥ 0.15 mm, text ≥ 1.0 mm.
+The quotes are in tests/test_fab_rules.py.
+- **The change:** new `reflow/fab_rules.py` (`JLCPCB_2LAYER`, `write_kicad_project`). `compile_board` now writes `board.kicad_pro` with those minimums next to every exported `board.kicad_pcb`. `kicad-cli pcb drc`, and KiCad when the user opens the board, read it; the board files themselves are unchanged. route.py's docstring now says which rules DRC uses.
+- **Result on the routed MCP9808 eval board:** 0 DRC errors and 0 unconnected, so `route_report` says `routed` (it said `partial`, with 38 errors, under KiCad's defaults). 17 warnings remain:
+  - 5 silkscreen text below JLCPCB's 1.0 mm (tscircuit writes 0.62 mm);
+  - 3 text strokes thinner than 0.15 mm;
+  - 4 silkscreen overlaps;
+  - 5 "footprint library 'tscircuit' not configured".
+  Fab-relevant but not errors.
+- **Not modelled:** JLCPCB's surcharges near the minimums (e.g. smaller vias cost more), and rules the page gives no 2-layer number for (they keep KiCad's defaults).
+Tests:
+- tests/test_fab_rules.py (2) and 2 new in tests/test_route.py failed first (module missing): the routed board passes JLCPCB's rules with status routed, and the known-bad case (one segment thinned to 0.05 mm) still fails with a track_width error, status partial.
+- Sabotage: setting min_track_width to 0 turns 2 tests red.
+`pytest -q` → 652 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).

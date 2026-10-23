@@ -21,11 +21,10 @@ it with our own KiCad DRC:
   are copper but nets are unrouted or DRC has errors. "failed" when none are
   routed.
 
-The DRC rules are the exported board's own (KiCad defaults), not a fab's. A
-board can be fully copper and still report DRC errors, for example tscircuit's
-0.15 mm tracks against KiCad's 0.2 mm default minimum. Those errors are
-reported, never hidden. Which fab's rules to check against is the human's
-decision.
+DRC uses the rules in the board's `board.kicad_pro`, which `compile_board`
+writes with JLCPCB's published 2-layer minimums (`reflow.fab_rules`; the
+human chose JLCPCB on 2026-10-23). Without that file, KiCad's defaults apply
+and flag tscircuit's 0.15 mm tracks. Every DRC error is reported, never hidden.
 
 tscircuit gives a decoupling cap's traces a 1 mm maximum length by default,
 and skips routing the whole board when placement can't meet it. The codegen
