@@ -678,3 +678,10 @@ Tests:
 - Sabotages each turn the suite red: dropping `--tools ""`, passing ANTHROPIC_API_KEY through.
 - Separately: test_committed_reflow_toml_is_caps_only passes again, because the human restored reflow.toml.
 `pytest -q` → 665 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-24 · MCP9808 eval on Claude Code (Sonnet 5.5), run 20261024T173321Z
+`reflow eval --only mcp9808_breakout` with REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet (one-off override; the human's .env unchanged).
+- **Result:** passed on attempt 1, clean (matches every draft expectation), 0 part numbers outside the resolver, 0 model retries. 3,334 in / 1,133 out tokens; the model was claude-sonnet-5-5.
+- **Pinout:** right on every pin. SDA, SCL, VDD→V3_3, GND and A0–A2→GND are all wired, and Alert is left open.
+- **Routing:** the TSX set maxDecouplingTraceLength. `route_report` gives **routed**: 4/4 nets in copper, 0 unconnected, 0 DRC errors under JLCPCB 2-layer rules, 15 warnings (silkscreen and library).
+- **Compared with free Lightning:** Lightning took 2 attempts and passed with a broken board. Expectations are still drafts, so the go/no-go stays undecided.
