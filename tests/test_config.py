@@ -386,3 +386,23 @@ def test_bad_max_tokens_is_refused(clean_env, tmp_path, monkeypatch, line):
     (tmp_path / "reflow.toml").write_text(line + "\n", encoding="utf-8")
     with pytest.raises(ConfigError, match="max_tokens"):
         load_config()
+
+
+
+def test_claude_code_needs_no_api_key(clean_env, tmp_path, monkeypatch):
+    """REFLOW_PROVIDER=claude-code runs on the user's Claude Code login (M-04), so no key is required."""
+    from reflow.config import load_config
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("REFLOW_PROVIDER", "claude-code")
+    config = load_config(keyless_providers={"claude-code"})
+    assert config["provider"] == "claude-code" and config["api_key"] == ""
+
+
+def test_other_providers_still_need_the_key(clean_env, tmp_path, monkeypatch):
+    from reflow.config import ConfigError, load_config
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("REFLOW_PROVIDER", "anthropic")
+    with pytest.raises(ConfigError, match="REFLOW_API_KEY"):
+        load_config(keyless_providers={"claude-code"})
