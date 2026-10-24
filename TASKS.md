@@ -71,6 +71,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | M-01 | Model adapters behind `complete(system, prompt)` | config | `reflow/llm.py` | mock-server/unit tests per adapter; errors raise `ModelError` | D-1 | AGENT | todo |
 | M-02 | Config loader (`reflow.toml` + env) | — | config dict | no secrets in repo; missing key → clear error | — | AGENT | todo |
 | M-03 | Reply budget: `max_tokens` in config, and a cut-off reply raises a clear error | config | `max_tokens` key; ModelError on `stop_reason`/`finish_reason` cut-off | config and env set the budget; a cut-off reply says so | M-01, M-02 | AGENT | done (10-21) |
+| M-04 | `REFLOW_PROVIDER=claude-code`: model calls through `claude -p` on the user's Claude Code login (no API key) | config | `reflow/claude_code.py` | print mode, tools off (`--tools ""`), empty temp folder, prompt on stdin, `--no-session-persistence`, no ANTHROPIC_API_KEY passed; no REFLOW_API_KEY needed; errors and timeouts raise ModelError | M-01, M-02 | AGENT | done (10-24) |
 | K-01 | `compile_board()` via `tsci` | TSX string | `CompileResult` | blinky TSX compiles; a syntax error returns ok=False with ≥1 `CompileError` | — | AGENT | todo |
 | K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | todo (10-22: circuit.json `source_*_error` elements are now compile errors, since tsci exits 0 on them) |
 

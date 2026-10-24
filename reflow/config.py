@@ -2,7 +2,7 @@
 
 Contract
 --------
-    load_config(path: Path | str | None = None) -> dict
+    load_config(path: Path | str | None = None, *, keyless_providers=frozenset()) -> dict
 
 The dict always has these keys, in this order:
 
@@ -10,7 +10,8 @@ The dict always has these keys, in this order:
     compile_cap    int          default 2
     provider       str          file or REFLOW_PROVIDER, default ""
     model          str          file or REFLOW_MODEL, default ""
-    api_key        str          REFLOW_API_KEY only
+    api_key        str          REFLOW_API_KEY only; not required for a provider in
+                                `keyless_providers`, which the caller passes (M-04)
     base_url       str | None   file or REFLOW_BASE_URL, default None
     timeout_s      int          default 60
     max_tokens     int          default 4096 (per model reply; raise it for reasoning models)
@@ -79,7 +80,7 @@ class ConfigError(Exception):
     """reflow.toml or the environment is missing or invalid."""
 
 
-def load_config(path: Path | str | None = None) -> dict[str, object]:
+def load_config(path: Path | str | None = None, *, keyless_providers=frozenset()) -> dict[str, object]:
     """Read caps, provider, and model settings. The API key comes from the environment."""
     file_path = _resolve_path(path)
     data = _read_toml(file_path) if file_path is not None else {}
@@ -96,7 +97,7 @@ def load_config(path: Path | str | None = None) -> dict[str, object]:
 
     raw_key = os.environ.get("REFLOW_API_KEY", "")
     api_key = raw_key.strip()
-    if api_key == "":
+    if api_key == "" and values["provider"] not in keyless_providers:   # a login-based provider (M-04)
         raise ConfigError("REFLOW_API_KEY is not set")
     values["api_key"] = api_key
     return {key: values[key] for key in _KEYS}

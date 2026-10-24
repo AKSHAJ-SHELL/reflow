@@ -660,3 +660,21 @@ Tests:
 - tests/test_fab_rules.py (2) and 2 new in tests/test_route.py failed first (module missing): the routed board passes JLCPCB's rules with status routed, and the known-bad case (one segment thinned to 0.05 mm) still fails with a track_width error, status partial.
 - Sabotage: setting min_track_width to 0 turns 2 tests red.
 `pytest -q` → 652 passed, 3 failed (the same three: the pull-up rail test on purpose, the tscircuit record, and the caps-only config test from the local reflow.toml).
+
+## 2026-10-24 · agent (Claude) · M-04: REFLOW_PROVIDER=claude-code (model calls on the user's Claude Code login)
+Did: at the human's request (to avoid buying API credits).
+- **New `reflow/claude_code.py`:** `ClaudeCodeModel.complete` runs `claude -p --output-format json --tools "" --no-session-persistence --system-prompt <system> [--model <REFLOW_MODEL>]`, with:
+  - the prompt on stdin;
+  - a fresh, empty temporary folder as the working directory, deleted afterwards;
+  - `ANTHROPIC_API_KEY` removed from the CLI's environment, so a key in the shell is never billed instead of the login.
+  It parses `result`, `usage` (input + cache tokens) and the model that answered. An error reply, a non-zero exit with no JSON, an empty reply, a timeout or a missing CLI each raise ModelError with the reason. max_tokens doesn't apply.
+- **Loader:** `reflow.claude_code.load_model` handles "claude-code" and leaves every other provider to `reflow.llm.load_model`, which is unchanged.
+- **Config:** `load_config(keyless_providers=...)` skips the REFLOW_API_KEY requirement for the providers the caller names. The CLI passes `reflow.providers.KEYLESS_PROVIDERS = {"claude-code"}`.
+- **Why it's split this way:** the existing tests keep llm.py and config.py stdlib-only and free of vendor and model names. Those tests weren't changed; the new code sits beside them.
+- **Also:** cli.py uses the new loader; .env.example documents the option. My own eval-runner test stub now accepts keyword arguments.
+- **A probe before building:** `claude -p` with tools off answered "ok" in 3.5 s on claude-opus-5-5.
+Tests:
+- New, failing first: tests/test_claude_code.py (10, a fake `claude` that records argv, stdin, cwd and env) and 2 in tests/test_config.py (no key needed for claude-code; other providers still need one).
+- Sabotages each turn the suite red: dropping `--tools ""`, passing ANTHROPIC_API_KEY through.
+- Separately: test_committed_reflow_toml_is_caps_only passes again, because the human restored reflow.toml.
+`pytest -q` → 665 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

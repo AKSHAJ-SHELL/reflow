@@ -387,7 +387,7 @@ def test_reflow_eval_passes_repeat_through_and_prints_rates(tmp_path, monkeypatc
         }
 
     monkeypatch.setattr(evals_module, "run_evals", fake_run_evals)
-    monkeypatch.setattr(cli, "load_config", lambda: {"max_attempts": 3, "compile_cap": 2})
+    monkeypatch.setattr(cli, "load_config", lambda **kw: {"max_attempts": 3, "compile_cap": 2})
     monkeypatch.setattr(cli, "load_model", lambda config: Scripted([]))
     assert cli.main(["eval", "--evals", str(tmp_path), "--repeat", "2"]) == 0
     assert seen["repeats"] == 2

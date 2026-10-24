@@ -39,7 +39,9 @@ from reflow.compile import TsciMissingError, TsciTimeoutError, compile_board
 from reflow.config import ConfigError, load_config
 from reflow.contracts import ContractError, ResolvedParts, from_dict
 from reflow.harness.loop import run_design
-from reflow.llm import ModelError, load_model
+from reflow.claude_code import load_model
+from reflow.providers import KEYLESS_PROVIDERS
+from reflow.llm import ModelError
 from reflow.parts.catalog import CatalogError
 from reflow.parts.local_catalog import search as catalog_search
 from reflow.parts.resolver import resolve
@@ -261,7 +263,7 @@ def _run_from_config(args, spec, plan, run_dir) -> int:
     """The shell path: every piece comes from config, the catalog, or this package."""
     from reflow.verifier import VerifierInputError, make_verifier
 
-    config = load_config()
+    config = load_config(keyless_providers=KEYLESS_PROVIDERS)
     model = load_model(config)
     resolved = _load_parts(args)
     if resolved is None:
@@ -491,7 +493,7 @@ def cmd_eval(args) -> int:
     from reflow.pinbind import binder_for_spec
 
     try:
-        config = load_config()
+        config = load_config(keyless_providers=KEYLESS_PROVIDERS)
         model = load_model(config)
         summary = run_evals(
             Path(args.evals),
