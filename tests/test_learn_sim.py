@@ -31,7 +31,21 @@ import pytest
 
 from reflow.learn import sim
 
-needs_ngspice = pytest.mark.skipif(sim.find_ngspice() is None, reason="ngspice not installed")
+needs_ngspice = pytest.mark.skipif(sim.find_engine() is None, reason="no ngspice (CLI or KiCad's library)")
+
+# Every test runs on each ngspice engine reflow can use: the ngspice CLI (e.g. Homebrew's) and
+# KiCad's bundled libngspice. The hand calculations are the same for both.
+ENGINES = {"cli": sim.find_cli_engine(), "kicad": sim.find_kicad_engine()}
+REAL_FIND_ENGINE = sim.find_engine      # the engine fixture replaces sim.find_engine in every test
+
+
+@pytest.fixture(autouse=True, params=sorted(ENGINES))
+def engine(request, monkeypatch):
+    found = ENGINES[request.param]
+    if found is None:
+        pytest.skip(f"{request.param} ngspice isn't available here")
+    monkeypatch.setattr(sim, "find_engine", lambda: found)
+    return found
 
 LW, DI, TR, ESL = 20e-9, 0.05, 1e-9, 0.4e-9
 
@@ -128,7 +142,7 @@ def test_no_pull_up_never_rises(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_without_ngspice_nothing_is_plotted(tmp_path, monkeypatch):
-    monkeypatch.setattr(sim, "find_ngspice", lambda: None)
+    monkeypatch.setattr(sim, "find_engine", lambda: None)
     result = sim.i2c_pullup(sim.I2cBoard(pullup_ohm=4.7e3), tmp_path, variant="as_designed")
     assert result.ran is False and result.to_contract().signals == [] and result.verdict == "unknown"
     assert "ngspice" in result.notes[0]
@@ -153,3 +167,44 @@ def test_downsampling_keeps_the_worst_point(tmp_path):
     plotted = min(result.to_contract().signals[0].v)
     assert plotted == pytest.approx(3.3 - result.measured["droop_v"], abs=1e-6)
     assert len(result.to_contract().signals[0].v) <= 2 * sim.PLOT_POINTS
+
+
+
+# ---------------------------------------------------------------------------
+# which engine runs
+# ---------------------------------------------------------------------------
+
+def test_the_result_says_which_engine_ran(tmp_path, engine):
+    result = sim.i2c_pullup(sim.I2cBoard(pullup_ohm=4.7e3), tmp_path, variant="as_designed")
+    assert result.ran
+    expected = "KiCad's bundled ngspice library" if engine.kind == "kicad" else "the ngspice command"
+    assert any(expected in n for n in result.notes)
+
+
+def test_the_cli_comes_first_then_kicads_library(monkeypatch, tmp_path):
+    lib = tmp_path / "libngspice.0.dylib"
+    lib.write_bytes(b"")
+    monkeypatch.setenv("REFLOW_LIBNGSPICE", str(lib))
+    monkeypatch.setenv("REFLOW_NGSPICE", "/opt/fake/ngspice")
+    assert REAL_FIND_ENGINE() == sim.Engine("cli", "/opt/fake/ngspice")
+    monkeypatch.delenv("REFLOW_NGSPICE")
+    monkeypatch.setattr(sim.shutil, "which", lambda name: None)
+    assert REAL_FIND_ENGINE() == sim.Engine("kicad", str(lib))
+
+
+def test_kicads_library_is_found_next_to_kicad_cli(monkeypatch, tmp_path):
+    app = tmp_path / "KiCad.app" / "Contents"
+    (app / "MacOS").mkdir(parents=True)
+    (app / "Frameworks").mkdir()
+    (app / "MacOS" / "kicad-cli").write_text("", encoding="utf-8")
+    (app / "Frameworks" / "libngspice.0.dylib").write_bytes(b"")
+    monkeypatch.delenv("REFLOW_LIBNGSPICE", raising=False)
+    monkeypatch.setattr("reflow.cli.find_kicad_cli", lambda: str(app / "MacOS" / "kicad-cli"))
+    assert sim.find_kicad_engine() == sim.Engine("kicad", str(app / "Frameworks" / "libngspice.0.dylib"))
+
+
+def test_with_no_engine_the_note_says_how_to_get_one(tmp_path, monkeypatch):
+    monkeypatch.setattr(sim, "find_engine", lambda: None)
+    result = sim.decoupling(sim.DecouplingBoard(cap_f=100e-9), tmp_path, variant="as_designed")
+    assert result.ran is False
+    assert "brew install ngspice" in result.notes[0] and "KiCad" in result.notes[0]

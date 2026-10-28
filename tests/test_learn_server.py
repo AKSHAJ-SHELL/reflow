@@ -284,7 +284,7 @@ def test_simulating_a_concept_without_a_testbench_says_so(run, symbols):
 
 def test_simulating_a_board_the_testbench_cant_represent_says_why(run, symbols):
     """The AI's draft left the real VDD pin unconnected: no supply to simulate."""
-    pytest.importorskip("reflow.learn.sim").find_ngspice() or pytest.skip("ngspice not installed")
+    pytest.importorskip("reflow.learn.sim").find_engine() or pytest.skip("no ngspice")
     result = _client(run).post("/api/sim", json={"concept": "decoupling", "attempt": 1}).json()
     assert result["ran"] is False and "not connected" in result["notes"][0]
 
@@ -293,7 +293,7 @@ def test_simulating_a_board_the_testbench_cant_represent_says_why(run, symbols):
 def test_the_users_fix_and_the_ais_final_are_simulated(run, symbols):
     from reflow.learn import sim
 
-    if sim.find_ngspice() is None:
+    if sim.find_engine() is None:
         pytest.skip("ngspice not installed")
     client = _client(run)
     edits = [{"kind": "set_label", "ref": "U1", "pin": n, "value": l} for n, l in DATASHEET.items()] + WIRING
