@@ -38,3 +38,11 @@ Via inputs (2026-10-27): `at24c02_draft.tsx` (run 20261028T010434Z) and `pcf8574
 reports a 0.1651 mm via on some runs, not all. With `minViaPadDiameter="0.4mm"` on the board
 (0.1 mm ring), both route with 0 DRC errors, 4 of 4 runs each, and the MCP9808, AMS1117
 attempts 1–3 and LED boards still route with 0 errors.
+
+Trace-length inputs (2026-10-28), exported boards from run 20261028T161716Z (Sonnet 5.5), each
+folder holding circuit.json, board.kicad_pcb, board.kicad_pro, board.kicad_dru and the draft TSX,
+unchanged: every net is copper and our DRC has 0 errors, but tscircuit's
+`pcb_trace_too_long_error` says a decoupling cap's trace is over the 5 mm asked for.
+- `mcp9808_trace_6mm/` (run 3): C1.pin1 to J1.pin1 on V3_3, 6.05 mm.
+- `pcf8574_trace_14mm/` (run 2): C1.pin2 to U1.A0 on GND, 14.01 mm (the cap's ground side; U1.A0
+  is tied to GND for address 0x20).

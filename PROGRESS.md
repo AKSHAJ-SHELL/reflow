@@ -834,3 +834,17 @@ Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 3` (o
 - **Routing and DRC:** all 21 compiled attempts (9 ams1117 + 12 passing boards) are **routed**: every net in copper, 0 DRC errors, 0 unconnected, no placement errors. Vias where used are 0.4/0.2.
 - **Finding:** 2 of the 12 passing boards carry tscircuit's `pcb_trace_too_long_error` for a decoupling cap: mcp9808 r3 at 6.05 mm and pcf8574 r2 at 14.01 mm, over the 5 mm asked for. tscircuit routed them anyway and KiCad DRC doesn't check it, so `route_report` still says routed. A 14 mm decoupling trace is a real layout weakness; not reported anywhere today.
 - go/no-go: undecided (all 5 expected.toml files still draft).
+
+## 2026-10-28 · agent (Claude) · X-04: a trace over its length limit makes the board partial
+Did: `route_report` called two boards "routed" while tscircuit said a decoupling cap's trace was over the 5 mm asked for (run 20261028T161716Z: mcp9808 run 3 at 6.05 mm, pcf8574 run 2 at 14.01 mm). tscircuit routes anyway and KiCad's DRC doesn't check length.
+- **reflow/route.py:**
+  - each `pcb_trace_too_long_error` is listed in `workdir/trace_length.json` (net, the two ports, length and limit in mm, rounded to 0.01), always written, `[]` when none;
+  - any such trace makes the status "partial", never "routed".
+- **No contract change:** `RouteResult` is frozen, so the list lives in the file next to drc.json, not in a new field. Putting it in RouteResult needs a DECISIONS.md proposal.
+- Listed: mcp9808: V3_3, C1.pin1 to J1.pin1, 6.05 mm; pcf8574: GND, C1.pin2 to U1.A0, 14.01 mm.
+Tests:
+- Fixtures: the two real boards in tests/data/routing/ (circuit.json, .kicad_pcb, .kicad_pro, .kicad_dru, draft TSX; README).
+- tests/test_route.py: each board has every net in copper and 0 DRC errors, and is partial with exactly its trace listed; with the error element removed the same board is routed with `[]`. All 3 failed first; with route.py reverted they fail again.
+- The tests check a copy of each fixture: kicad-cli writes board.kicad_prl next to the board it checks, and tests/test_repo_hygiene.py caught it in tests/data.
+- Not changed: the learn UI's route endpoint returns the status only, so it will show "partial" for these boards without saying why; the list is in learn/route/<folder>/trace_length.json.
+`pytest -q` → 718 passed, 3 failed (the unpowered pull-up rail test on purpose, the deliberate tscircuit record, and the .kicad_prl hygiene failure, since fixed); after the fix tests/test_route.py, test_repo_hygiene.py and test_learn_server.py pass.
