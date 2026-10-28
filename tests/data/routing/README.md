@@ -12,3 +12,11 @@ routes and C1's trace to VDD is 2.89 mm. With 2 mm it still doesn't route (tsci 
 2026-10-27: the limit covers both of a decoupling cap's traces, including its ground side to the
 nearest GND pad. With 3 mm, placement missed by about 0.5 mm on 3 of 5 eval boards
 (run 20261028T004800Z: 3.46–3.56 mm), and routing was skipped. The codegen prompt now asks for 5 mm.
+
+Hole-clearance inputs (2026-10-27), exported .kicad_pcb files from real eval runs (Sonnet 5.5):
+- `at24c02_via_0198mm.kicad_pcb` (run 20261028T010434Z): a via 0.198 mm from the SCL track. Under
+  JLCPCB's "Via hole to Track" 0.2 mm this is a real violation.
+- `ams1117_via_0216mm.kicad_pcb` (same run, attempt 2): a via 0.216 mm from U1 pad 1. It passes
+  JLCPCB's 0.2 mm via rule; KiCad's 0.25 mm default flagged it.
+- `mcp9808_routed_headers.kicad_pcb` (run 20261028T004800Z): routed, with J1's plated through-holes
+  next to tracks (closest 1.25 mm), used to show the PTH rule applies to PTH pads.

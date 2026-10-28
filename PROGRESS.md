@@ -741,3 +741,22 @@ Claude Code, Sonnet 5.5; 18,877 in / 6,449 out tokens; 0 model retries; codegen 
 - Under JLCPCB's numbers, the AMS1117 errors (0.216 mm via-to-pad) are false.
 - The AT24C02 error (0.198 mm via-to-track) is a real violation, by 0.002 mm.
 **Placement:** the PCF8574 board needs more room for its headers. Codegen sets the board size, and tscircuit's packing pushed the headers past the edge.
+
+## 2026-10-27 · agent (Claude) · JLCPCB hole-to-copper rules on exported boards
+Did: at the human's request. JLCPCB's page (re-read 2026-10-27) gives "Via hole to Track" 0.2 mm and "PTH to Track" 0.28 mm ("0.35mm is recommended, minimum 0.28mm"). KiCad's board rules have a single hole clearance, so:
+- `FabRules` gains `via_hole_clearance` 0.20 and `pth_hole_clearance` 0.28, and `min_hole_clearance` is 0.20 (the via figure, as the floor);
+- `write_kicad_project` now also writes `board.kicad_dru` next to the board, with two custom rules: vias (`A.Type == 'Via' || B.Type == 'Via'`) at 0.2 mm, and plated through-hole pads (`A.Pad_Type == 'Through-hole' || ...`) at 0.28 mm.
+`kicad-cli` reads both files from the board's folder.
+- **Checked against real boards first:**
+  - the AT24C02 via 0.198 mm from SCL is flagged under "JLCPCB via hole to track";
+  - the AMS1117 via 0.216 mm from a pad passes (KiCad's 0.25 mm default had flagged it);
+  - with the PTH rule raised to 2 mm, all 16 hits on the routed MCP9808 are J1 header holes under "JLCPCB PTH hole to track", so the condition matches PTH pads. At 0.28 mm the board is clean (closest 1.25 mm).
+- **Re-check of run 20261028T010434Z with the new rules:**
+  - ams1117 attempts 1, 2 and 3 are all **routed**, 3/3 nets, 0 DRC errors (attempt 2's 2 errors are gone);
+  - at24c02 is partial, 4/4 nets in copper, with 1 real error: the via 0.198 mm from SCL, under JLCPCB's 0.2 mm;
+  - pcf8574 is failed, 0/12 nets: placement, not hole clearance (headers off a 40×30 mm board; 1 copper_edge_clearance error).
+Tests:
+- Fixtures: 3 real .kicad_pcb files in tests/data/routing/ (README).
+- tests/test_fab_rules.py has 5 new tests, failing first: the values; the .kicad_dru content; the 0.198 mm via fails by name; the 0.216 mm via passes; the PTH rule applies to PTH pads (2 mm variant fails, 0.28 mm passes).
+- Sabotage: a via-only PTH condition fails 4 tests; no via rule fails 3.
+`pytest -q` → 692 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

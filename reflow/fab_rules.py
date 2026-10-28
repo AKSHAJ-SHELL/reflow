@@ -3,7 +3,7 @@
 Contract
 --------
     JLCPCB_2LAYER: FabRules
-    write_kicad_project(kicad_pcb, rules=JLCPCB_2LAYER) -> Path    # board.kicad_pro next to the board
+    write_kicad_project(kicad_pcb, rules=JLCPCB_2LAYER) -> Path    # board.kicad_pro (+ board.kicad_dru) next to the board
 
 `tsci export` writes only a .kicad_pcb, so KiCad (and `kicad-cli pcb drc`)
 falls back to its own default rules: a 0.2 mm minimum track, 0.2 mm
@@ -21,7 +21,14 @@ JLCPCB standard 2-layer, from https://jlcpcb.com/capabilities/pcb-capabilities
   so a 0.05 mm via annular ring;
 - 2-layer drill 0.15–6.3 mm; via hole-to-hole 0.2 mm;
 - copper to a routed board edge ≥ 0.2 mm;
-- silkscreen line width ≥ 0.15 mm, text height ≥ 1.0 mm.
+- silkscreen line width ≥ 0.15 mm, text height ≥ 1.0 mm;
+- hole to copper: "Via hole to Track" 0.2 mm, "PTH to Track" 0.28 mm
+  ("0.35mm is recommended, minimum 0.28mm"; re-read 2026-10-27).
+
+KiCad's board rules have a single hole clearance, so `min_hole_clearance` is
+the via figure (0.2 mm), and `board.kicad_dru` (KiCad custom rules, read
+from the board's folder) adds one rule per hole kind: vias 0.2 mm and plated
+through-hole pads 0.28 mm.
 
 Rules the page doesn't give a 2-layer number for keep KiCad's defaults. These
 are JLCPCB's minimums; some sizes near them cost extra (smaller vias), which
@@ -46,6 +53,8 @@ class FabRules:
     read_on: str
     rules: dict = field(default_factory=dict)      # KiCad board.design_settings.rules keys, mm
     netclass_clearance: float = 0.2
+    via_hole_clearance: float = 0.0                # mm, via hole to copper (custom rule)
+    pth_hole_clearance: float = 0.0                # mm, plated through-hole to copper (custom rule)
 
 
 JLCPCB_2LAYER = FabRules(
@@ -62,8 +71,11 @@ JLCPCB_2LAYER = FabRules(
         "min_copper_edge_clearance": 0.20,
         "min_text_height": 1.0,
         "min_text_thickness": 0.15,
+        "min_hole_clearance": 0.20,
     },
     netclass_clearance=0.10,
+    via_hole_clearance=0.20,
+    pth_hole_clearance=0.28,
 )
 
 
@@ -80,4 +92,18 @@ def write_kicad_project(kicad_pcb, rules: FabRules = JLCPCB_2LAYER) -> Path:
         "reflow": {"fab_rules": rules.name, "fab_rules_source": f"{rules.source_url} (read {rules.read_on})"},
     }
     project.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    board.with_suffix(".kicad_dru").write_text(_custom_rules(rules), encoding="utf-8")
     return project
+
+
+def _custom_rules(rules: FabRules) -> str:
+    lines = ["(version 1)", f"# {rules.name}: {rules.source_url} (read {rules.read_on})"]
+    if rules.via_hole_clearance:
+        lines += [f'(rule "{rules.name.split()[0]} via hole to track"',
+                  f"  (constraint hole_clearance (min {rules.via_hole_clearance:g}mm))",
+                  "  (condition \"A.Type == 'Via' || B.Type == 'Via'\"))"]
+    if rules.pth_hole_clearance:
+        lines += [f'(rule "{rules.name.split()[0]} PTH hole to track"',
+                  f"  (constraint hole_clearance (min {rules.pth_hole_clearance:g}mm))",
+                  "  (condition \"A.Pad_Type == 'Through-hole' || B.Pad_Type == 'Through-hole'\"))"]
+    return "\n".join(lines) + "\n"
