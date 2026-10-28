@@ -800,3 +800,20 @@ Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 1 --o
 - Verify: passed on attempt 1, clean, 0 foreign part numbers (expected.toml still draft).
 - The model wrote `<board>` with no size and no pcbX/pcbY; tscircuit sized it 23.28 × 21.875 mm, with no placement errors.
 - Routing: 12/12 nets in copper, nothing unconnected. Status **partial**: our DRC has 2 errors, both GND vias too close to the SDA track (0.1651 and 0.1592 mm, under JLCPCB's 0.2 mm via-to-track rule). Not called routed.
+
+## 2026-10-27 · agent (Claude) · X-04: 0.4 mm via pads so router vias meet JLCPCB's via-hole-to-track
+Did: found why tscircuit's router puts vias under 0.2 mm from tracks (AT24C02 0.198 mm, PCF8574 0.159/0.165 mm).
+- **Cause:** tscircuit's vias are 0.3 mm on a 0.2 mm drill, a 0.05 mm ring. The router keeps about 0.1 mm of copper from a via to a track, which meets JLCPCB's 0.10 mm spacing. But KiCad measures hole clearance from the drill, so the hole lands about 0.15–0.2 mm from the track, under JLCPCB's 0.2 mm.
+- **Options tried on both real drafts (tsci 0.0.2768):**
+  - `minViaPadDiameter="0.4mm"` (0.1 mm ring): both routed, 0 DRC errors, 4 of 4 runs each.
+  - `minTraceToPadEdgeClearance="0.15mm"` fixed the PCF8574 but not the AT24C02.
+  - `minViaEdgeToPadEdgeClearance` and `autorouter.traceClearance` didn't fix either.
+  - With a 0.1 mm ring, any via that passes 0.1 mm copper spacing is 0.2 mm from the hole, so the fix holds by geometry, not by luck.
+- **No regressions:** the MCP9808, AMS1117 attempts 1–3 and LED boards still route with 0 errors at 0.4 mm.
+- **Fix:** tscircuit has no project-wide routing setting, and compile.py never edits the model's code, so prompts/codegen.md asks for `<board minViaPadDiameter="0.4mm">` (example and rule), like the decoupling limit.
+- **Finding:** the PCF8574 draft reports 1 or 2 hole-clearance errors from run to run (0.1592 mm every time, 0.1651 mm on some), so the "before" test checks the closest gap and that every gap is under 0.2 mm.
+Tests:
+- tests/test_prompts.py: the prompt asks for the 0.4 mm via pad on the board (failed first).
+- tests/test_route.py: the two real drafts, saved as tests/data/routing/at24c02_draft.tsx and pcf8574_unsized.tsx: as written, holes under 0.2 mm and status partial; with the prop, every via is 0.4/0.2, no hole_clearance, status routed with 0 DRC errors. These record tscircuit's behaviour and passed once written.
+`pytest -q` → 716 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+Not done: the KiCad project's Default net-class via is still 0.3/0.2 (used only for vias drawn by hand in KiCad).

@@ -286,3 +286,13 @@ def test_codegen_lets_tscircuit_size_the_board_around_its_parts():
     assert "Set board width and height in mm from the spec constraints" not in text
     assert "only when the spec gives a board size" in text
     assert "Do not set pcbX or pcbY" in text
+
+
+def test_codegen_asks_for_vias_whose_ring_keeps_the_hole_clear_of_tracks():
+    """tscircuit's vias are 0.3 mm on a 0.2 mm drill, a 0.05 mm ring. The router keeps about 0.1 mm of
+    copper from a via to a track, so the hole lands 0.15-0.2 mm from it, under JLCPCB's 0.2 mm via hole
+    to track (AT24C02 run 20261028T010434Z, PCF8574 run 20261028T025622Z). A 0.4 mm pad makes the ring
+    0.1 mm, so 0.1 mm of copper spacing means 0.2 mm from the hole (tests/test_route.py)."""
+    text = _read("codegen")
+    assert 'minViaPadDiameter="0.4mm"' in text
+    assert '<board minViaPadDiameter="0.4mm">' in text

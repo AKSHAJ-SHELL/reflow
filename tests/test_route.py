@@ -126,3 +126,42 @@ def test_an_unsized_board_fits_every_part_inside_the_edge_and_routes_every_net(t
     assert result.drc.unconnected == 0
     report = json.loads(Path(result.drc.report_path).read_text(encoding="utf-8"))
     assert not [v for v in report["violations"] if v["type"] == "copper_edge_clearance"]
+
+
+VIA_BOARDS = {
+    # real drafts whose routed vias sat under JLCPCB's 0.2 mm via hole to track; the closest one
+    # each time (tsci 0.0.2768 + KiCad DRC report the PCF8574's 0.1651 mm on some runs, not all)
+    "at24c02_draft.tsx": 0.1976,     # run 20261028T010434Z
+    "pcf8574_unsized.tsx": 0.1592,   # run 20261028T025622Z
+}
+
+
+def _hole_clearances(result: RouteResult) -> list[float]:
+    import re
+
+    report = json.loads(Path(result.drc.report_path).read_text(encoding="utf-8"))
+    return sorted(float(m) for v in report["violations"] if v["type"] == "hole_clearance"
+                  for m in re.findall(r"actual ([0-9.]+) mm", v["description"]))
+
+
+@pytest.mark.parametrize("name", sorted(VIA_BOARDS))
+def test_with_tscircuits_03mm_vias_the_hole_lands_under_02mm_from_a_track(name, tmp_path):
+    tsx = (ROOT / "tests" / "data" / "routing" / name).read_text(encoding="utf-8")
+    result = _report(tsx, tmp_path)
+    found = _hole_clearances(result)
+    assert found and found[0] == VIA_BOARDS[name] and all(gap < 0.2 for gap in found)
+    assert result.status == "partial" and result.unrouted_nets == []
+
+
+@pytest.mark.parametrize("name", sorted(VIA_BOARDS))
+def test_with_04mm_via_pads_the_same_board_routes_clean_under_jlcpcb_rules(name, tmp_path):
+    import re
+
+    tsx = (ROOT / "tests" / "data" / "routing" / name).read_text(encoding="utf-8")
+    tsx = re.sub(r"<board\b", '<board minViaPadDiameter="0.4mm"', tsx, count=1)
+    result = _report(tsx, tmp_path)
+    elements = json.loads(Path(tmp_path / "build" / "circuit.json").read_text(encoding="utf-8"))
+    vias = {(e["outer_diameter"], e["hole_diameter"]) for e in elements if e["type"] == "pcb_via"}
+    assert vias == {(0.4, 0.2)}
+    assert _hole_clearances(result) == []
+    assert result.status == "routed" and result.drc.errors == 0

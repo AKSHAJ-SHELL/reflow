@@ -30,3 +30,11 @@ inside the edge, and all 12 nets route. Our DRC still finds 2 router vias under 
 via-to-track rule on that board. Keeping the model's placement with no size also fits, but its
 decoupling traces come out 8.35 and 8.98 mm, over the 5 mm limit. So the codegen prompt asks for
 no size (unless the spec gives one) and no hand placement.
+
+Via inputs (2026-10-27): `at24c02_draft.tsx` (run 20261028T010434Z) and `pcf8574_unsized.tsx`
+(run 20261028T025622Z) are real Sonnet 5.5 drafts, unchanged. tscircuit's vias are 0.3 mm on a
+0.2 mm drill, and the router keeps ~0.1 mm of copper from a via to a track, so the hole lands
+0.198 mm (AT24C02) and 0.159 mm (PCF8574) from a track, under JLCPCB's 0.2 mm. The PCF8574 also
+reports a 0.1651 mm via on some runs, not all. With `minViaPadDiameter="0.4mm"` on the board
+(0.1 mm ring), both route with 0 DRC errors, 4 of 4 runs each, and the MCP9808, AMS1117
+attempts 1–3 and LED boards still route with 0 errors.
