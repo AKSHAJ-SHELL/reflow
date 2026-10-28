@@ -15,7 +15,8 @@ export function RouteLine({ source }: { source: Source }) {
     <p className={route.status === "routed" ? "route ok" : "route"}>
       <strong>Routing ({route.router}): {label}.</strong> {route.routed_nets}/{route.total_nets} nets in copper
       {route.unrouted_nets.length > 0 && <> · unrouted: {route.unrouted_nets.slice(0, 6).join(", ")}{route.unrouted_nets.length > 6 ? "…" : ""}</>}
-      {" "}· KiCad DRC (the board's default rules): {route.drc.errors} error{route.drc.errors === 1 ? "" : "s"}, {route.drc.unconnected} unconnected
+      {route.too_long.length > 0 && <> · over length: {route.too_long.slice(0, 3).map(t => `${t.net} ${t.ports.join("–")} ${t.length_mm} mm (limit ${t.limit_mm} mm)`).join(", ")}{route.too_long.length > 3 ? "…" : ""}</>}
+      {" "}· KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} error{route.drc.errors === 1 ? "" : "s"}, {route.drc.unconnected} unconnected
     </p>
   )
 }

@@ -19,9 +19,9 @@ it with our own KiCad DRC:
 - Trace length: a `pcb_trace_too_long_error` is tscircuit's own check of a
   trace with a length limit (a decoupling cap's `maxDecouplingTraceLength`).
   tscircuit still routes the board and KiCad's DRC doesn't check length, so
-  route_report lists each one in `workdir/trace_length.json` (net, the two
-  ports, length and limit in mm, rounded to 0.01) and counts it against
-  "routed". The file is always written, `[]` when there are none.
+  route_report lists each one in `RouteResult.too_long` (net, the two ports,
+  length and limit in mm, rounded to 0.01; DECISIONS X-04a) and counts it
+  against "routed".
 - Status: "routed" only when every net is copper (none unrouted and KiCad finds
   nothing unconnected) **and** our DRC has no errors **and** no trace is over
   its length limit. "partial" when some nets are copper but nets are unrouted,
@@ -58,7 +58,7 @@ import subprocess
 from pathlib import Path
 
 from reflow.circuit_netlist import load_circuit_json
-from reflow.contracts import DrcSummary, RouteResult
+from reflow.contracts import DrcSummary, RouteResult, TraceLength
 
 _NET_IN = re.compile(r"\bnet \[([^\]]+)\]|\bnet\.([A-Za-z0-9_]+)")
 _TRACE_PORT = re.compile(r"\[([^\]]+)\]")
@@ -75,7 +75,6 @@ def route_report(circuit_json, kicad_pcb, workdir) -> RouteResult:
         unrouted = sorted({n for n in _nets_named(elements, netlist) if n in nets})
     drc = _drc(Path(kicad_pcb), Path(workdir))
     too_long = _too_long(elements)
-    (Path(workdir) / "trace_length.json").write_text(json.dumps(too_long, indent=2) + "\n", encoding="utf-8")
     routed = len(nets) - len(unrouted)
     if routed == 0 and nets:
         status = "failed"
@@ -84,7 +83,8 @@ def route_report(circuit_json, kicad_pcb, workdir) -> RouteResult:
     else:
         status = "routed"
     return RouteResult(status=status, router="tscircuit", tries=1, routed_nets=routed, total_nets=len(nets),
-                       unrouted_nets=unrouted, refused_nets=[], drc=drc, kicad_pcb=str(kicad_pcb))
+                       unrouted_nets=unrouted, refused_nets=[], drc=drc, kicad_pcb=str(kicad_pcb),
+                       too_long=too_long)
 
 
 def route(kicad_pcb: Path, workdir: Path, *, max_tries: int = 3) -> RouteResult:
@@ -112,7 +112,7 @@ def _nets_named(elements: list[dict], netlist) -> set[str]:
     return found
 
 
-def _too_long(elements: list[dict]) -> list[dict]:
+def _too_long(elements: list[dict]) -> list[TraceLength]:
     """Each trace tscircuit says is over its length limit, by net and the ports it joins."""
     by_id = {}
     for e in elements:
@@ -127,9 +127,9 @@ def _too_long(elements: list[dict]) -> list[dict]:
         for pcb_port in by_id[e["pcb_trace_id"]]["connectsTo"]:
             port = by_id[by_id[pcb_port]["source_port_id"]]
             ports.append(f"{by_id[port['source_component_id']]['name']}.{port['name']}")
-        found.append({"net": by_id[e["source_net_id"]]["name"], "ports": sorted(ports),
-                      "length_mm": round(float(e["actual_trace_length"]), 2),
-                      "limit_mm": round(float(e["maximum_trace_length"]), 2)})
+        found.append(TraceLength(net=by_id[e["source_net_id"]]["name"], ports=sorted(ports),
+                                 length_mm=round(float(e["actual_trace_length"]), 2),
+                                 limit_mm=round(float(e["maximum_trace_length"]), 2)))
     return found
 
 
