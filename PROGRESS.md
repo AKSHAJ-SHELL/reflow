@@ -817,3 +817,11 @@ Tests:
 - tests/test_route.py: the two real drafts, saved as tests/data/routing/at24c02_draft.tsx and pcf8574_unsized.tsx: as written, holes under 0.2 mm and status partial; with the prop, every via is 0.4/0.2, no hole_clearance, status routed with 0 DRC errors. These record tscircuit's behaviour and passed once written.
 `pytest -q` → 716 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
 Not done: the KiCad project's Default net-class via is still 0.3/0.2 (used only for vias drawn by hand in KiCad).
+
+## 2026-10-27 · agent (Claude) · X-04: AT24C02 and PCF8574 rerun on Sonnet with the 0.4 mm via prompt
+Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 1 --only at24c02_eeprom --only pcf8574_expander` (one-off override, .env unchanged), run 20261028T052833Z.
+- Verify: both passed on attempt 1, clean, 0 foreign part numbers (expected.toml files still draft).
+- Both drafts wrote `<board minViaPadDiameter="0.4mm">` with no size and no pcbX/pcbY; no pcb placement errors.
+- **at24c02:** board 15.88 × 13.76 mm, 1 via (0.4/0.2), **routed** 4/4 nets, our KiCad DRC under JLCPCB rules: 0 errors, 0 unconnected.
+- **pcf8574:** board 23.28 × 21.875 mm, 3 vias (0.4/0.2), **routed** 12/12 nets, 0 DRC errors, 0 unconnected.
+- Warnings only: silk_overlap, silkscreen text height/thickness under JLCPCB's 1.0/0.15 mm (tscircuit's reference text), and KiCad not knowing the "tscircuit" footprint library.
