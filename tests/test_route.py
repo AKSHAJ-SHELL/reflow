@@ -81,3 +81,48 @@ def test_a_track_thinner_than_jlcpcbs_minimum_still_fails_drc(tmp_path):
     report = json.loads(Path(result.drc.report_path).read_text(encoding="utf-8"))
     assert any(v["type"] == "track_width" and v["severity"] == "error" for v in report["violations"])
     assert result.status == "partial"
+
+
+PCF8574 = (ROOT / "tests" / "data" / "routing" / "pcf8574_40x30.tsx").read_text(encoding="utf-8")
+JLCPCB_COPPER_TO_EDGE_MM = 0.2
+
+
+def _unsized(tsx: str) -> str:
+    """The board as the codegen prompt now asks for it: no board size and no hand placement."""
+    import re
+
+    tsx = re.sub(r"<board\s+width=\"[^\"]+\"\s+height=\"[^\"]+\">", "<board>", tsx)
+    return "\n".join(line for line in tsx.splitlines() if not re.match(r"\s*pcb[XY]=", line)) + "\n"
+
+
+def _outside(circuit_json: str) -> list[str]:
+    elements = json.loads(Path(circuit_json).read_text(encoding="utf-8"))
+    return [e["message"] for e in elements
+            if e["type"] in ("pcb_component_outside_board_error", "pcb_placement_error", "pcb_autorouting_error")]
+
+
+def test_a_hand_sized_board_with_headers_past_its_edge_is_not_routed(tmp_path):
+    """The real draft (run 20261028T010434Z): 40 x 30 mm, J2 placed 4.64 mm past the edge."""
+    built = compile_board(PCF8574, tmp_path / "build", timeout_s=240)
+    assert built.ok, built.errors
+    assert any("J2 extends outside board boundaries" in m for m in _outside(built.circuit_json))
+    assert route_report(built.circuit_json, built.kicad_pcb, tmp_path / "route").status == "failed"
+
+
+def test_an_unsized_board_fits_every_part_inside_the_edge_and_routes_every_net(tmp_path):
+    built = compile_board(_unsized(PCF8574), tmp_path / "build", timeout_s=240)
+    assert built.ok, built.errors
+    assert _outside(built.circuit_json) == []
+    elements = json.loads(Path(built.circuit_json).read_text(encoding="utf-8"))
+    (board,) = [e for e in elements if e["type"] == "pcb_board"]
+    left, right = board["center"]["x"] - board["width"] / 2, board["center"]["x"] + board["width"] / 2
+    bottom, top = board["center"]["y"] - board["height"] / 2, board["center"]["y"] + board["height"] / 2
+    for part in (e for e in elements if e["type"] == "pcb_component"):
+        x, y, w, h = part["center"]["x"], part["center"]["y"], part["width"], part["height"]
+        margin = min(x - w / 2 - left, right - x - w / 2, y - h / 2 - bottom, top - y - h / 2)
+        assert margin >= JLCPCB_COPPER_TO_EDGE_MM, (part["pcb_component_id"], margin)
+    result = route_report(built.circuit_json, built.kicad_pcb, tmp_path / "route")
+    assert result.unrouted_nets == [] and result.routed_nets == result.total_nets == 12
+    assert result.drc.unconnected == 0
+    report = json.loads(Path(result.drc.report_path).read_text(encoding="utf-8"))
+    assert not [v for v in report["violations"] if v["type"] == "copper_edge_clearance"]

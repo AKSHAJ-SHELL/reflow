@@ -105,7 +105,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| X-01 | Router wrapper (tscircuit router) | placed board | `RouteResult` | sensor board routes; `drc` from our kicad-cli run | K-01 | AGENT | done (10-22: tscircuit routes inside tsci export; `route_report` reads it and runs our DRC. Boards route once decoupling caps get maxDecouplingTraceLength="3mm"; codegen asks for it) |
+| X-01 | Router wrapper (tscircuit router) | placed board | `RouteResult` | sensor board routes; `drc` from our kicad-cli run | K-01 | AGENT | done (10-22: tscircuit routes inside tsci export; `route_report` reads it and runs our DRC. Boards route once decoupling caps get maxDecouplingTraceLength="3mm"; codegen asks for it; 10-27: codegen leaves board size and placement to tscircuit unless the spec gives a size, so headers fit inside the edge) |
 | X-02 | freerouting fallback via bridges | `.kicad_pcb` | `RouteResult` | round trip on scratch demo board, zones refilled | X-01 | AGENT | todo (cut #1) |
 | X-04 | Re-DRC + compare + honest partial report | routed board | `DrcSummary`, unrouted list | partial board lists unrouted nets | X-01 | AGENT | done (10-22: status routed only with every net in copper and 0 DRC errors; unrouted nets listed; exported boards carry JLCPCB standard 2-layer rules (board.kicad_pro, 10-23), and the routed eval board has 0 DRC errors under them; 10-27: hole-to-copper via 0.2 mm / PTH 0.28 mm in board.kicad_dru) |
 | O-01 | Fab export | routed board | `FabPackage` | gerbers/drill/pos/BOM exist; refuses without verify+DRC report | X-04 | AGENT | todo |

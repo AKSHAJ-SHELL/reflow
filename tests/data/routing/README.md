@@ -20,3 +20,13 @@ Hole-clearance inputs (2026-10-27), exported .kicad_pcb files from real eval run
   JLCPCB's 0.2 mm via rule; KiCad's 0.25 mm default flagged it.
 - `mcp9808_routed_headers.kicad_pcb` (run 20261028T004800Z): routed, with J1's plated through-holes
   next to tracks (closest 1.25 mm), used to show the PTH rule applies to PTH pads.
+
+Board-size input (2026-10-27): `pcf8574_40x30.tsx` is the PCF8574 eval draft from run
+20261028T010434Z (Sonnet 5.5, attempt 1), unchanged. The model drew a 40 x 30 mm board and set
+pcbX/pcbY by hand; J1 sits 0.56 mm and J2 4.64 mm past the edge, and tscircuit skipped routing
+for the placement errors. With `<board>` (no width or height) and no pcbX/pcbY, tscircuit places
+the parts and sizes the board around them (23.28 x 21.875 mm, tsci 0.0.2768), every part sits
+inside the edge, and all 12 nets route. Our DRC still finds 2 router vias under JLCPCB's 0.2 mm
+via-to-track rule on that board. Keeping the model's placement with no size also fits, but its
+decoupling traces come out 8.35 and 8.98 mm, over the 5 mm limit. So the codegen prompt asks for
+no size (unless the spec gives one) and no hand placement.

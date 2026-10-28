@@ -273,3 +273,16 @@ def test_codegen_gives_decoupling_caps_a_routable_length_limit():
     text = _read("codegen")
     assert 'maxDecouplingTraceLength="5mm"' in text
     assert 'maxDecouplingTraceLength="3mm"' not in text
+
+
+def test_codegen_lets_tscircuit_size_the_board_around_its_parts():
+    """Run 20261028T010434Z: the model drew a 40 x 30 mm board and placed its headers by hand, J2 hung
+    4.64 mm past the edge, and tscircuit skipped routing for the placement errors
+    (tests/data/routing/pcf8574_40x30.tsx). With no size and no hand placement tscircuit sizes the board
+    around its parts and the same board routes (tests/test_route.py). A size is set only from the spec."""
+    text = _read("codegen")
+    assert "<board>" in text
+    assert not re.search(r"<board\s+width=", text)
+    assert "Set board width and height in mm from the spec constraints" not in text
+    assert "only when the spec gives a board size" in text
+    assert "Do not set pcbX or pcbY" in text
