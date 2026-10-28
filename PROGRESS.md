@@ -760,3 +760,24 @@ Tests:
 - tests/test_fab_rules.py has 5 new tests, failing first: the values; the .kicad_dru content; the 0.198 mm via fails by name; the 0.216 mm via passes; the PTH rule applies to PTH pads (2 mm variant fails, 0.28 mm passes).
 - Sabotage: a via-only PTH condition fails 4 tests; no via rule fails 3.
 `pytest -q` → 692 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-27 · agent (Claude) · L-12: testbenches now match exact solutions to 0.000004%
+Did: the human said up to 1.2% from the hand calculations was too much. I measured where it came from.
+- **Two parts:**
+  - The textbook formulas are approximations of the testbench circuit: L·ΔI/t_r is 0.27% under the exact no-cap droop, and the parallel-inductance formula is 1.0% under at 2 mm.
+  - The simulation had numerical error: 0.9% on the no-cap case from a 0.2 ns step, and I²C crossings quantized to the next sample.
+- **New `tests/sim_reference.py`:** exact solutions of each testbench without ngspice.
+  - Closed forms for the no-cap droop, and for the I²C rise time including the switch's on and off resistance.
+  - Exact propagation of the circuit's state equations (matrix exponential, scaling and squaring; the ramps become extra states) for the shunt cap, the PCB path and the series cap.
+  - The general solver matches the closed form to 5e-8 when the cap branch is removed.
+- **`reflow/learn/sim.py` settings:**
+  - The decoupling step now comes at 100 ns: ngspice starts from the DC operating point, so the old 5 µs settle wasn't needed. The run covers 1.5 µs at a 10 ps maximum step.
+  - The series cap uses τ/20000; I²C uses RC/5000, with threshold crossings interpolated between samples.
+  - `.options method=trap trtol=1`: with the default trtol of 7, the trapezoidal integration rang at the load step's first corner under an inductor and read the 100 nF droop 19% high once the step was fine. Gear needed a 5× smaller step to match.
+  - Each run takes ≤ 0.5 s.
+- **Result:** every case matches its exact solution to within 0.000004% (worst: PCB 2 mm, 4e-8), on both the ngspice command (47) and KiCad's library (45.2): no cap, 100 nF, series cap at τ and at 3τ, PCB 20 mm and 2 mm, and I²C at 4.7k, 1k and 47k.
+Tests:
+- tests/test_learn_sim.py now checks each measurement against the exact reference with rel=1e-6 (was 5–15% against the formulas), on both engines.
+- New tests pin each textbook formula's gap from the exact answer (0.27%, 0.4%, 0.25%/1.0%, 0.02%, and exact to 8 digits for the rise time), and check that the reference's two methods agree. 52 passed.
+- Sabotages each turn the suite red: the default trtol fails the 100 nF case on both engines; no crossing interpolation fails 6 I²C cases.
+`pytest -q` → 708 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

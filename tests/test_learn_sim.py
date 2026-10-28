@@ -1,40 +1,29 @@
 """L-12: ngspice testbenches for decoupling and I2C pull-ups (DECISIONS L-2a, O-1c).
 
-Every testbench is checked against a hand calculation written out here, and
-has a known-good and a known-bad case, so a plot never shows physics the
-numbers don't back. ngspice runs as a separate process; without it these skip.
+Every measurement is checked against the **exact** solution of the same circuit,
+computed without ngspice (tests/sim_reference.py: closed forms, and matrix-exponential
+propagation of the circuit's state equations), to within 0.0001%. Every testbench
+runs on each ngspice engine reflow can use. Each one also has a known-good and a
+known-bad case, so a plot never shows physics the numbers don't back.
 
-Hand calculations (values from the testbenches' defaults, shown in the UI as assumptions):
+The textbook formulas shown to the user as the explanation are approximations of
+those exact answers. Their gaps are pinned down at the end of this file.
 
-Decoupling. Supply Vs = 3.3 V through wiring Lw = 20 nH, Rw = 0.05 ohm to the chip node.
-Load: a DC resistor (10 mA) plus a current step dI = 50 mA with rise t_r = 1 ns.
-- No cap: during the ramp V = Vs - Lw*dI/t_r, a 20e-9*0.05/1e-9 = 1.0 V droop.
-- With C = 100 nF (ESR 0.01 ohm, ESL 0.4 nH, typical of 0402) next to the pin: the edge is
-  carried by the cap, (Lw || ESL)*dI/t_r = 19.6 mV, and then the LC rings,
-  dI*sqrt(Lw/C) = 0.05*sqrt(20e-9/100e-9) = 22.4 mV, a little less with the damping from Rw
-  and ESR. Either way about 20 mV.
-- Cap in series (supply -> cap -> chip): no DC path, so after power-up
-  V(t) = Vs*exp(-t/(R_load*C)); at t = R_load*C = 330*100e-9 = 33 us, V = Vs/e = 1.21 V.
-- PCB path L_p from the cap to the pin (1 nH/mm): on the edge, the chip sees the wiring and the
-  cap path in parallel, so the droop is (Lw || (L_p + ESL))*dI/t_r. 20 mm: 10.1 nH -> 0.505 V;
-  2 mm: 2.14 nH -> 107 mV.
-
-I2C pull-up. Pull-up R to VDD = 3.3 V, bus capacitance C_bus = 100 pF, an open-drain switch
-releases the line. 30%->70% rise time = R*C_bus*ln(0.7/0.3) = 0.8473*R*C_bus:
-4.7 k -> 398 ns (inside standard mode's 1000 ns, outside fast mode's 300 ns; NXP UM10204,
-Table 10); 1 k -> 84.7 ns. No pull-up: the line never reaches 30%.
+The testbench values (shown in the UI as assumptions): Vs = 3.3 V; wiring Lw = 20 nH,
+Rw = 0.05 ohm; load 330 ohm DC plus a 50 mA step rising in 1 ns; cap ESR 0.01 ohm,
+ESL 0.4 nH; PCB path 1 nH/mm; I2C bus 100 pF, open-drain switch 20 ohm on / 1e12 off.
 """
 import math
-import shutil
 
 import pytest
 
+import sim_reference as ref
 from reflow.learn import sim
 
 needs_ngspice = pytest.mark.skipif(sim.find_engine() is None, reason="no ngspice (CLI or KiCad's library)")
 
 # Every test runs on each ngspice engine reflow can use: the ngspice CLI (e.g. Homebrew's) and
-# KiCad's bundled libngspice. The hand calculations are the same for both.
+# KiCad's bundled libngspice. The exact answers are the same for both.
 ENGINES = {"cli": sim.find_cli_engine(), "kicad": sim.find_kicad_engine()}
 REAL_FIND_ENGINE = sim.find_engine      # the engine fixture replaces sim.find_engine in every test
 
@@ -47,7 +36,13 @@ def engine(request, monkeypatch):
     monkeypatch.setattr(sim, "find_engine", lambda: found)
     return found
 
-LW, DI, TR, ESL = 20e-9, 0.05, 1e-9, 0.4e-9
+
+VS, RW, LW, RL, DI, TR, ESR, ESL = 3.3, 0.05, 20e-9, 330.0, 0.05, 1e-9, 0.01, 0.4e-9
+EXACT = 1e-6                      # simulated vs exact: 0.0001%; observed worst 0.000004%
+
+
+def shunt(cap_f, branch_l):
+    return ref.droop_shunt(VS, RW, LW, RL, DI, TR, cap_f, ESR, branch_l, sim.STEP_WINDOW_S)
 
 
 # ---------------------------------------------------------------------------
@@ -55,41 +50,37 @@ LW, DI, TR, ESL = 20e-9, 0.05, 1e-9, 0.4e-9
 # ---------------------------------------------------------------------------
 
 @needs_ngspice
-def test_no_decoupling_cap_droops_by_l_di_dt(tmp_path):
+def test_no_decoupling_cap_droops_exactly_as_the_circuit_equations_say(tmp_path):
     result = sim.decoupling(sim.DecouplingBoard(cap_f=None), tmp_path, variant="broken")
     assert result.ran and result.exit_code == 0
-    expected = LW * DI / TR                                     # 1.0 V
-    assert result.measured["droop_v"] == pytest.approx(expected, rel=0.12)
+    assert result.measured["droop_v"] == pytest.approx(ref.droop_no_cap(VS, RW, LW, RL, DI, TR), rel=EXACT)
     assert result.verdict == "bad"
 
 
 @needs_ngspice
 def test_a_100nf_cap_at_the_pin_holds_the_supply(tmp_path):
     result = sim.decoupling(sim.DecouplingBoard(cap_f=100e-9), tmp_path, variant="as_designed")
-    ring = DI * math.sqrt(LW / 100e-9)                          # 22.4 mV
-    assert result.measured["droop_v"] == pytest.approx(ring, rel=0.10)
+    assert result.measured["droop_v"] == pytest.approx(shunt(100e-9, ESL), rel=EXACT)
     assert result.verdict == "good"
 
 
 @needs_ngspice
 def test_a_cap_in_series_starves_the_chip(tmp_path):
     result = sim.decoupling(sim.DecouplingBoard(cap_f=100e-9, cap_in_series=True), tmp_path, variant="broken")
-    tau = 330 * 100e-9                                          # 33 us
-    assert result.measured["v_at_tau"] == pytest.approx(3.3 / math.e, rel=0.10)   # 1.21 V
-    assert result.measured["v_end"] < 0.2
+    tau = RL * 100e-9                                           # 33 us
+    at_tau, at_end = ref.series_cap(VS, RW, LW, RL, 100e-9, 10e-9, tau, 3 * tau)
+    assert result.measured["v_at_tau"] == pytest.approx(at_tau, rel=EXACT)
+    assert result.measured["v_end"] == pytest.approx(at_end, rel=EXACT)
     assert result.verdict == "bad"
     assert result.measured["tau_s"] == pytest.approx(tau)
 
 
 @needs_ngspice
-@pytest.mark.parametrize("path_mm, expected_v", [
-    (20.0, (LW * (20e-9 + ESL) / (LW + 20e-9 + ESL)) * DI / TR),   # 0.505 V
-    (2.0, (LW * (2e-9 + ESL) / (LW + 2e-9 + ESL)) * DI / TR),     # 107 mV
-])
-def test_the_layout_path_to_the_pin_adds_its_inductance(tmp_path, path_mm, expected_v):
+@pytest.mark.parametrize("path_mm", [20.0, 2.0])
+def test_the_layout_path_to_the_pin_adds_its_inductance(tmp_path, path_mm):
     board = sim.DecouplingBoard(cap_f=100e-9, path_mm=path_mm)
     result = sim.decoupling(board, tmp_path, variant="as_designed")
-    assert result.measured["droop_v"] == pytest.approx(expected_v, rel=0.15)
+    assert result.measured["droop_v"] == pytest.approx(shunt(100e-9, ESL + path_mm * 1e-9), rel=EXACT)
     assert any("1 nH per mm" in a for a in result.assumptions)
 
 
@@ -105,11 +96,10 @@ def test_every_decoupling_result_says_what_it_assumed(tmp_path):
 # ---------------------------------------------------------------------------
 
 @needs_ngspice
-@pytest.mark.parametrize("ohms", [4.7e3, 1e3])
-def test_rise_time_is_0_847_rc(tmp_path, ohms):
+@pytest.mark.parametrize("ohms", [4.7e3, 1e3, 47e3])
+def test_rise_time_is_exactly_the_rc_exponentials(tmp_path, ohms):
     result = sim.i2c_pullup(sim.I2cBoard(pullup_ohm=ohms), tmp_path, variant="as_designed")
-    expected = ohms * 100e-12 * math.log(0.7 / 0.3)
-    assert result.measured["rise_30_70_s"] == pytest.approx(expected, rel=0.05)
+    assert result.measured["rise_30_70_s"] == pytest.approx(ref.rise_30_70(ohms, 100e-12, VS, 1e12), rel=EXACT)
 
 
 @needs_ngspice
@@ -121,9 +111,8 @@ def test_4k7_on_100pf_meets_standard_mode_but_not_fast_mode(tmp_path):
 
 @needs_ngspice
 def test_a_47k_pull_up_is_too_slow_even_for_standard_mode(tmp_path):
-    """0.8473 * 47k * 100 pF = 3.98 us, four times standard mode's 1000 ns (UM10204 Table 10)."""
+    """3.98 us, four times standard mode's 1000 ns (UM10204 Table 10)."""
     result = sim.i2c_pullup(sim.I2cBoard(pullup_ohm=47e3), tmp_path, variant="broken")
-    assert result.measured["rise_30_70_s"] == pytest.approx(47e3 * 100e-12 * math.log(0.7 / 0.3), rel=0.05)
     assert result.verdict == "bad"
     assert "outside standard mode" in result.notes[0]
 
@@ -132,7 +121,7 @@ def test_a_47k_pull_up_is_too_slow_even_for_standard_mode(tmp_path):
 def test_no_pull_up_never_rises(tmp_path):
     result = sim.i2c_pullup(sim.I2cBoard(pullup_ohm=None), tmp_path, variant="broken")
     assert result.ran
-    assert result.measured["v_max_after_release"] < 0.3 * 3.3
+    assert result.measured["v_max_after_release"] < 0.3 * VS
     assert result.measured.get("rise_30_70_s") is None
     assert result.verdict == "bad"
 
@@ -208,3 +197,44 @@ def test_with_no_engine_the_note_says_how_to_get_one(tmp_path, monkeypatch):
     result = sim.decoupling(sim.DecouplingBoard(cap_f=100e-9), tmp_path, variant="as_designed")
     assert result.ran is False
     assert "brew install ngspice" in result.notes[0] and "KiCad" in result.notes[0]
+
+
+# ---------------------------------------------------------------------------
+# the textbook formulas shown to the user, against the exact answers
+# ---------------------------------------------------------------------------
+# These don't run ngspice. They pin down how far each one-line formula is from the
+# exact solution of the testbench, so the explanation next to a plot is honest
+# about being an approximation. The simulation itself is held to EXACT above.
+
+def test_l_di_dt_is_0_27_percent_under_the_exact_no_cap_droop():
+    exact = ref.droop_no_cap(VS, RW, LW, RL, DI, TR)          # 1.00270 V: adds the Rw drop and the load
+    assert LW * DI / TR == pytest.approx(exact, rel=0.003)
+
+
+def test_the_lc_ring_formula_is_0_4_percent_under_the_exact_100nf_droop():
+    exact = shunt(100e-9, ESL)                                # 22.449 mV
+    assert DI * math.sqrt(LW / 100e-9) == pytest.approx(exact, rel=0.005)
+
+
+@pytest.mark.parametrize("path_mm, gap", [(20.0, 0.003), (2.0, 0.011)])
+def test_parallel_inductance_formula_is_within_its_gap_of_the_exact_pcb_droop(path_mm, gap):
+    branch = ESL + path_mm * 1e-9
+    formula = LW * branch / (LW + branch) * DI / TR
+    assert formula == pytest.approx(shunt(100e-9, branch), rel=gap)
+
+
+def test_vs_over_e_is_0_02_percent_off_the_exact_series_cap_voltage():
+    tau = RL * 100e-9
+    exact, _ = ref.series_cap(VS, RW, LW, RL, 100e-9, 10e-9, tau, 3 * tau)
+    assert VS / math.e == pytest.approx(exact, rel=0.0003)
+
+
+def test_0_847_rc_is_the_exact_rise_time_to_eight_digits():
+    assert 4.7e3 * 100e-12 * math.log(7 / 3) == pytest.approx(ref.rise_30_70(4.7e3, 100e-12, VS, 1e12), rel=1e-7)
+
+
+def test_the_reference_solver_agrees_with_the_closed_form():
+    """The matrix-exponential solver, with the cap branch effectively removed, matches the no-cap
+    closed form, so the two exact references check each other."""
+    general = ref.droop_shunt(VS, RW, LW, RL, DI, TR, 1e-18, 1e6, 1.0, 50e-9)
+    assert general == pytest.approx(ref.droop_no_cap(VS, RW, LW, RL, DI, TR), rel=1e-7)
