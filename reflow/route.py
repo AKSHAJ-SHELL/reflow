@@ -32,6 +32,12 @@ prompt asks for `maxDecouplingTraceLength="5mm"` on decoupling caps (the limit c
 ground side too; 3 mm missed by ~0.5 mm on 3 of 5 eval boards)
 (tests/data/routing/README.md).
 
+tscircuit's vias are 0.3 mm on a 0.2 mm drill (a 0.05 mm ring), and its router
+keeps about 0.1 mm of copper from a via to a track, so the hole can land under
+JLCPCB's 0.2 mm via-hole-to-track. The prompt asks for
+`<board minViaPadDiameter="0.4mm">`: with a 0.1 mm ring, 0.1 mm of copper
+spacing puts the hole 0.2 mm from the track.
+
 Must never
 ----------
 - report "routed" from the router's own log, or without our DRC run,
