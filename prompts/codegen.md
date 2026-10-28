@@ -44,7 +44,7 @@ The file is a default export of a board. Passives, chips, headers, and traces us
 
 ```tsx
 export default () => (
-  <board width="25mm" height="20mm">
+  <board>
     <chip
       name="U1"
       footprint="soic8"
@@ -79,7 +79,8 @@ Wiring rules for this board:
 - An LED has a series resistor. Do not tie an LED across a supply by itself.
 - The two pins of a resistor, capacitor, inductor, or LED sit on different nets.
 - Do not add USB, DDR, Ethernet, or RF nets.
-- Set board width and height in mm from the spec constraints. v1 boards stay small, about 20 parts or fewer.
+- Write `<board>` with no width or height. tscircuit then places the parts and sizes the board around them, headers included, with clearance to the edge. Set `width` and `height` only when the spec gives a board size. v1 boards stay small, about 20 parts or fewer.
+- Do not set pcbX or pcbY on any part. A hand-placed part can sit past the board edge, and then tscircuit routes nothing on the board.
 
 ## Output
 

@@ -781,3 +781,16 @@ Tests:
 - New tests pin each textbook formula's gap from the exact answer (0.27%, 0.4%, 0.25%/1.0%, 0.02%, and exact to 8 digits for the rise time), and check that the reference's two methods agree. 52 passed.
 - Sabotages each turn the suite red: the default trtol fails the 100 nF case on both engines; no crossing interpolation fails 6 I²C cases.
 `pytest -q` → 708 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-27 · agent (Claude) · X-01: codegen leaves board size and placement to tscircuit
+Did: the PCF8574 eval board (run 20261028T010434Z) didn't route because the model drew a 40 × 30 mm board and placed parts by hand: J1 sat 0.56 mm and J2 4.64 mm past the edge, and tscircuit skips routing on placement errors.
+- **What tscircuit does with the same draft (tsci 0.0.2768):**
+  - no width/height and no pcbX/pcbY: tscircuit places the parts and sizes the board around them (23.28 × 21.875 mm); every part is inside the edge and all 12 nets route;
+  - no width/height but the model's placement: it fits, but the decoupling traces come out 8.35 and 8.98 mm, over the 5 mm limit.
+- **prompts/codegen.md:** the example is now `<board>`; write it with no width or height unless the spec gives a board size; never set pcbX or pcbY. compile.py still never edits the model's code.
+- tests/data/routing/pcf8574_40x30.tsx is the real draft, unchanged (README).
+Tests:
+- tests/test_prompts.py: the prompt asks for `<board>` with no size, sets a size only from the spec, and forbids pcbX/pcbY (failed first).
+- tests/test_route.py: the real draft reports J2 outside the board and routing failed; the same board unsized and unplaced has every part ≥ 0.2 mm (JLCPCB copper to edge) inside the edge, 12/12 nets, nothing unconnected, and no copper_edge_clearance error. These two record tscircuit's behaviour and passed on first run.
+- Our DRC still finds 2 router vias under JLCPCB's 0.2 mm via-to-track rule on the unsized board; the test doesn't claim "routed".
+`pytest -q` → 711 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
