@@ -728,3 +728,16 @@ Tests:
 - tests/test_learn_server.py's ngspice skips use `find_engine`.
 - Sabotage: writing the time vector as the signal in the helper fails 9 tests, all KiCad-engine ones; the CLI tests stay green.
 `pytest -q` → 687 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-27 · three unrouted boards rerun on Sonnet with the 5 mm limit (run 20261028T010434Z)
+Claude Code, Sonnet 5.5; 18,877 in / 6,449 out tokens; 0 model retries; codegen at 4e59637.
+- **ams1117_regulator** (failed_verify, pin_binding, 3 attempts; the same tab-pin-4 mismatch as before):
+  - routing now works on all three attempts: 3/3 nets in copper, 0 unconnected;
+  - attempts 1 and 3 have 0 DRC errors;
+  - attempt 2 has 2 hole_clearance errors (a via 0.216 mm from U1 pad 1).
+- **at24c02_eeprom** (passed, clean): 4/4 nets in copper, 0 unconnected, 1 DRC error: hole_clearance, a via 0.198 mm from the SCL track. Status partial.
+- **pcf8574_expander** (passed, clean): still not routed, now for a different reason. tscircuit skipped autorouting for 5 placement errors: on a 40×30 mm board, J1 sticks out by 0.56 mm and J2 (8-pin) by 4.64 mm, and three of their plated holes sit at the board edge. KiCad DRC: 1 copper_edge_clearance error, 21 unconnected.
+**Hole clearance:** KiCad's `min_hole_clearance` stayed at its 0.25 mm default (fab_rules.py set no number for it). JLCPCB's page (re-read 2026-10-27) gives "Via hole to Track" 0.2 mm and "PTH to Track" 0.28 mm (0.35 recommended). KiCad's base rules have one hole-clearance number for both, so separate via and PTH limits need a custom rules file.
+- Under JLCPCB's numbers, the AMS1117 errors (0.216 mm via-to-pad) are false.
+- The AT24C02 error (0.198 mm via-to-track) is a real violation, by 0.002 mm.
+**Placement:** the PCF8574 board needs more room for its headers. Codegen sets the board size, and tscircuit's packing pushed the headers past the edge.
