@@ -701,3 +701,30 @@ Per board:
 Did: at the human's request, codegen.md now asks for `maxDecouplingTraceLength="5mm"` (was 3 mm). tscircuit applies the limit to both of the cap's traces, including the ground side, and at 3 mm placement missed by ~0.5 mm on 3 of 5 boards in run 20261028T004800Z. Updated the reflow/route.py docstring and tests/data/routing/README.md to match. The fix-it tool's "3mm" example is unchanged (any value in mm works).
 Tests: test_codegen_gives_decoupling_caps_a_routable_length_limit now requires 5 mm and no 3 mm; it failed first, then passed.
 `pytest -q` (without tests/test_learn_sim.py and the two server tests that call `find_engine`, which another session has in progress for a KiCad libngspice engine) → 649 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-27 · agent (Claude) · L-12: simulation falls back to KiCad's bundled ngspice
+Did: at the human's request.
+- **Engine order in `reflow/learn/sim.py`:** the ngspice command (REFLOW_NGSPICE, else `ngspice` on PATH) comes first, then KiCad's bundled libngspice (REFLOW_LIBNGSPICE, else the library next to kicad-cli; on macOS KiCad 10 that's Contents/Frameworks/libngspice.0.dylib, ngspice-45.2). New `Engine`, `find_engine`, `find_cli_engine`, `find_kicad_engine`; `find_ngspice` is kept.
+- **The KiCad path:** new `reflow/learn/_libngspice.py`, run as a child process (`python -m reflow.learn._libngspice LIB DECK OUT VECTOR`), so the library's global state, a hang or a crash stay out of the learn server, and the 120 s timeout still applies.
+  - It loads the library with ctypes, feeds it the deck's circuit lines (the `.control` block is replaced by `run` plus a vector read), and writes the same "time value" rows as `wrdata`. The testbench measurements are unchanged.
+  - Found while probing: `ngGet_Vec_Info` returns one struct the library reuses on every call, so each vector is copied out before the next lookup.
+- **Results and notes:** each result now ends with "Simulated with the ngspice command (…)" or "Simulated with KiCad's bundled ngspice library (ngspice-45.2 shared library)". With no engine, the note says to install ngspice or KiCad.
+- **Both engines against the hand calculations** (CLI ngspice-47 / KiCad 45.2 / by hand):
+
+  | Case | CLI | KiCad | By hand |
+  |---|---|---|---|
+  | No cap | 1.012 V | 1.012 V | 1.0 V |
+  | 100 nF | 22.45 mV | 22.45 mV | 22.36 mV |
+  | Series cap at τ | 1.214 V | 1.214 V | 1.214 V |
+  | PCB 20 mm | 0.5062 V | 0.5062 V | 0.505 V |
+  | PCB 2 mm | 108.3 mV | 108.3 mV | 107.1 mV |
+  | 4.7k rise | 397 ns | 400 ns | 398 ns |
+  | 1k rise | 84.0 ns | 85.0 ns | 84.7 ns |
+  | 47k rise | 3.995 µs | 3.972 µs | 3.982 µs |
+
+  All are within 1.2%. With no pull-up, the KiCad engine also says the line never rises.
+Tests:
+- tests/test_learn_sim.py now runs every test once per engine (an autouse fixture, skipped when an engine isn't installed): 36 passed here, 18 on each. Plus 4 new tests on engine choice and notes.
+- tests/test_learn_server.py's ngspice skips use `find_engine`.
+- Sabotage: writing the time vector as the signal in the helper fails 9 tests, all KiCad-engine ones; the CLI tests stay green.
+`pytest -q` → 687 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

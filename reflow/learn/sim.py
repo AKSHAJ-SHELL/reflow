@@ -2,6 +2,8 @@
 
 Contract
 --------
+    find_engine() -> Engine | None                   # the ngspice command, else KiCad's bundled library
+    find_cli_engine() / find_kicad_engine() -> Engine | None
     find_ngspice() -> str | None                     # REFLOW_NGSPICE, else ngspice on PATH
     decoupling(board: DecouplingBoard, workdir, *, variant) -> Bench
     i2c_pullup(board: I2cBoard, workdir, *, variant) -> Bench
@@ -25,8 +27,18 @@ that releases the line. Measured: the 30%→70% rise time, compared with
 UM10204's 1000 ns (standard mode) and 300 ns (fast mode).
 
 The hand calculations each testbench is checked against are in
-tests/test_learn_sim.py. ngspice runs as a separate process (`-b`), never
-imported. Without it, `ran` is False and nothing is plotted.
+tests/test_learn_sim.py, which runs every testbench on each engine.
+
+Engines, in order:
+1. The ngspice command: REFLOW_NGSPICE, else `ngspice` on PATH (e.g.
+   Homebrew), run as `ngspice -b deck`.
+2. KiCad's bundled ngspice library: REFLOW_LIBNGSPICE, else the libngspice
+   that ships next to kicad-cli (KiCad 10 on macOS:
+   Contents/Frameworks/libngspice*.dylib). It's driven through ctypes in a
+   child process (`reflow.learn._libngspice`), never inside reflow's own
+   process.
+With neither, `ran` is False and nothing is plotted. Each result says which
+engine ran.
 
 Must never
 ----------
@@ -40,6 +52,7 @@ import math
 import os
 import shutil
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -88,6 +101,7 @@ class Bench:
     verdict: str = "unknown"
     notes: list[str] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
+    engine: str = ""                # which ngspice ran, in words
 
     def to_contract(self) -> SimResult:
         signals = []
@@ -99,9 +113,44 @@ class Bench:
                          assumptions=list(self.assumptions))
 
 
+@dataclass(frozen=True)
+class Engine:
+    kind: str                       # "cli" (the ngspice command) | "kicad" (KiCad's bundled libngspice)
+    path: str
+
+
 def find_ngspice() -> str | None:
     override = os.environ.get("REFLOW_NGSPICE", "").strip()
     return override or shutil.which("ngspice")
+
+
+def find_cli_engine() -> Engine | None:
+    found = find_ngspice()
+    return Engine("cli", found) if found else None
+
+
+def find_kicad_engine() -> Engine | None:
+    override = os.environ.get("REFLOW_LIBNGSPICE", "").strip()
+    if override:
+        return Engine("kicad", override) if Path(override).is_file() else None
+    import reflow.cli as cli
+
+    kicad_cli = cli.find_kicad_cli()
+    if kicad_cli is None:
+        return None
+    here = Path(kicad_cli).parent
+    patterns = [(here.parent / "Frameworks", "libngspice*.dylib"),   # macOS app bundle
+                (here.parent / "lib", "libngspice*.so*"),           # Linux
+                (here, "*ngspice*.dll")]                            # Windows (bin/)
+    for folder, pattern in patterns:
+        found = sorted(folder.glob(pattern)) if folder.is_dir() else []
+        if found:
+            return Engine("kicad", str(found[0]))
+    return None
+
+
+def find_engine() -> Engine | None:
+    return find_cli_engine() or find_kicad_engine()
 
 
 # ---------------------------------------------------------------------------
@@ -109,6 +158,20 @@ def find_ngspice() -> str | None:
 # ---------------------------------------------------------------------------
 
 def decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
+    return _with_engine_note(_decoupling(board, workdir, variant=variant))
+
+
+def i2c_pullup(board: I2cBoard, workdir, *, variant: str) -> Bench:
+    return _with_engine_note(_i2c_pullup(board, workdir, variant=variant))
+
+
+def _with_engine_note(bench: Bench) -> Bench:
+    if bench.ran and bench.engine:
+        bench.notes.append(f"Simulated with {bench.engine}.")
+    return bench
+
+
+def _decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
     b = board
     assumptions = [
         f"supply wiring {b.wiring_l * 1e9:g} nH and {b.wiring_r:g} Ω from the source to the chip",
@@ -172,7 +235,7 @@ def decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
 # I2C pull-up
 # ---------------------------------------------------------------------------
 
-def i2c_pullup(board: I2cBoard, workdir, *, variant: str) -> Bench:
+def _i2c_pullup(board: I2cBoard, workdir, *, variant: str) -> Bench:
     b = board
     release = 1e-6
     rc = (b.pullup_ohm or 0) * b.bus_c
@@ -223,20 +286,29 @@ def _run(concept: str, variant: str, lines: list[str], vector: str, workdir, win
     data = folder / f"{concept}-{variant}.txt"
     deck.write_text("\n".join(lines + [".control", "run", f"wrdata {data} {vector}", "quit", ".endc", ".end", ""]),
                     encoding="utf-8")
-    ngspice = find_ngspice()
-    if ngspice is None:
+    engine = find_engine()
+    if engine is None:
         return Bench(concept, variant, False, -1, str(deck),
-                     notes=["ngspice isn't installed, so this can't be simulated (brew install ngspice)."])
+                     notes=["No ngspice found, so this can't be simulated: install it (brew install ngspice), "
+                            "or install KiCad, whose bundled ngspice reflow can use."])
     if data.exists():
         data.unlink()
+    if engine.kind == "cli":
+        argv = [engine.path, "-b", str(deck)]
+    else:
+        argv = [sys.executable, "-m", "reflow.learn._libngspice", engine.path, str(deck), str(data), vector]
     try:
-        proc = subprocess.run([ngspice, "-b", str(deck)], capture_output=True, text=True, timeout=120,
-                              stdin=subprocess.DEVNULL)
+        proc = subprocess.run(argv, capture_output=True, text=True, timeout=120, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         return Bench(concept, variant, False, -1, str(deck), notes=["ngspice took longer than 120 s; nothing to show."])
     if proc.returncode != 0 or not data.is_file():
         tail = (proc.stderr or proc.stdout).strip().splitlines()[-1:] or [""]
         return Bench(concept, variant, False, proc.returncode, str(deck), notes=[f"ngspice failed: {tail[0]}"])
+    if engine.kind == "cli":
+        label = f"the ngspice command ({engine.path})"
+    else:
+        banner = (proc.stdout.strip().splitlines() or ["ngspice"])[-1]
+        label = f"KiCad's bundled ngspice library ({banner})"
     t, v = [], []
     for row in data.read_text(encoding="utf-8").split("\n"):
         cols = row.split()
@@ -245,7 +317,7 @@ def _run(concept: str, variant: str, lines: list[str], vector: str, workdir, win
             if window[0] <= tt <= window[1]:
                 t.append(tt)
                 v.append(float(cols[1]))
-    return Bench(concept, variant, True, proc.returncode, str(deck), t=t, v=v)
+    return Bench(concept, variant, True, proc.returncode, str(deck), t=t, v=v, engine=label)
 
 
 def _at(t: list[float], v: list[float], when: float) -> float:
