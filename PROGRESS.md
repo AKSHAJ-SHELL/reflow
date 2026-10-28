@@ -825,3 +825,12 @@ Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 1 --o
 - **at24c02:** board 15.88 × 13.76 mm, 1 via (0.4/0.2), **routed** 4/4 nets, our KiCad DRC under JLCPCB rules: 0 errors, 0 unconnected.
 - **pcf8574:** board 23.28 × 21.875 mm, 3 vias (0.4/0.2), **routed** 12/12 nets, 0 DRC errors, 0 unconnected.
 - Warnings only: silk_overlap, silkscreen text height/thickness under JLCPCB's 1.0/0.15 mm (tscircuit's reference text), and KiCad not knowing the "tscircuit" footprint library.
+
+## 2026-10-28 · agent (Claude) · E-01: all 5 evals × 3 on Sonnet with today's prompts
+Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 3` (one-off override, .env unchanged), run 20261028T161716Z, commit f9bdd01. Routing and DRC checked per attempt with `route_report` (our kicad-cli DRC, JLCPCB rules).
+- **Verify:** 12/15 passed, all 12 on attempt 1 and clean; 0 part numbers outside the resolver; 0 model errors.
+  - at24c02, led_indicator, mcp9808, pcf8574: 3/3 each.
+  - ams1117: 0/3, each 3 attempts, every attempt `pinout.mismatch` on U1 pin 4 (the tab; the KiCad AMS1117-3.3 symbol has no pin 4). Waits on the human's V-12 call.
+- **Routing and DRC:** all 21 compiled attempts (9 ams1117 + 12 passing boards) are **routed**: every net in copper, 0 DRC errors, 0 unconnected, no placement errors. Vias where used are 0.4/0.2.
+- **Finding:** 2 of the 12 passing boards carry tscircuit's `pcb_trace_too_long_error` for a decoupling cap: mcp9808 r3 at 6.05 mm and pcf8574 r2 at 14.01 mm, over the 5 mm asked for. tscircuit routed them anyway and KiCad DRC doesn't check it, so `route_report` still says routed. A 14 mm decoupling trace is a real layout weakness; not reported anywhere today.
+- go/no-go: undecided (all 5 expected.toml files still draft).
