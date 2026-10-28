@@ -1,0 +1,8 @@
+(version 1)
+# JLCPCB standard 2-layer: https://jlcpcb.com/capabilities/pcb-capabilities (read 2026-10-23)
+(rule "JLCPCB via hole to track"
+  (constraint hole_clearance (min 0.2mm))
+  (condition "A.Type == 'Via' || B.Type == 'Via'"))
+(rule "JLCPCB PTH hole to track"
+  (constraint hole_clearance (min 0.28mm))
+  (condition "A.Pad_Type == 'Through-hole' || B.Pad_Type == 'Through-hole'"))

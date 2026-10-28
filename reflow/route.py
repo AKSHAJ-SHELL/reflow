@@ -16,10 +16,16 @@ it with our own KiCad DRC:
 - DRC: `kicad-cli pcb drc --format json --severity-all` on the exported
   .kicad_pcb, always run here and never taken from the router. `unconnected`
   is KiCad's count of unconnected items.
+- Trace length: a `pcb_trace_too_long_error` is tscircuit's own check of a
+  trace with a length limit (a decoupling cap's `maxDecouplingTraceLength`).
+  tscircuit still routes the board and KiCad's DRC doesn't check length, so
+  route_report lists each one in `workdir/trace_length.json` (net, the two
+  ports, length and limit in mm, rounded to 0.01) and counts it against
+  "routed". The file is always written, `[]` when there are none.
 - Status: "routed" only when every net is copper (none unrouted and KiCad finds
-  nothing unconnected) **and** our DRC has no errors. "partial" when some nets
-  are copper but nets are unrouted or DRC has errors. "failed" when none are
-  routed.
+  nothing unconnected) **and** our DRC has no errors **and** no trace is over
+  its length limit. "partial" when some nets are copper but nets are unrouted,
+  DRC has errors, or a trace is too long. "failed" when none are routed.
 
 DRC uses the rules in the board's `board.kicad_pro`, which `compile_board`
 writes with JLCPCB's published 2-layer minimums (`reflow.fab_rules`; the
@@ -68,10 +74,12 @@ def route_report(circuit_json, kicad_pcb, workdir) -> RouteResult:
     else:
         unrouted = sorted({n for n in _nets_named(elements, netlist) if n in nets})
     drc = _drc(Path(kicad_pcb), Path(workdir))
+    too_long = _too_long(elements)
+    (Path(workdir) / "trace_length.json").write_text(json.dumps(too_long, indent=2) + "\n", encoding="utf-8")
     routed = len(nets) - len(unrouted)
     if routed == 0 and nets:
         status = "failed"
-    elif unrouted or drc.unconnected or drc.errors:
+    elif unrouted or drc.unconnected or drc.errors or too_long:
         status = "partial"
     else:
         status = "routed"
@@ -101,6 +109,27 @@ def _nets_named(elements: list[dict], netlist) -> set[str]:
             key = f"{selector[0]}.{selector[1]}"
             if key in by_port:
                 found.add(by_port[key])
+    return found
+
+
+def _too_long(elements: list[dict]) -> list[dict]:
+    """Each trace tscircuit says is over its length limit, by net and the ports it joins."""
+    by_id = {}
+    for e in elements:
+        for kind in ("pcb_trace", "pcb_port", "source_port", "source_component", "source_net"):
+            if e["type"] == kind:
+                by_id[e[f"{kind}_id"]] = e
+    found = []
+    for e in elements:
+        if e["type"] != "pcb_trace_too_long_error":
+            continue
+        ports = []
+        for pcb_port in by_id[e["pcb_trace_id"]]["connectsTo"]:
+            port = by_id[by_id[pcb_port]["source_port_id"]]
+            ports.append(f"{by_id[port['source_component_id']]['name']}.{port['name']}")
+        found.append({"net": by_id[e["source_net_id"]]["name"], "ports": sorted(ports),
+                      "length_mm": round(float(e["actual_trace_length"]), 2),
+                      "limit_mm": round(float(e["maximum_trace_length"]), 2)})
     return found
 
 

@@ -165,3 +165,40 @@ def test_with_04mm_via_pads_the_same_board_routes_clean_under_jlcpcb_rules(name,
     assert vias == {(0.4, 0.2)}
     assert _hole_clearances(result) == []
     assert result.status == "routed" and result.drc.errors == 0
+
+
+LONG_TRACES = {
+    # real boards from run 20261028T161716Z: every net in copper and 0 DRC errors, but tscircuit
+    # reports a decoupling cap's trace over the 5 mm the prompt asks for
+    "mcp9808_trace_6mm": {"net": "V3_3", "ports": ["C1.pin1", "J1.pin1"], "length_mm": 6.05, "limit_mm": 5.0},
+    "pcf8574_trace_14mm": {"net": "GND", "ports": ["C1.pin2", "U1.A0"], "length_mm": 14.01, "limit_mm": 5.0},
+}
+
+
+def _board_copy(name: str, tmp_path: Path) -> Path:
+    """kicad-cli writes board.kicad_prl next to the board it checks, so check a copy."""
+    import shutil
+
+    return Path(shutil.copytree(ROOT / "tests" / "data" / "routing" / name, tmp_path / name))
+
+
+@pytest.mark.parametrize("name", sorted(LONG_TRACES))
+def test_a_trace_over_its_length_limit_makes_the_board_partial_and_is_listed(name, tmp_path):
+    board = _board_copy(name, tmp_path)
+    result = route_report(board / "circuit.json", board / "board.kicad_pcb", tmp_path / "route")
+    assert result.unrouted_nets == [] and result.routed_nets == result.total_nets > 0
+    assert result.drc.errors == 0 and result.drc.unconnected == 0
+    assert result.status == "partial"
+    listed = json.loads((tmp_path / "route" / "trace_length.json").read_text(encoding="utf-8"))
+    assert listed == [LONG_TRACES[name]]
+
+
+def test_without_the_length_error_the_same_board_is_routed_with_nothing_listed(tmp_path):
+    board = _board_copy("pcf8574_trace_14mm", tmp_path)
+    elements = json.loads((board / "circuit.json").read_text(encoding="utf-8"))
+    kept = [e for e in elements if e["type"] != "pcb_trace_too_long_error"]
+    assert len(kept) == len(elements) - 1
+    (tmp_path / "circuit.json").write_text(json.dumps(kept), encoding="utf-8")
+    result = route_report(tmp_path / "circuit.json", board / "board.kicad_pcb", tmp_path / "route")
+    assert result.status == "routed"
+    assert json.loads((tmp_path / "route" / "trace_length.json").read_text(encoding="utf-8")) == []
