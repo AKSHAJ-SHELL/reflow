@@ -27,7 +27,13 @@ that releases the line. Measured: the 30%→70% rise time, compared with
 UM10204's 1000 ns (standard mode) and 300 ns (fast mode).
 
 The hand calculations each testbench is checked against are in
-tests/test_learn_sim.py, which runs every testbench on each engine.
+tests/test_learn_sim.py, which runs every testbench on each engine and checks
+each measurement against an exact solution of the same circuit computed
+without ngspice (tests/sim_reference.py) to within 0.01%. The time steps are
+chosen for that: 10 ps across the decoupling step, RC/5000 for I²C, and
+threshold crossings interpolated between samples, and `.options trtol=1` (with
+ngspice's default of 7 the integration overshoots by 19% at a load-step corner
+under an inductor).
 
 Engines, in order:
 1. The ngspice command: REFLOW_NGSPICE, else `ngspice` on PATH (e.g.
@@ -59,6 +65,7 @@ from pathlib import Path
 from reflow.contracts import SimResult, SimSignal
 
 PLOT_POINTS = 1000
+STEP_WINDOW_S = 1.5e-6          # decoupling: the load step and its LC ringing
 NH_PER_MM = 1e-9
 I2C_STANDARD_S, I2C_FAST_S = 1000e-9, 300e-9
 
@@ -192,12 +199,14 @@ def _decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
             "VS vs 0 PULSE(0 {vs} 0 10n 10n 1 2)",
             f"RW vs n1 {b.wiring_r}", f"LW n1 a {b.wiring_l}",
             f"CS a chip {b.cap_f}", f"RL chip 0 {b.load_r}",
-            f".tran {stop / 2000} {stop} 0 {stop / 2000}",
+            f".tran {stop / 20000} {stop} 0 {stop / 20000}",
         ]
         t0, window = 0.0, (0.0, stop)
     else:
-        t0, width = 5e-6, 5e-6
-        stop = t0 + width + 2e-6
+        # ngspice starts from the DC operating point (everything settled), so the step comes early and
+        # the run only covers the step and its ringing, at a 10 ps maximum step (accuracy, L-12).
+        t0, width = 100e-9, 1.0
+        stop = t0 + STEP_WINDOW_S
         lines += [
             "VS vs 0 DC {vs}",
             f"RW vs n1 {b.wiring_r}", f"LW n1 chip {b.wiring_l}",
@@ -206,8 +215,8 @@ def _decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
         ]
         if b.cap_f is not None:
             lines += [f"LP chip c1 {b.cap_esl + b.path_mm * NH_PER_MM}", f"RC c1 c2 {b.cap_esr}", f"CD c2 0 {b.cap_f}"]
-        lines += [f".tran 0.1n {stop} 0 0.2n"]
-        window = (t0 - 0.5e-6, stop)
+        lines += [f".tran 0.01n {stop} 0 0.01n"]
+        window = (0.0, stop)
     bench = _run("decoupling", variant, lines, "v(chip)", workdir, window)
     bench.signal, bench.assumptions = "V(chip)", assumptions
     if not bench.ran:
@@ -222,7 +231,7 @@ def _decoupling(board: DecouplingBoard, workdir, *, variant: str) -> Bench:
                        f"{tau * 1e6:.0f} µs and {v_end:.2f} V after {3 * tau * 1e6:.0f} µs."]
         return bench
 
-    during = [v for t, v in zip(bench.t, bench.v) if t0 <= t <= t0 + 5e-6]
+    during = [v for t, v in zip(bench.t, bench.v) if t >= t0]
     droop = b.supply_v - min(during)
     bench.measured = {"droop_v": droop, "v_min": min(during)}
     bench.verdict = "good" if droop < 0.05 * b.supply_v else "bad"
@@ -247,7 +256,7 @@ def _i2c_pullup(board: I2cBoard, workdir, *, variant: str) -> Bench:
         "VC ctl 0 PULSE(1 0 1u 1n 1n 1 2)",
         "S1 sda 0 ctl 0 OD",
         ".model OD SW(Ron=20 Roff=1e12 Vt=0.5 Vh=0.1)",
-        f".tran {stop / 4000} {stop} 0 {max(rc / 200, 1e-9) if rc else 5e-9}",
+        f".tran {(rc / 5000) if rc else 1e-9} {stop} 0 {(rc / 5000) if rc else 1e-9}",
     ]
     if b.pullup_ohm is not None:
         lines.insert(3, f"RP vdd sda {b.pullup_ohm}")
@@ -259,8 +268,8 @@ def _i2c_pullup(board: I2cBoard, workdir, *, variant: str) -> Bench:
         return bench
     after = [(t, v) for t, v in zip(bench.t, bench.v) if t >= release]
     v_max = max(v for _, v in after)
-    t30 = next((t for t, v in after if v >= 0.3 * b.supply_v), None)
-    t70 = next((t for t, v in after if v >= 0.7 * b.supply_v), None)
+    t30 = _crossing(after, 0.3 * b.supply_v)
+    t70 = _crossing(after, 0.7 * b.supply_v)
     bench.measured = {"v_max_after_release": v_max}
     if t30 is None or t70 is None:
         bench.verdict = "bad"
@@ -284,7 +293,11 @@ def _run(concept: str, variant: str, lines: list[str], vector: str, workdir, win
     folder.mkdir(parents=True, exist_ok=True)
     deck = folder / f"{concept}-{variant}.cir"
     data = folder / f"{concept}-{variant}.txt"
-    deck.write_text("\n".join(lines + [".control", "run", f"wrdata {data} {vector}", "quit", ".endc", ".end", ""]),
+    # trtol=1 (ngspice's default is 7): with the looser truncation-error control, trapezoidal integration
+    # rang at the load step's first corner under an inductor (19% high on the 100 nF testbench). Gear
+    # needed a 5x smaller step to match. tests/sim_reference.py has the exact solutions it's checked against.
+    deck.write_text("\n".join(lines + [".options method=trap trtol=1", ".control", "run", f"wrdata {data} {vector}", "quit",
+                                       ".endc", ".end", ""]),
                     encoding="utf-8")
     engine = find_engine()
     if engine is None:
@@ -318,6 +331,14 @@ def _run(concept: str, variant: str, lines: list[str], vector: str, workdir, win
                 t.append(tt)
                 v.append(float(cols[1]))
     return Bench(concept, variant, True, proc.returncode, str(deck), t=t, v=v, engine=label)
+
+
+def _crossing(points: list[tuple[float, float]], level: float) -> float | None:
+    """The first time the signal rises through `level`, interpolated between the two samples around it."""
+    for (t0, v0), (t1, v1) in zip(points, points[1:]):
+        if v0 < level <= v1:
+            return t0 + (t1 - t0) * (level - v0) / (v1 - v0)
+    return None
 
 
 def _at(t: list[float], v: list[float], when: float) -> float:
