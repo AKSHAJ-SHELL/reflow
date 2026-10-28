@@ -28,7 +28,8 @@ and flag tscircuit's 0.15 mm tracks. Every DRC error is reported, never hidden.
 
 tscircuit gives a decoupling cap's traces a 1 mm maximum length by default,
 and skips routing the whole board when placement can't meet it. The codegen
-prompt asks for `maxDecouplingTraceLength="3mm"` on decoupling caps
+prompt asks for `maxDecouplingTraceLength="5mm"` on decoupling caps (the limit covers the
+ground side too; 3 mm missed by ~0.5 mm on 3 of 5 eval boards)
 (tests/data/routing/README.md).
 
 Must never
