@@ -794,3 +794,9 @@ Tests:
 - tests/test_route.py: the real draft reports J2 outside the board and routing failed; the same board unsized and unplaced has every part ≥ 0.2 mm (JLCPCB copper to edge) inside the edge, 12/12 nets, nothing unconnected, and no copper_edge_clearance error. These two record tscircuit's behaviour and passed on first run.
 - Our DRC still finds 2 router vias under JLCPCB's 0.2 mm via-to-track rule on the unsized board; the test doesn't claim "routed".
 `pytest -q` → 711 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-27 · agent (Claude) · X-01: PCF8574 rerun on Sonnet with the unsized-board prompt
+Did: `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet reflow eval --repeat 1 --only pcf8574_expander` (one-off override, .env unchanged), run 20261028T025622Z.
+- Verify: passed on attempt 1, clean, 0 foreign part numbers (expected.toml still draft).
+- The model wrote `<board>` with no size and no pcbX/pcbY; tscircuit sized it 23.28 × 21.875 mm, with no placement errors.
+- Routing: 12/12 nets in copper, nothing unconnected. Status **partial**: our DRC has 2 errors, both GND vias too close to the SDA track (0.1651 and 0.1592 mm, under JLCPCB's 0.2 mm via-to-track rule). Not called routed.
