@@ -189,8 +189,8 @@ def test_a_trace_over_its_length_limit_makes_the_board_partial_and_is_listed(nam
     assert result.unrouted_nets == [] and result.routed_nets == result.total_nets > 0
     assert result.drc.errors == 0 and result.drc.unconnected == 0
     assert result.status == "partial"
-    listed = json.loads((tmp_path / "route" / "trace_length.json").read_text(encoding="utf-8"))
-    assert listed == [LONG_TRACES[name]]
+    assert [to_dict(trace) for trace in result.too_long] == [LONG_TRACES[name]]
+    assert not (tmp_path / "route" / "trace_length.json").exists()
 
 
 def test_without_the_length_error_the_same_board_is_routed_with_nothing_listed(tmp_path):
@@ -200,5 +200,4 @@ def test_without_the_length_error_the_same_board_is_routed_with_nothing_listed(t
     assert len(kept) == len(elements) - 1
     (tmp_path / "circuit.json").write_text(json.dumps(kept), encoding="utf-8")
     result = route_report(tmp_path / "circuit.json", board / "board.kicad_pcb", tmp_path / "route")
-    assert result.status == "routed"
-    assert json.loads((tmp_path / "route" / "trace_length.json").read_text(encoding="utf-8")) == []
+    assert result.status == "routed" and result.too_long == []

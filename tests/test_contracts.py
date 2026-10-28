@@ -63,8 +63,9 @@ FROZEN = {
     "FixResult": ("number", "base_attempt", "edits", "compiled", "compile_errors", "errors", "warnings",
                   "violations", "refused", "tsx_path", "circuit_json"),
     "DrcSummary": ("errors", "warnings", "unconnected", "report_path"),
+    "TraceLength": ("net", "ports", "length_mm", "limit_mm"),
     "RouteResult": ("status", "router", "tries", "routed_nets", "total_nets", "unrouted_nets",
-                    "refused_nets", "drc", "kicad_pcb"),
+                    "refused_nets", "drc", "kicad_pcb", "too_long"),
     "FabPackage": ("gerbers_dir", "drill", "pos_csv", "bom_csv", "design_md", "report_json",
                    "report_html"),
 }
@@ -204,3 +205,15 @@ def test_agent_stubs_exist_and_are_honest(module, func):
     fn = getattr(importlib.import_module(module), func)
     with pytest.raises(NotImplementedError):
         fn(*([None] * fn.__code__.co_argcount))
+
+
+def test_route_result_lists_over_length_traces_and_old_files_still_parse():
+    """X-04a: `too_long` is typed, and a route_result.json written before it existed still parses."""
+    data = json.loads((EXAMPLES / "route_result.json").read_text())
+    route = c.from_dict(c.RouteResult, data)
+    assert route.too_long and all(isinstance(t, c.TraceLength) for t in route.too_long)
+    assert route.too_long[0].length_mm > route.too_long[0].limit_mm
+    old = {k: v for k, v in data.items() if k != "too_long"}
+    assert c.from_dict(c.RouteResult, old).too_long == []
+    with pytest.raises(c.ContractError):
+        c.from_dict(c.RouteResult, {**data, "too_long": [{"net": "GND", "ports": [], "length_mm": "14", "limit_mm": 5}]})

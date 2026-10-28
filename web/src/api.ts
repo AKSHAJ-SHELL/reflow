@@ -83,6 +83,7 @@ export type SimResult = {
   refs: string[]
 }
 export type Source = { attempt: number } | { fix: number }
+export type TraceLength = { net: string; ports: string[]; length_mm: number; limit_mm: number }
 export type RouteResult = {
   status: string
   router: string
@@ -90,6 +91,7 @@ export type RouteResult = {
   total_nets: number
   unrouted_nets: string[]
   drc: { errors: number; warnings: number; unconnected: number; report_path: string }
+  too_long: TraceLength[]
 }
 
 async function call<T>(path: string, body?: unknown): Promise<T> {

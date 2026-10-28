@@ -326,6 +326,22 @@ def test_route_status_of_a_fix_comes_from_our_drc(run, symbols):
     assert pcb["ran"] and any("routed trace length" in a for a in pcb["assumptions"])
 
 
+def test_route_status_lists_a_trace_over_its_length_limit(run):
+    """X-04a: the routing line gets the over-length traces. Attempt 2's board is swapped for the real
+    PCF8574 board from run 20261028T161716Z (tests/data/routing/pcf8574_trace_14mm), whose decoupling
+    cap's ground trace is 14.01 mm against a 5 mm limit; the endpoint only reads that attempt's files."""
+    from reflow.cli import find_kicad_cli
+
+    if find_kicad_cli() is None:
+        pytest.skip("kicad-cli not found")
+    build = run / "attempts" / "02" / "build"
+    shutil.rmtree(build)
+    shutil.copytree(ROOT / "tests" / "data" / "routing" / "pcf8574_trace_14mm", build)
+    route = _client(run).post("/api/route", json={"attempt": 2}).json()
+    assert route["status"] == "partial" and route["unrouted_nets"] == [] and route["drc"]["errors"] == 0
+    assert route["too_long"] == [{"net": "GND", "ports": ["C1.pin2", "U1.A0"], "length_mm": 14.01, "limit_mm": 5.0}]
+
+
 def test_route_status_needs_a_board_with_a_pcb(run):
     assert _client(run).post("/api/route", json={"attempt": 1}).status_code == 404
 

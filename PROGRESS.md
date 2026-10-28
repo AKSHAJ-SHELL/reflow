@@ -857,3 +857,18 @@ Did: wrote docs/proposals/X-04a-trace-length-in-route-result.md and a PROPOSED r
 - Not a verify error and no loop change (HUMAN).
 - Open questions: Q1 typed `too_long` vs generic `layout_errors`; Q2 the side file; Q3 a summary line vs also highlighting on the PCB view.
 No code changed. Waiting on the human.
+
+## 2026-10-28 · agent (Claude) · X-04a: over-length traces in RouteResult and the learn UI
+Did: the human accepted X-04a (Q1 typed `too_long`, Q2 drop trace_length.json, Q3 one-line summary); marked ACCEPTED in DECISIONS.md and the proposal.
+- **reflow/contracts.py:**
+  - new `TraceLength(net, ports, length_mm, limit_mm)`;
+  - `RouteResult.too_long: list[TraceLength] = []`; old route_result.json files still parse.
+- **reflow/route.py:** `route_report` fills `too_long` from tscircuit's `pcb_trace_too_long_error`, and any entry keeps the board from "routed" (unchanged). `trace_length.json` is no longer written.
+- **Learn UI:** web/src/api.ts gains the type, and RouteLine.tsx adds "· over length: GND C1.pin2–U1.A0 14.01 mm (limit 5 mm)" (at most 3, then "…"). The line now says "KiCad DRC (JLCPCB 2-layer rules)" instead of the stale "the board's default rules". Bundle rebuilt; `tsc --noEmit` clean.
+- **Checked in the browser:** a copy of the learn_mcp9808 run with attempt 2 swapped for the PCF8574 board shows "partly routed. 12/12 nets in copper · over length: GND C1.pin2–U1.A0 14.01 mm (limit 5 mm) · KiCad DRC (JLCPCB 2-layer rules): 0 errors, 0 unconnected".
+Tests:
+- tests/test_contracts.py: `TraceLength` and the field are frozen; the example route_result.json has one entry; a file without `too_long` parses to `[]`; a string length is refused.
+- tests/test_route.py: the two real boards give exactly their trace in `result.too_long`, and no trace_length.json is written; with the error removed, the board is routed and `too_long == []`.
+- tests/test_learn_server.py: `/api/route` returns the trace.
+- All 10 affected tests failed first.
+`pytest -q` → 722 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

@@ -1,6 +1,6 @@
 # X-04a: over-length traces in `RouteResult`, shown in learn mode
 
-Status: PROPOSED 2026-10-28 by the agent. A contract change, so no code until the human accepts it.
+Status: ACCEPTED 2026-10-28 by the human (Q1 typed `too_long`, Q2 drop `trace_length.json`, Q3 one-line summary). Proposed the same day by the agent.
 
 ## Problem
 

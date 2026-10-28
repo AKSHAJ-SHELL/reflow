@@ -409,6 +409,14 @@ class DrcSummary:
 
 
 @dataclass
+class TraceLength:              # a trace over its length limit, from the router (X-04a)
+    net: str
+    ports: list[str]            # the two ports it joins, sorted
+    length_mm: float            # routed length, rounded to 0.01
+    limit_mm: float             # the limit the board asked for, rounded to 0.01
+
+
+@dataclass
 class RouteResult:
     status: str                 # one of ROUTE_STATUSES
     router: str                 # one of ROUTERS
@@ -419,6 +427,7 @@ class RouteResult:
     refused_nets: list[str]     # high-speed / RF nets we refuse to autoroute
     drc: DrcSummary             # from OUR re-run of kicad-cli, never the router's report
     kicad_pcb: str
+    too_long: list[TraceLength] = field(default_factory=list)   # any entry: not "routed" (X-04a)
 
 
 # ----------------------------------------------------------------------------
@@ -442,7 +451,7 @@ ALL_CONTRACTS = {
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
         LearnInteraction, LearnRecord, SignOff, ConceptCard, VaultNote, SimSignal, SimRequest, SimResult,
         FixEdit, FixResult,
-        DrcSummary, RouteResult, FabPackage,
+        DrcSummary, TraceLength, RouteResult, FabPackage,
     )
 }
 
