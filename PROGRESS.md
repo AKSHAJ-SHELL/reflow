@@ -685,3 +685,14 @@ Tests:
 - **Pinout:** right on every pin. SDA, SCL, VDD→V3_3, GND and A0–A2→GND are all wired, and Alert is left open.
 - **Routing:** the TSX set maxDecouplingTraceLength. `route_report` gives **routed**: 4/4 nets in copper, 0 unconnected, 0 DRC errors under JLCPCB 2-layer rules, 15 warnings (silkscreen and library).
 - **Compared with free Lightning:** Lightning took 2 attempts and passed with a broken board. Expectations are still drafts, so the go/no-go stays undecided.
+
+## 2026-10-27 · all 5 evals on Claude Code (Sonnet 5.5), run 20261028T004800Z
+`reflow eval --repeat 1` with REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet (one-off override; .env unchanged). 59,159 in / 9,539 out tokens; 0 model retries, 0 part numbers outside the resolver.
+**4/5 passed on attempt 1, and all 4 are clean** (they match every draft expectation). Go/no-go is undecided only because the 5 expectations are still drafts.
+Per board:
+- **ams1117_regulator** (failed_verify, stage pin_binding, 3 attempts): each attempt has pins 1-3 right (GND, VO→V3_3, VI→V5) and one `pinout.mismatch` on pin 4, the SOT-223 tab pad that KiCad's 3-pin AMS1117 symbol lacks (known; the human's V-12 call). Attempt 2's first compile try used footprint "sot223_3" (invalid). Attempt 3 wired the tab to V3_3, correct per the datasheet, and was still flagged. Not routed: autorouting skipped (C1 is 3.49 mm from V5, over the 3 mm limit).
+- **at24c02_eeprom** (passed, clean): every pin correct, WP to GND (the Lightning runs tied it high). Not routed: autorouting skipped, because C1's ground side is 3.56 mm from GND, over 3 mm.
+- **led_indicator** (passed, clean): **routed** 3/3, 0 DRC errors, 8 warnings.
+- **mcp9808_breakout** (passed, clean): every pin correct; **routed** 4/4, 0 DRC errors (JLCPCB rules), 15 warnings.
+- **pcf8574_expander** (passed, clean): all 16 pins correct, INT open. Not routed: C1's ground side is 3.46 mm from GND.
+**Finding:** tscircuit applies maxDecouplingTraceLength to both cap traces, including the ground side to the nearest GND pad. With 3 mm, placement misses by about 0.5 mm on 3 of 5 boards, and routing is skipped for the whole board. Options for the human: ask codegen for 5 mm (it routed the MCP9808 earlier; the PCB-level sim shows the droop cost of the longer path), or have codegen place the cap with pcbX/pcbY next to the pin.
