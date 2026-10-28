@@ -267,6 +267,9 @@ def test_codegen_shows_the_supplier_part_numbers_object():
 
 def test_codegen_gives_decoupling_caps_a_routable_length_limit():
     """tscircuit gives a decoupling cap's traces a 1 mm limit and skips routing the whole board when
-    placement can't meet it (tests/data/routing/README.md); 3 mm routes the eval board."""
+    placement can't meet it (tests/data/routing/README.md). The limit covers both of the cap's traces,
+    including its ground side; at 3 mm placement missed by ~0.5 mm on 3 of 5 eval boards
+    (run 20261028T004800Z), so codegen asks for 5 mm."""
     text = _read("codegen")
-    assert 'maxDecouplingTraceLength="3mm"' in text
+    assert 'maxDecouplingTraceLength="5mm"' in text
+    assert 'maxDecouplingTraceLength="3mm"' not in text

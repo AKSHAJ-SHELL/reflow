@@ -696,3 +696,8 @@ Per board:
 - **mcp9808_breakout** (passed, clean): every pin correct; **routed** 4/4, 0 DRC errors (JLCPCB rules), 15 warnings.
 - **pcf8574_expander** (passed, clean): all 16 pins correct, INT open. Not routed: C1's ground side is 3.46 mm from GND.
 **Finding:** tscircuit applies maxDecouplingTraceLength to both cap traces, including the ground side to the nearest GND pad. With 3 mm, placement misses by about 0.5 mm on 3 of 5 boards, and routing is skipped for the whole board. Options for the human: ask codegen for 5 mm (it routed the MCP9808 earlier; the PCB-level sim shows the droop cost of the longer path), or have codegen place the cap with pcbX/pcbY next to the pin.
+
+## 2026-10-27 · agent (Claude) · codegen asks for a 5 mm decoupling trace limit
+Did: at the human's request, codegen.md now asks for `maxDecouplingTraceLength="5mm"` (was 3 mm). tscircuit applies the limit to both of the cap's traces, including the ground side, and at 3 mm placement missed by ~0.5 mm on 3 of 5 boards in run 20261028T004800Z. Updated the reflow/route.py docstring and tests/data/routing/README.md to match. The fix-it tool's "3mm" example is unchanged (any value in mm works).
+Tests: test_codegen_gives_decoupling_caps_a_routable_length_limit now requires 5 mm and no 3 mm; it failed first, then passed.
+`pytest -q` (without tests/test_learn_sim.py and the two server tests that call `find_engine`, which another session has in progress for a KiCad libngspice engine) → 649 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
