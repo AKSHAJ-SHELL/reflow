@@ -848,3 +848,12 @@ Tests:
 - The tests check a copy of each fixture: kicad-cli writes board.kicad_prl next to the board it checks, and tests/test_repo_hygiene.py caught it in tests/data.
 - Not changed: the learn UI's route endpoint returns the status only, so it will show "partial" for these boards without saying why; the list is in learn/route/<folder>/trace_length.json.
 `pytest -q` → 718 passed, 3 failed (the unpowered pull-up rail test on purpose, the deliberate tscircuit record, and the .kicad_prl hygiene failure, since fixed); after the fix tests/test_route.py, test_repo_hygiene.py and test_learn_server.py pass.
+
+## 2026-10-28 · agent (Claude) · X-04a: proposal to put over-length traces in RouteResult (no code)
+Did: wrote docs/proposals/X-04a-trace-length-in-route-result.md and a PROPOSED row in DECISIONS.md.
+- New flat contract `TraceLength(net, ports, length_mm, limit_mm)` and `RouteResult.too_long: list[TraceLength] = []`; the default keeps old files parsing, and `from_dict` already parses lists of dataclasses.
+- `route_report` fills it; `trace_length.json` dropped (Q2).
+- The learn UI's routing line lists them (at most 3), and fixes its stale "the board's default rules" label to JLCPCB 2-layer rules.
+- Not a verify error and no loop change (HUMAN).
+- Open questions: Q1 typed `too_long` vs generic `layout_errors`; Q2 the side file; Q3 a summary line vs also highlighting on the PCB view.
+No code changed. Waiting on the human.

@@ -46,3 +46,4 @@ Format: `ID · date · status (PROPOSED | ACCEPTED | REJECTED | SUPERSEDED) · d
 | ID | Date | Proposal | Options | Proposed by |
 |---|---|---|---|---|
 | P-1 | 2026-10-17 | Add `runs/` to .gitignore | done provisionally; revert if unwanted | agent |
+| X-04a | 2026-10-28 | Contract change: new `TraceLength(net, ports, length_mm, limit_mm)` and `RouteResult.too_long: list[TraceLength] = []`, filled by `route_report` from tscircuit's `pcb_trace_too_long_error` (any entry keeps the board from "routed", as since ef2e5ef). The learn UI's routing line lists them and stops calling the rules "the board's default rules". Not a verify error, no loop change. Full text: `docs/proposals/X-04a-trace-length-in-route-result.md` | Q1 field `too_long` (typed) vs generic `layout_errors: list[str]`; Q2 drop `trace_length.json` (proposed) or keep it; Q3 one-line summary vs also highlight on the PCB view | agent |
