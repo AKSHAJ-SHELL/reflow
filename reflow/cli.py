@@ -403,6 +403,19 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--repeat", metavar="N", type=_positive_int, default=1,
                           help="run each board N times and report pass rates (default: 1)")
     evaluate.set_defaults(func=cmd_eval)
+    export = sub.add_parser(
+        "export",
+        help="route-check a run's best board and write its fab files",
+        description=(
+            "Run our KiCad DRC on the best attempt's board (route/route.json), then write gerbers, "
+            "drill, placement and BOM into --out (default RUN_DIR/out). Refuses, exit 1, unless the "
+            "board passed verify, every net is routed with 0 DRC errors and every part number came "
+            "from the resolver. Exit 2 if RUN_DIR isn't a run folder."
+        ),
+    )
+    export.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    export.add_argument("--out", metavar="DIR", help="new or empty folder for the files (default: RUN_DIR/out)")
+    export.set_defaults(func=cmd_export)
     learn = sub.add_parser(
         "learn",
         help="open learn mode for a run folder in your browser",
@@ -478,6 +491,44 @@ def cmd_learn(args) -> int:
               "pip install 'reflow-pcb[learn]'", file=sys.stderr)
         return 2
     serve(run_dir, port=args.port, open_browser=not args.no_browser, vault=args.vault)
+    return 0
+
+
+def cmd_export(args) -> int:
+    from reflow.contracts import RouteResult, RunResult, Spec, VerifyReport, to_dict
+    from reflow.export import ExportRefused, export_fab
+    from reflow.route import route_report
+
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        run = from_dict(RunResult, json.loads((run_dir / "run.json").read_text(encoding="utf-8")))
+        if run.best_attempt == 0:
+            print("reflow: export refused: no attempt compiled, so there is no board", file=sys.stderr)
+            return 1
+        attempt = run_dir / "attempts" / f"{run.best_attempt:02d}"
+        build = attempt / "build"
+        verify = from_dict(VerifyReport, json.loads((attempt / "verify.json").read_text(encoding="utf-8")))
+        spec = from_dict(Spec, json.loads((run_dir / "spec.json").read_text(encoding="utf-8")))
+        parts = from_dict(ResolvedParts, json.loads((run_dir / "parts.json").read_text(encoding="utf-8")))
+        route = route_report(build / "circuit.json", build / "board.kicad_pcb", run_dir / "route")
+        (run_dir / "route" / "route.json").write_text(json.dumps(to_dict(route), indent=2) + "\n", encoding="utf-8")
+        print(f"routing (tscircuit): {route.status}, {route.routed_nets}/{route.total_nets} nets; "
+              f"KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} errors, {route.drc.unconnected} unconnected")
+        out = Path(args.out) if args.out else run_dir / "out"
+        package = export_fab(build / "board.kicad_pcb", build / "circuit.json", out,
+                             verify=verify, route=route, parts=parts, spec=spec)
+    except ExportRefused as exc:
+        print("reflow: export refused:\n" + "\n".join(f"  - {r}" for r in exc.reasons), file=sys.stderr)
+        return 1
+    except (ContractError, OSError, ValueError, RuntimeError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    (out / "fab_package.json").write_text(json.dumps(to_dict(package), indent=2) + "\n", encoding="utf-8")
+    print(f"fab files in {out}: gerbers/, {Path(package.drill).name}, {Path(package.pos_csv).name}, "
+          f"{Path(package.bom_csv).name}, report.json, drc.json")
     return 0
 
 

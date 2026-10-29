@@ -88,6 +88,7 @@ from reflow.compile import TsciMissingError, TsciTimeoutError, find_tsci
 from reflow.contracts import Plan, ResolvedParts, Spec, from_dict
 from reflow.harness.loop import run_design
 from reflow.llm import ModelError
+from reflow.part_numbers import foreign_part_numbers
 from reflow.parts.catalog import CatalogError
 from reflow.parts.local_catalog import search
 from reflow.parts.resolver import resolve
@@ -246,22 +247,7 @@ def _passthrough(netlist, parts, spec, part_numbers=None):
 
 
 def _foreign(circuit: Path, parts: ResolvedParts, spec: Spec) -> list[dict]:
-    allowed = {s.strip().casefold() for s in spec.named_parts}
-    for part in parts.resolved:
-        allowed |= {part.mpn.strip().casefold(), part.lcsc.strip().casefold()}
-    found = []
-    for element in json.loads(circuit.read_text(encoding="utf-8")):
-        if element.get("type") != "source_component":
-            continue
-        ref = element.get("name", "?")
-        mpn = element.get("manufacturer_part_number")
-        if isinstance(mpn, str) and mpn.strip() and mpn.strip().casefold() not in allowed:
-            found.append({"ref": ref, "field": "manufacturer_part_number", "value": mpn})
-        for supplier, ids in (element.get("supplier_part_numbers") or {}).items():
-            for value in ids if isinstance(ids, list) else [ids]:
-                if isinstance(value, str) and value.strip() and value.strip().casefold() not in allowed:
-                    found.append({"ref": ref, "field": f"supplier_part_numbers.{supplier}", "value": value})
-    return found
+    return foreign_part_numbers(circuit, parts, spec)
 
 
 def _misses(netlist, expected: dict) -> list[str]:

@@ -1,0 +1,19 @@
+{
+  "request": "PCF8574T/3,518 I2C GPIO expander: 4-pin I2C header and an 8-pin header for P0-P7, 3.3V",
+  "title": "PCF8574 GPIO expander",
+  "power": "3.3V supplied on the I2C header",
+  "interfaces": [
+    "4-pin 2.54 mm header: 3V3, GND, SDA, SCL",
+    "8-pin 2.54 mm header: P0-P7"
+  ],
+  "constraints": [
+    "2 layers",
+    "I2C address 0x20"
+  ],
+  "named_parts": [
+    "PCF8574T/3,518"
+  ],
+  "open_questions": [],
+  "confirmed": true,
+  "rules_file": "evals/pcf8574_expander/rules.toml"
+}

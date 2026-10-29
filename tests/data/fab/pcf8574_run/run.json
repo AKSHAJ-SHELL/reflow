@@ -1,0 +1,19 @@
+{
+  "run_id": "run1",
+  "status": "passed",
+  "attempts": [
+    {
+      "attempt": 1,
+      "compile_tries": 1,
+      "compiled": true,
+      "errors": 0,
+      "warnings": 0,
+      "rule_ids": [],
+      "dir": "tests/data/fab/pcf8574_run/attempts/01"
+    }
+  ],
+  "best_attempt": 1,
+  "run_dir": "tests/data/fab/pcf8574_run",
+  "input_tokens": 3605,
+  "output_tokens": 1839
+}
