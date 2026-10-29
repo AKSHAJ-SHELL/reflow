@@ -58,7 +58,9 @@ runs/<YYYYmmdd-HHMMSS>-<slug>/
   learn.json   signoff.json
   report.json  report.md      every attempt, routing + DRC, parts, sign-off (`reflow report`, O-02)
   route/      route.json  drc.json
+  schematic/  board.kicad_sch  board-erc.json  schematic.json   our schematic from circuit.json and its check (O-04)
   out/        gerbers/  board.drl  board-pos.csv  bom.csv  drc.json  report.json  report.md  fab_package.json
+              kicad/  board.kicad_sch (ours)  board.kicad_pcb  board.kicad_pro  board.kicad_dru
 ```
 
 Runs go in `runs/`, which must be gitignored.

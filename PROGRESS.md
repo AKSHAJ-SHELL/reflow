@@ -971,3 +971,49 @@ Tests:
   - new tests: refused never-signed-off and declined boards, the report carrying the sign-off, and the CLI's y, n, no-terminal, existing-sign-off and refuse-without-asking cases;
   - 5 failed first. The existing-sign-off and refuse-without-asking cases already passed on the old code (nothing to gate yet).
 `pytest -q` → 769 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-29 · agent (Claude) · O-04: our own KiCad schematic, held to 0 ERC errors and warnings, then reflow check
+Why: the human opened tscircuit's exported MCP9808 schematic in KiCad ("this is horrible") and set the bar: no ERC errors or warnings, then `reflow check` on it as a second check. tscircuit's export misses it on every eval board.
+- **Measured on run 20261028T161716Z run 1:** KiCad ERC found 20–108 findings per board. Wire ends sit 0.06–0.09 mm short of pins, off the 1.27 mm grid, and the symbols name libraries that don't exist.
+- **`reflow check` on those schematics is wrong both ways:**
+  - it fails the MCP9808 ("SDA has no pull-up": R1 is cut off in the drawing);
+  - it passes the PCF8574 with J2 and P0–P7 all disconnected and GND split in two.
+Did: built `reflow/schematic.py` (stdlib only, no new dependency).
+- **Real KiCad symbols:** Device:R, Device:C, Connector_Generic:Conn_01xNN, and each chip's rules.toml `[[part]]` symbol. They're embedded as KiCad embeds them, with `extends` flattened (all four eval chip symbols extend another).
+- **Pins match pads:** symbol pin n is the board's pin n, so the schematic and the PCB agree pad for pad.
+- **Layout:** parts in rows on the 1.27 mm grid. Each connected pin gets a 2.54 mm stub and a net label (circuit.json's net name), and each pin left open gets a no-connect flag. No wire joins two parts.
+- **PWR_FLAG** on each net with a power-input pin and no driver.
+- **Refused (SchematicError):**
+  - a chip with no KiCad symbol;
+  - a pin on the board but not in the symbol, or the reverse;
+  - LEDs and diodes: tscircuit puts the anode on pad 1, KiCad's symbols put the cathode on pin 1;
+  - two-row headers, polarized caps, and other part kinds.
+- **`check_schematic` (the bar):**
+  - `kicad-cli sch erc --severity-all` with 0 errors and 0 warnings;
+  - `reflow check`'s pipeline (KiCad netlist → rules) with 0 errors;
+  - the nets as sets of pins equal circuit.json's and the PCB pads' (every net with two or more pins).
+- **`schematic_report(run_dir)`** writes run_dir/schematic/ (board.kicad_sch, the ERC report, schematic.json).
+- **Export:**
+  - a schematic problem is a refusal ("schematic: …");
+  - a passing board gets `out/kicad/`: our schematic plus the routed board, .kicad_pro and .kicad_dru, so it opens in KiCad as one project;
+  - `reflow export` prints the schematic line before sign-off;
+  - report.json and report.md carry the check.
+- **Real runs:** I exported copies of all 15 runs, answering y at sign-off.
+  - All 9 compiled MCP9808, PCF8574 and AT24C02 boards get a schematic with ERC 0/0, reflow check 0 errors, and nets matching circuit.json and the PCB.
+  - 7 export. MCP9808 run 3 and PCF8574 run 2 are refused on their over-length decoupling traces.
+  - LED ×3 are refused on polarity, and AMS1117 ×3 on pin 4 (and verify).
+  - Rendered to PDF: readable, labeled, nothing crossing.
+- **Not done:** the schematic keeps the KiCad library's default footprint field, not tscircuit's footprint, so "Update PCB from schematic" in KiCad would not match the board. The LED polarity question is the human's (expected.toml TO CHECK; the KT-0603R cathode pad).
+Tests:
+- **Fixtures:** tests/data/schematic/ (README): 5 real boards and tscircuit's PCF8574 export.
+- **tests/test_schematic.py, 16 tests:**
+  - 3 boards at ERC 0/0, reflow check clean, nets = circuit.json = PCB;
+  - real symbols, and every connection point on the grid;
+  - the no-connect;
+  - tscircuit's export failing the same check (21 ERC errors);
+  - LED, AMS1117 and no-symbol refusals;
+  - an edited label making the nets differ.
+- **tests/test_export.py:** the package's kicad/ project and the report's schematic check; a board whose chip has no symbol is refused.
+- **tests/test_report.py:** the schematic section, checked and refused.
+- All the new tests failed first. I fixed two of my own new assertions while building: the grid test now checks connection points, not KiCad's symbol artwork, and an edited schematic leaves the PCB matching.
+`pytest -q` → 788 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record). The suite now takes ~19 min (was ~8.5): every export test draws and ERC-checks a schematic.
