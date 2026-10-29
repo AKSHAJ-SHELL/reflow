@@ -409,8 +409,9 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Run our KiCad DRC on the best attempt's board (route/route.json), then write gerbers, "
             "drill, placement and BOM into --out (default RUN_DIR/out). Refuses, exit 1, unless the "
-            "board passed verify, every net is routed with 0 DRC errors and every part number came "
-            "from the resolver. Exit 2 if RUN_DIR isn't a run folder."
+            "board passed verify, every net is routed with 0 DRC errors, every part number came "
+            "from the resolver, and you signed off: at a terminal it shows the remaining warnings "
+            "and asks y/n (or sign off in reflow learn). Exit 2 if RUN_DIR isn't a run folder."
         ),
     )
     export.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
@@ -507,9 +508,10 @@ def cmd_learn(args) -> int:
 
 def cmd_export(args) -> int:
     from reflow.contracts import RouteResult, RunResult, Spec, VerifyReport, to_dict
-    from reflow.export import ExportRefused, export_fab
+    from reflow.export import ExportRefused, export_fab, refusals
     from reflow.report import ReportError, write_report
     from reflow.route import route_report
+    from reflow.signoff import SignOffError, prompt_signoff, signoff_refusals
 
     run_dir = Path(args.run_dir)
     if not (run_dir / "run.json").is_file():
@@ -530,11 +532,19 @@ def cmd_export(args) -> int:
         write_report(run_dir, route=route)
         print(f"routing (tscircuit): {route.status}, {route.routed_nets}/{route.total_nets} nets; "
               f"KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} errors, {route.drc.unconnected} unconnected")
+        board = dict(verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
+        # Ask for sign-off only on a board that is otherwise ready, and only a person at a terminal.
+        if not refusals(build / "board.kicad_pcb", build / "circuit.json", **board) \
+                and signoff_refusals(run_dir) and sys.stdin.isatty():
+            prompt_signoff(run_dir)
+            write_report(run_dir, route=route)
         out = Path(args.out) if args.out else run_dir / "out"
-        package = export_fab(build / "board.kicad_pcb", build / "circuit.json", out,
-                             verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
+        package = export_fab(build / "board.kicad_pcb", build / "circuit.json", out, **board)
     except ExportRefused as exc:
         print("reflow: export refused:\n" + "\n".join(f"  - {r}" for r in exc.reasons), file=sys.stderr)
+        return 1
+    except SignOffError as exc:
+        print(f"reflow: export stopped: {exc}", file=sys.stderr)
         return 1
     except (ContractError, OSError, ValueError, RuntimeError, ReportError) as exc:
         print(f"reflow: {exc}", file=sys.stderr)

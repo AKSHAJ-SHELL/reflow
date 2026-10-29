@@ -67,6 +67,7 @@ from reflow.contracts import LearnRecord, SignOff, to_dict
 from reflow.contracts import FixEdit
 from reflow.learn.engine import concept_of, grade, load_run, pick
 from reflow.learn.vault import Vault, default_vault_dir
+from reflow.signoff import remaining_warnings
 
 HOST = "127.0.0.1"
 STATIC = Path(__file__).resolve().parent / "static"
@@ -451,10 +452,8 @@ def _open(session: _Session, interaction_id: str):
 
 
 def _warnings(session: _Session) -> list[str]:
-    best = next((a for a in session.run.attempts if a.number == session.run.best_attempt), None)
-    if best is None or best.verify is None:
-        return []
-    return [f"{v.rule_id}: {v.message}" for v in best.verify.violations if v.severity == "warning"]
+    """The same list `reflow export` checks a sign-off against (reflow.signoff, L-03)."""
+    return remaining_warnings(session.run_dir)
 
 
 def _write_json(path: Path, data) -> None:

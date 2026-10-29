@@ -30,7 +30,9 @@ Refuses (ExportRefused, listing every reason) unless:
   limit, and our DRC at 0 errors and 0 unconnected items;
 - that DRC ran on this .kicad_pcb, its report file exists, and the board
   wasn't modified after it (by file time);
-- no part number on the board came from outside the resolver.
+- no part number on the board came from outside the resolver;
+- a person signed off (reflow.signoff, L-03): signoff.json accepted, on the
+  warnings the run has now.
 
 Must never
 ----------
@@ -51,6 +53,7 @@ from pathlib import Path
 from reflow.contracts import FabPackage, ResolvedParts, RouteResult, Spec, VerifyReport, to_dict
 from reflow.part_numbers import foreign_part_numbers
 from reflow.report import build_report, render_markdown
+from reflow.signoff import signoff_refusals
 
 LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts"
 BOM_COLUMNS = ["Comment", "Designator", "Footprint", "LCSC Part #", "MPN"]
@@ -67,9 +70,8 @@ def export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route:
     from reflow.cli import find_kicad_cli
 
     kicad_pcb, circuit_json, out_dir = Path(kicad_pcb), Path(circuit_json), Path(out_dir)
-    reasons = refusals(kicad_pcb, circuit_json, verify=verify, route=route, parts=parts, spec=spec)
-    if build_report(run_dir)["verify"] != to_dict(verify):
-        reasons.append("the verify report isn't the run's best attempt's verify.json")
+    reasons = refusals(kicad_pcb, circuit_json, verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
+    reasons += signoff_refusals(run_dir)
     if out_dir.exists() and any(out_dir.iterdir()):
         reasons.append(f"{out_dir} is not empty; export into a new folder")
     if reasons:
@@ -103,11 +105,13 @@ def export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route:
 
 
 def refusals(kicad_pcb: Path, circuit_json: Path, *, verify: VerifyReport, route: RouteResult,
-             parts: ResolvedParts, spec: Spec) -> list[str]:
-    """Every reason this board may not go to a fab; [] when it may."""
+             parts: ResolvedParts, spec: Spec, run_dir) -> list[str]:
+    """Every reason the board itself may not go to a fab, sign-off aside; [] when it may."""
     reasons = []
     if verify.errors:
         reasons.append(f"verify found {verify.errors} errors")
+    if build_report(run_dir)["verify"] != to_dict(verify):
+        reasons.append("the verify report isn't the run's best attempt's verify.json")
     if route.status != "routed":
         why = [f"routing is {route.status}"]
         if route.unrouted_nets:
