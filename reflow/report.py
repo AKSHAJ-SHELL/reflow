@@ -14,7 +14,8 @@ failed ones included (golden rule 6):
      attempts: [{attempt, compiled, compile_tries: [{try, ok, errors: [CompileError]}],
                  verify: VerifyReport | null}],
      verify: the best attempt's VerifyReport | null,
-     parts: ResolvedParts, route: RouteResult | null, signoff: SignOff | null}
+     parts: ResolvedParts, route: RouteResult | null, signoff: SignOff | null,
+     schematic: schematic/schematic.json (reflow.schematic, O-04) | null}
 
 - `compile_tries` comes from attempts/NN/compile-N.json. A compiled attempt
   whose compile files were left out (reduced fixtures) has []; an attempt
@@ -24,6 +25,8 @@ failed ones included (golden rule 6):
   else null, and the markdown then says the board wasn't routed or
   DRC-checked. Routing is never inferred from anything else.
 - `signoff` is signoff.json when present.
+- `schematic` is our KiCad schematic's check (ERC, `reflow check`, nets)
+  from schematic/schematic.json, written by `reflow export`.
 
 ReportError is raised, never papered over, when run.json names an attempt
 whose folder is missing, a compiled attempt has no verify.json, an uncompiled
@@ -78,6 +81,8 @@ def build_report(run_dir, *, route: RouteResult | None = None) -> dict:
     if route is None and (run_dir / "route" / "route.json").is_file():
         route = _read(RouteResult, run_dir / "route" / "route.json")
     signoff = _read(SignOff, run_dir / "signoff.json") if (run_dir / "signoff.json").is_file() else None
+    schematic_json = run_dir / "schematic" / "schematic.json"
+    schematic = json.loads(schematic_json.read_text(encoding="utf-8")) if schematic_json.is_file() else None
 
     attempts = [_attempt(run_dir, record) for record in run.attempts]
     best = next((a["verify"] for a in attempts if a["attempt"] == run.best_attempt), None)
@@ -93,6 +98,7 @@ def build_report(run_dir, *, route: RouteResult | None = None) -> dict:
         "parts": to_dict(parts),
         "route": to_dict(route) if route is not None else None,
         "signoff": to_dict(signoff) if signoff is not None else None,
+        "schematic": schematic,
     }
 
 
@@ -181,6 +187,7 @@ def render_markdown(report: dict) -> str:
             if item["fix_hint"]:
                 lines.append(f"    Fix: {item['fix_hint']}")
     lines += ["", "## Routing and DRC", "", _route_line(report["route"])]
+    lines += ["", "## Schematic", "", _schematic_line(report.get("schematic"))]
     lines += ["", "## Parts", "", "| Request | LCSC | MPN | Manufacturer | Package | Value |", "|---|---|---|---|---|---|"]
     for p in report["parts"]["resolved"]:
         lines.append("| " + " | ".join(_cell(p[k]) for k in ("request_id", "lcsc", "mpn", "manufacturer", "package", "value"))
@@ -207,6 +214,21 @@ def _route_line(route: dict | None) -> str:
     parts.append(f"KiCad DRC (JLCPCB 2-layer rules): {drc['errors']} errors, {drc['unconnected']} unconnected, "
                  f"{drc['warnings']} warnings. Report: {drc['report_path']}")
     return ". ".join(parts[:1]) + "".join(f" · {p}" for p in parts[1:])
+
+
+def _schematic_line(schematic: dict | None) -> str:
+    if schematic is None:
+        return "No schematic checked yet. `reflow export RUN_DIR` draws one from circuit.json and checks it."
+    if schematic["erc"] is None:
+        return "Not drawn: " + "; ".join(schematic["problems"])
+    erc, check, nets = schematic["erc"], schematic["check"], schematic["nets"]
+    match = "nets match circuit.json and the PCB" if nets["circuit_json"] and nets["pcb"] else \
+        "nets differ: " + "; ".join(nets["differences"][:3])
+    line = (f"KiCad ERC: {erc['errors']} errors, {erc['warnings']} warnings · reflow check: {check['errors']} errors"
+            f" · {match}. File: {schematic['path']}")
+    for item in erc["items"][:5] + [v for v in check["violations"] if v.startswith("error")][:5]:
+        line += f"\n- {item}"
+    return line
 
 
 def _signoff_line(signoff: dict | None) -> str:

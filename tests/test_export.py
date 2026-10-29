@@ -219,6 +219,28 @@ def test_refuses_into_a_folder_that_already_holds_files(exported, tmp_path):
 
 # --- reflow export RUN_DIR ---------------------------------------------------
 
+def test_the_package_has_a_kicad_project_with_our_checked_schematic(exported):
+    board, package = exported
+    kicad = board.run / "out" / "kicad"
+    assert sorted(p.name for p in kicad.iterdir() if p.suffix != ".kicad_prl") == [
+        "board.kicad_dru", "board.kicad_pcb", "board.kicad_pro", "board.kicad_sch"]
+    assert "(generator \"reflow\")" in (kicad / "board.kicad_sch").read_text(encoding="utf-8")
+    report = json.loads(Path(package.report_json).read_text(encoding="utf-8"))
+    assert report["schematic"]["erc"] == {"errors": 0, "warnings": 0, "items": []}
+    assert report["schematic"]["problems"] == [] and report["schematic"]["check"]["errors"] == 0
+    assert "KiCad ERC: 0 errors, 0 warnings" in Path(package.design_md).read_text(encoding="utf-8")
+
+
+def test_refuses_a_board_whose_schematic_cant_be_drawn(tmp_path):
+    board = _routed(tmp_path)
+    rules = board.run / "rules.toml"
+    rules.write_text("rule = []\n", encoding="utf-8")
+    spec = json.loads((board.run / "spec.json").read_text(encoding="utf-8")) | {"rules_file": str(rules)}
+    (board.run / "spec.json").write_text(json.dumps(spec), encoding="utf-8")
+    reasons = _refused(board, tmp_path / "out")
+    assert any(r.startswith("schematic: U1 has no KiCad symbol") for r in reasons)
+
+
 def test_refuses_a_board_never_signed_off(tmp_path):
     board = _routed(tmp_path)
     (board.run / "signoff.json").unlink()

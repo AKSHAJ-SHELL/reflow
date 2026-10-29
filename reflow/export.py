@@ -18,6 +18,8 @@ Writes into `out_dir` (which must be new or empty), from the routed
   identical part. Part numbers come from the board's circuit.json, and every one
   must be the resolver's or a spec named part. Comment is the part's value
   (4.7kΩ, 100nF), else its MPN. Footprint is the pos file's Package;
+- `kicad/`: a KiCad project to open: our schematic (reflow.schematic, O-04),
+  the routed board, and its project and custom-rules files;
 - `drc.json`: a copy of our KiCad DRC report;
 - `report.json` and `report.md`: the run's report (reflow.report, O-02), with
   every attempt and this `RouteResult`, its report_path pointing at that copy.
@@ -31,6 +33,9 @@ Refuses (ExportRefused, listing every reason) unless:
 - that DRC ran on this .kicad_pcb, its report file exists, and the board
   wasn't modified after it (by file time);
 - no part number on the board came from outside the resolver;
+- our schematic of the board (run_dir/schematic/) has 0 KiCad ERC errors and
+  0 warnings, `reflow check` on it finds 0 errors, and its nets are
+  circuit.json's and the PCB's;
 - a person signed off (reflow.signoff, L-03): signoff.json accepted, on the
   warnings the run has now.
 
@@ -53,6 +58,7 @@ from pathlib import Path
 from reflow.contracts import FabPackage, ResolvedParts, RouteResult, Spec, VerifyReport, to_dict
 from reflow.part_numbers import foreign_part_numbers
 from reflow.report import build_report, render_markdown
+from reflow.schematic import schematic_report
 from reflow.signoff import signoff_refusals
 
 LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts"
@@ -91,6 +97,12 @@ def export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route:
         if not made.is_file():
             raise RuntimeError(f"kicad-cli wrote no {made.name}")
 
+    kicad = out_dir / "kicad"
+    kicad.mkdir()
+    shutil.copyfile(Path(run_dir) / "schematic" / "board.kicad_sch", kicad / "board.kicad_sch")
+    for name in ("board.kicad_pcb", "board.kicad_pro", "board.kicad_dru"):
+        if (kicad_pcb.parent / name).is_file():
+            shutil.copyfile(kicad_pcb.parent / name, kicad / name)
     bom = out_dir / "bom.csv"
     _write_bom(circuit_json, pos, bom)
     drc = out_dir / "drc.json"
@@ -112,6 +124,7 @@ def refusals(kicad_pcb: Path, circuit_json: Path, *, verify: VerifyReport, route
         reasons.append(f"verify found {verify.errors} errors")
     if build_report(run_dir)["verify"] != to_dict(verify):
         reasons.append("the verify report isn't the run's best attempt's verify.json")
+    reasons += [f"schematic: {p}" for p in schematic_report(run_dir)["problems"]]
     if route.status != "routed":
         why = [f"routing is {route.status}"]
         if route.unrouted_nets:

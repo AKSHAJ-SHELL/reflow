@@ -533,9 +533,11 @@ def cmd_export(args) -> int:
         print(f"routing (tscircuit): {route.status}, {route.routed_nets}/{route.total_nets} nets; "
               f"KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} errors, {route.drc.unconnected} unconnected")
         board = dict(verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
+        blocked = refusals(build / "board.kicad_pcb", build / "circuit.json", **board)
+        write_report(run_dir, route=route)
+        print(_schematic_summary(json.loads((run_dir / "schematic" / "schematic.json").read_text(encoding="utf-8"))))
         # Ask for sign-off only on a board that is otherwise ready, and only a person at a terminal.
-        if not refusals(build / "board.kicad_pcb", build / "circuit.json", **board) \
-                and signoff_refusals(run_dir) and sys.stdin.isatty():
+        if not blocked and signoff_refusals(run_dir) and sys.stdin.isatty():
             prompt_signoff(run_dir)
             write_report(run_dir, route=route)
         out = Path(args.out) if args.out else run_dir / "out"
@@ -551,8 +553,17 @@ def cmd_export(args) -> int:
         return 2
     (out / "fab_package.json").write_text(json.dumps(to_dict(package), indent=2) + "\n", encoding="utf-8")
     print(f"fab files in {out}: gerbers/, {Path(package.drill).name}, {Path(package.pos_csv).name}, "
-          f"{Path(package.bom_csv).name}, report.json, report.md, drc.json")
+          f"{Path(package.bom_csv).name}, report.json, report.md, drc.json, kicad/ (schematic + board)")
     return 0
+
+
+def _schematic_summary(schematic: dict) -> str:
+    if schematic["erc"] is None:
+        return "schematic (ours, from circuit.json): not drawn: " + "; ".join(schematic["problems"])
+    nets = "match" if schematic["nets"]["circuit_json"] and schematic["nets"]["pcb"] else "differ"
+    return (f"schematic (ours, from circuit.json): KiCad ERC {schematic['erc']['errors']} errors, "
+            f"{schematic['erc']['warnings']} warnings; reflow check {schematic['check']['errors']} errors; "
+            f"nets {nets} with circuit.json and the PCB")
 
 
 def cmd_report(args) -> int:

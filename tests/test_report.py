@@ -100,6 +100,23 @@ def test_a_saved_route_and_signoff_in_the_run_folder_are_read(tmp_path):
     assert "Signed off: accepted" in render_markdown(report)
 
 
+def test_the_schematic_check_is_reported_when_the_run_has_one(tmp_path):
+    run = _copy(MCP, tmp_path)
+    assert build_report(run)["schematic"] is None
+    assert "No schematic checked yet" in render_markdown(build_report(run))
+    (run / "schematic").mkdir()
+    checked = {"path": "schematic/board.kicad_sch", "erc": {"errors": 0, "warnings": 0, "items": []},
+               "check": {"errors": 0, "warnings": 0, "violations": []},
+               "nets": {"circuit_json": True, "pcb": True, "differences": []}, "problems": []}
+    (run / "schematic" / "schematic.json").write_text(json.dumps(checked), encoding="utf-8")
+    assert build_report(run)["schematic"] == checked
+    md = render_markdown(build_report(run))
+    assert "KiCad ERC: 0 errors, 0 warnings · reflow check: 0 errors · nets match circuit.json and the PCB" in md
+    refused = {"path": "", "erc": None, "check": None, "nets": None, "problems": ["D1: tscircuit puts the anode on pad 1"]}
+    (run / "schematic" / "schematic.json").write_text(json.dumps(refused), encoding="utf-8")
+    assert "Not drawn: D1: tscircuit puts the anode on pad 1" in render_markdown(build_report(run))
+
+
 def test_a_verify_report_that_disagrees_with_run_json_fails_loudly(tmp_path):
     run = _copy(MCP, tmp_path)
     verify = run / "attempts" / "01" / "verify.json"
