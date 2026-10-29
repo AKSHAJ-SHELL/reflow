@@ -3,7 +3,7 @@
 Contract
 --------
     export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route: RouteResult,
-               parts: ResolvedParts, spec: Spec) -> contracts.FabPackage
+               parts: ResolvedParts, spec: Spec, run_dir) -> contracts.FabPackage
     ExportRefused(reasons: list[str])      # raised before anything is written
 
 Writes into `out_dir` (which must be new or empty), from the routed
@@ -18,14 +18,14 @@ Writes into `out_dir` (which must be new or empty), from the routed
   identical part. Part numbers come from the board's circuit.json, and every one
   must be the resolver's or a spec named part. Comment is the part's value
   (4.7kΩ, 100nF), else its MPN. Footprint is the pos file's Package;
-- `drc.json`: a copy of our KiCad DRC report, and `report.json` with the
-  `VerifyReport` and `RouteResult` (its report_path pointing at that copy).
-
-`design_md` and `report_html` are "" until O-02 / O-03 write them.
+- `drc.json`: a copy of our KiCad DRC report;
+- `report.json` and `report.md`: the run's report (reflow.report, O-02), with
+  every attempt and this `RouteResult`, its report_path pointing at that copy.
+  `FabPackage.design_md` is report.md; `report_html` stays "" (O-03).
 
 Refuses (ExportRefused, listing every reason) unless:
 
-- verify found 0 errors;
+- verify found 0 errors, and `verify` is the run's best attempt's verify.json;
 - routing is "routed", with every net in copper, nothing over its length
   limit, and our DRC at 0 errors and 0 unconnected items;
 - that DRC ran on this .kicad_pcb, its report file exists, and the board
@@ -50,6 +50,7 @@ from pathlib import Path
 
 from reflow.contracts import FabPackage, ResolvedParts, RouteResult, Spec, VerifyReport, to_dict
 from reflow.part_numbers import foreign_part_numbers
+from reflow.report import build_report, render_markdown
 
 LAYERS = "F.Cu,B.Cu,F.Paste,B.Paste,F.SilkS,B.SilkS,F.Mask,B.Mask,Edge.Cuts"
 BOM_COLUMNS = ["Comment", "Designator", "Footprint", "LCSC Part #", "MPN"]
@@ -62,11 +63,13 @@ class ExportRefused(Exception):
 
 
 def export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route: RouteResult,
-               parts: ResolvedParts, spec: Spec) -> FabPackage:
+               parts: ResolvedParts, spec: Spec, run_dir) -> FabPackage:
     from reflow.cli import find_kicad_cli
 
     kicad_pcb, circuit_json, out_dir = Path(kicad_pcb), Path(circuit_json), Path(out_dir)
     reasons = refusals(kicad_pcb, circuit_json, verify=verify, route=route, parts=parts, spec=spec)
+    if build_report(run_dir)["verify"] != to_dict(verify):
+        reasons.append("the verify report isn't the run's best attempt's verify.json")
     if out_dir.exists() and any(out_dir.iterdir()):
         reasons.append(f"{out_dir} is not empty; export into a new folder")
     if reasons:
@@ -90,12 +93,13 @@ def export_fab(kicad_pcb, circuit_json, out_dir, *, verify: VerifyReport, route:
     _write_bom(circuit_json, pos, bom)
     drc = out_dir / "drc.json"
     shutil.copyfile(route.drc.report_path, drc)
-    report = out_dir / "report.json"
     packaged = replace(route, drc=replace(route.drc, report_path=str(drc)))
-    report.write_text(json.dumps({"verify": to_dict(verify), "route": to_dict(packaged)}, indent=2,
-                                 ensure_ascii=False) + "\n", encoding="utf-8")
+    report = build_report(run_dir, route=packaged)
+    report_json, report_md = out_dir / "report.json", out_dir / "report.md"
+    report_json.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    report_md.write_text(render_markdown(report), encoding="utf-8")
     return FabPackage(gerbers_dir=str(gerbers), drill=str(drill), pos_csv=str(pos), bom_csv=str(bom),
-                      design_md="", report_json=str(report))
+                      design_md=str(report_md), report_json=str(report_json))
 
 
 def refusals(kicad_pcb: Path, circuit_json: Path, *, verify: VerifyReport, route: RouteResult,

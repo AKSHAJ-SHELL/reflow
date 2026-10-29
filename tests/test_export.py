@@ -43,7 +43,7 @@ class Board:
     spec: Spec
 
     def export(self, out: Path, **changes) -> FabPackage:
-        args = dict(verify=self.verify, route=self.route, parts=self.parts, spec=self.spec) | changes
+        args = dict(verify=self.verify, route=self.route, parts=self.parts, spec=self.spec, run_dir=self.run) | changes
         return export_fab(self.build / "board.kicad_pcb", self.build / "circuit.json", out, **args)
 
 
@@ -109,16 +109,28 @@ def test_bom_groups_parts_and_takes_every_part_number_from_the_resolver(exported
     assert next(r for r in rows if r["Designator"] == "U1")["Comment"] == "PCF8574T/3,518"
 
 
-def test_the_package_carries_the_verify_and_drc_reports(exported):
+def test_the_package_carries_the_run_report_with_the_verify_and_drc_reports(exported):
     board, package = exported
     report = json.loads(Path(package.report_json).read_text(encoding="utf-8"))
     assert report["verify"] == to_dict(board.verify)
+    assert [a["attempt"] for a in report["attempts"]] == [1]
+    assert report["attempts"][0]["verify"] == to_dict(board.verify)
     assert report["route"]["status"] == "routed" and report["route"]["drc"]["errors"] == 0
     drc = board.run / "out" / "drc.json"
     assert json.loads(drc.read_text(encoding="utf-8")) == json.loads(Path(board.route.drc.report_path).read_text(encoding="utf-8"))
     assert report["route"]["drc"]["report_path"] == str(drc)
+    md = Path(package.design_md)
+    assert md == board.run / "out" / "report.md"
+    assert md.read_text(encoding="utf-8").startswith("# PCF8574 GPIO expander\n")
+    assert "12/12 nets in copper" in md.read_text(encoding="utf-8")
     assert from_dict(FabPackage, to_dict(package)) == package
-    assert package.design_md == "" and package.report_html == ""
+    assert package.report_html == ""
+
+
+def test_refuses_a_verify_report_that_is_not_the_runs_best_attempt(exported, tmp_path):
+    board, _ = exported
+    other = dataclasses.replace(board.verify, components=board.verify.components + 1)
+    assert any("best attempt" in r for r in _refused(board, tmp_path / "out", verify=other))
 
 
 def _refused(board: Board, out: Path, **changes) -> list[str]:
@@ -200,7 +212,7 @@ def test_cli_routes_the_best_attempt_and_exports_into_the_run_folder(tmp_path, c
     route = _load(RouteResult, run / "route" / "route.json")
     assert route.status == "routed" and route.drc.errors == 0
     package = _load(FabPackage, run / "out" / "fab_package.json")
-    for path in (package.drill, package.pos_csv, package.bom_csv, package.report_json):
+    for path in (package.drill, package.pos_csv, package.bom_csv, package.report_json, package.design_md):
         assert Path(path).is_file() and Path(path).parent == run / "out"
     out = capsys.readouterr().out
     assert "routed" in out and str(run / "out") in out
@@ -208,13 +220,22 @@ def test_cli_routes_the_best_attempt_and_exports_into_the_run_folder(tmp_path, c
 
 def test_cli_refuses_a_run_whose_best_attempt_failed_verify(tmp_path, capsys):
     run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    violation = {"rule_id": "i2c.missing_pullup", "severity": "error", "message": "SDA has no pull-up",
+                 "why": "w", "fix_hint": "f", "refs": [], "nets": ["SDA"]}
     verify = run / "attempts" / "01" / "verify.json"
     data = json.loads(verify.read_text(encoding="utf-8"))
-    data["errors"] = 1
+    data |= {"errors": 1, "violations": [violation]}
     verify.write_text(json.dumps(data), encoding="utf-8")
+    record = json.loads((run / "run.json").read_text(encoding="utf-8"))
+    record["status"] = "failed_verify"
+    record["attempts"][0] |= {"errors": 1, "rule_ids": ["i2c.missing_pullup"]}
+    (run / "run.json").write_text(json.dumps(record), encoding="utf-8")
     assert cli.main(["export", str(run)]) == 1
     assert "verify" in capsys.readouterr().err
     assert not (run / "out").exists()
+    report = json.loads((run / "report.json").read_text(encoding="utf-8"))
+    assert report["route"]["status"] == "routed" and report["verify"]["errors"] == 1
+    assert (run / "report.md").is_file()
 
 
 def test_cli_rejects_a_folder_that_is_not_a_run(tmp_path, capsys):

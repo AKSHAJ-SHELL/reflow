@@ -1,0 +1,18 @@
+{
+  "request": "AMS1117-3.3 regulator board: 5V in on a 2-pin header, 3.3V out on a 2-pin header",
+  "title": "AMS1117 3.3V regulator",
+  "power": "5V in, 3.3V out through an AMS1117-3.3 LDO",
+  "interfaces": [
+    "2-pin 2.54 mm header: 5V, GND",
+    "2-pin 2.54 mm header: 3V3, GND"
+  ],
+  "constraints": [
+    "2 layers"
+  ],
+  "named_parts": [
+    "AMS1117-3.3"
+  ],
+  "open_questions": [],
+  "confirmed": true,
+  "rules_file": "evals/ams1117_regulator/rules.toml"
+}

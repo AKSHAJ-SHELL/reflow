@@ -38,7 +38,7 @@ Orange = human · blue = LLM · green = deterministic code.
 | 7 | Harness loop | deterministic | `reflow/harness/` | everything above → `RunResult` | **HUMAN** (core loop, termination) · run-dir I/O: AGENT |
 | 8 | Learn mode + sign-off | human | `reflow/learn/` (planned) | `RunResult` → `LearnRecord`, `SignOff` | selection logic: **HUMAN** · terminal UI: AGENT |
 | 9 | Router | deterministic | `reflow/route.py`, `tools/bridges/` | `.kicad_pcb` → `RouteResult` | AGENT (scope rule: HUMAN) |
-| 10 | Output | deterministic | `reflow/export.py` | routed board → `FabPackage` | AGENT |
+| 10 | Output | deterministic | `reflow/export.py`, `reflow/report.py` | routed board → `FabPackage`; run folder → report | AGENT |
 
 ## Where state lives
 
@@ -56,8 +56,9 @@ runs/<YYYYmmdd-HHMMSS>-<slug>/
     verify.json               VerifyReport
     feedback.json             RetryFeedback sent to attempt 02
   learn.json   signoff.json
-  route/      route.json  drc.json  board.kicad_pcb
-  out/        gerbers/  board.drl  board-pos.csv  bom.csv  DESIGN.md  report.json
+  report.json  report.md      every attempt, routing + DRC, parts, sign-off (`reflow report`, O-02)
+  route/      route.json  drc.json
+  out/        gerbers/  board.drl  board-pos.csv  bom.csv  drc.json  report.json  report.md  fab_package.json
 ```
 
 Runs go in `runs/`, which must be gitignored.
@@ -68,3 +69,5 @@ Runs go in `runs/`, which must be gitignored.
 |---|---|---|
 | `reflow check <board>` | built | Verifier only, on any KiCad schematic |
 | `reflow design "<request>"` | planned (H-07) | Full pipeline above |
+| `reflow export <run>` | built (O-01) | Route-check the best attempt with our DRC, then write fab files; refused without a clean verify + DRC |
+| `reflow report <run>` | built (O-02) | report.json + report.md: every attempt, routing + DRC, parts, sign-off |
