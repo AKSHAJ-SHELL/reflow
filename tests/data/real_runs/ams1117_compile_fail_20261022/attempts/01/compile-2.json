@@ -1,0 +1,8 @@
+{
+  "ok": true,
+  "errors": [],
+  "stderr_tail": "",
+  "kicad_sch": "tests/data/real_runs/ams1117_compile_fail_20261022/attempts/01/build/board.kicad_sch",
+  "kicad_pcb": "tests/data/real_runs/ams1117_compile_fail_20261022/attempts/01/build/board.kicad_pcb",
+  "circuit_json": "tests/data/real_runs/ams1117_compile_fail_20261022/attempts/01/build/circuit.json"
+}

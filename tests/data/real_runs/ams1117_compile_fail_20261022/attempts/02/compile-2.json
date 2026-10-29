@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "errors": [
+    {
+      "message": "Invalid footprint prop on chip \"U1\": \"SOT-223\". Parser details: [ { \"received\": -223, \"code\": \"invalid_literal\", \"expected\": 6, \"path\": [ \"num_pins\" ], \"message\": \"Invalid literal value, expected 6\" } ]",
+      "line": 0,
+      "column": 0,
+      "file": "index.circuit.tsx"
+    }
+  ],
+  "stderr_tail": "",
+  "kicad_sch": "",
+  "kicad_pcb": "",
+  "circuit_json": ""
+}

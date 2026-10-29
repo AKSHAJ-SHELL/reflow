@@ -908,3 +908,41 @@ Tests:
 - **tests/test_contracts.py:** export_fab dropped from the stub-honesty list now that it is built, with a comment (as for compile_board and catalog search).
 - **Not checked:** the gerbers in a viewer or JLCPCB's upload checker. The sign-off gate (L-03) isn't wired in front of export yet.
 `pytest -q` → 740 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-28 · agent (Claude) · O-02: run report, report.json and report.md
+Did: built `reflow/report.py` and `reflow report RUN_DIR`.
+- **`build_report(run_dir, *, route=None) -> dict`:** run id, title, request, status, best attempt, tokens, and every attempt with its compile tries (compile-N.json errors) and its verify.json as written. Also the best attempt's verify, parts, route (passed in, else route/route.json, else null) and sign-off (signoff.json, else null). Not a contracts.py type: it's a final output that no stage reads.
+- **`render_markdown`:**
+  - status line, attempts table, and per attempt each compile error and violation (severity, rule id, refs, message, fix hint);
+  - routing + DRC, in the learn UI's wording, with unrouted nets and over-length traces;
+  - parts table and sign-off;
+  - a passed run says passing means no rule found an error, not that everything is checked;
+  - with no RouteResult it says "Not routed or DRC-checked".
+- **Fails loudly (`ReportError`) when the run folder disagrees with itself:**
+  - an attempt folder is missing;
+  - a compiled attempt has no verify.json;
+  - an uncompiled attempt has no compile-N.json;
+  - the compile file count differs from compile_tries;
+  - verify.json's errors, warnings or rule ids differ from run.json.
+- **`reflow export`:**
+  - writes the run-level report after routing, so a refused run still gets one;
+  - on success writes out/report.json and out/report.md, so `FabPackage.design_md` is report.md (docs/02 updated from DESIGN.md);
+  - `export_fab` takes `run_dir` and refuses a `verify` that isn't the best attempt's verify.json.
+- **Real runs:** the AMS1117 run 20261022T204747Z reports both compile failures of attempt 2 and attempt 1's pinout.mismatch, "failed verify". The PCF8574 run 1 export carries "routed, 12/12 nets · KiCad DRC: 0 errors, 0 unconnected, 25 warnings".
+Tests:
+- **New fixture** tests/data/real_runs/ams1117_compile_fail_20261022/ (README), a real run with compile failures.
+- **tests/test_report.py, 12 tests, which failed first:**
+  - violations equal verify.json for every attempt;
+  - compile tries and errors;
+  - markdown lists every violation and compile error;
+  - route and over-length lines;
+  - the saved route and sign-off are read;
+  - three loud-failure cases;
+  - write_report;
+  - the CLI.
+- **tests/test_export.py:**
+  - the package's report.json holds the attempts and report.md;
+  - a new refusal for a verify report that isn't the best attempt's;
+  - the CLI refusal test now edits a whole failed run (verify.json and run.json) and checks the run-level report.
+  - Against the old code: 5 failed, 13 errors.
+`pytest -q` → 753 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

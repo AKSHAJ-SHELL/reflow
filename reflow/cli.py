@@ -416,6 +416,17 @@ def build_parser() -> argparse.ArgumentParser:
     export.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
     export.add_argument("--out", metavar="DIR", help="new or empty folder for the files (default: RUN_DIR/out)")
     export.set_defaults(func=cmd_export)
+    report = sub.add_parser(
+        "report",
+        help="write report.json and report.md for a run",
+        description=(
+            "Write RUN_DIR/report.json and report.md: every attempt's compile errors and verify "
+            "violations, routing and our KiCad DRC when route/route.json exists (reflow export writes "
+            "it), parts and sign-off. Exit 2 if RUN_DIR isn't a run folder or disagrees with itself."
+        ),
+    )
+    report.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    report.set_defaults(func=cmd_report)
     learn = sub.add_parser(
         "learn",
         help="open learn mode for a run folder in your browser",
@@ -497,6 +508,7 @@ def cmd_learn(args) -> int:
 def cmd_export(args) -> int:
     from reflow.contracts import RouteResult, RunResult, Spec, VerifyReport, to_dict
     from reflow.export import ExportRefused, export_fab
+    from reflow.report import ReportError, write_report
     from reflow.route import route_report
 
     run_dir = Path(args.run_dir)
@@ -515,20 +527,39 @@ def cmd_export(args) -> int:
         parts = from_dict(ResolvedParts, json.loads((run_dir / "parts.json").read_text(encoding="utf-8")))
         route = route_report(build / "circuit.json", build / "board.kicad_pcb", run_dir / "route")
         (run_dir / "route" / "route.json").write_text(json.dumps(to_dict(route), indent=2) + "\n", encoding="utf-8")
+        write_report(run_dir, route=route)
         print(f"routing (tscircuit): {route.status}, {route.routed_nets}/{route.total_nets} nets; "
               f"KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} errors, {route.drc.unconnected} unconnected")
         out = Path(args.out) if args.out else run_dir / "out"
         package = export_fab(build / "board.kicad_pcb", build / "circuit.json", out,
-                             verify=verify, route=route, parts=parts, spec=spec)
+                             verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
     except ExportRefused as exc:
         print("reflow: export refused:\n" + "\n".join(f"  - {r}" for r in exc.reasons), file=sys.stderr)
         return 1
-    except (ContractError, OSError, ValueError, RuntimeError) as exc:
+    except (ContractError, OSError, ValueError, RuntimeError, ReportError) as exc:
         print(f"reflow: {exc}", file=sys.stderr)
         return 2
     (out / "fab_package.json").write_text(json.dumps(to_dict(package), indent=2) + "\n", encoding="utf-8")
     print(f"fab files in {out}: gerbers/, {Path(package.drill).name}, {Path(package.pos_csv).name}, "
-          f"{Path(package.bom_csv).name}, report.json, drc.json")
+          f"{Path(package.bom_csv).name}, report.json, report.md, drc.json")
+    return 0
+
+
+def cmd_report(args) -> int:
+    from reflow.report import STATUS_WORDS, ReportError, write_report
+
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        json_path, md_path = write_report(run_dir)
+    except ReportError as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    report = json.loads(json_path.read_text(encoding="utf-8"))
+    print(f"{report['title']}: {STATUS_WORDS.get(report['status'], report['status'])}, "
+          f"{len(report['attempts'])} attempts. Wrote {json_path} and {md_path}")
     return 0
 
 
