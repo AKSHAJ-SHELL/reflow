@@ -946,3 +946,28 @@ Tests:
   - the CLI refusal test now edits a whole failed run (verify.json and run.json) and checks the run-level report.
   - Against the old code: 5 failed, 13 errors.
 `pytest -q` → 753 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-28 · agent (Claude) · L-03: sign-off gate before fab files
+Did: built `reflow/signoff.py` and put it in front of export (docs/07: show the remaining warnings and any overrides, then a single y/n, recorded in signoff.json and copied into the report).
+- **`remaining_warnings(run_dir)`:** the best attempt's verify warnings, as "rule_id: message". The learn server's `_warnings` now calls it, so the learn UI and export check against the same list.
+- **`prompt_signoff(run_dir)`:**
+  - asks only when stdin is a terminal, and re-asks until it gets y/yes or n/no;
+  - writes signoff.json for both answers;
+  - end of input records nothing;
+  - the terminal prompt takes no overrides.
+- **`signoff_refusals(run_dir)`:** refused with no signoff.json, a declined one, or one whose acknowledged warnings differ from the warnings now.
+- **`export_fab`:**
+  - adds the sign-off refusals;
+  - `refusals()` now takes `run_dir` and holds every board check, including the best-attempt verify check, so the CLI can ask only about a board that is otherwise ready.
+- **`reflow export`:**
+  - on a terminal, with a board that is otherwise ready and no valid sign-off, it shows the warnings and asks; then it rewrites the run report;
+  - `n` refuses (exit 1) with no out/;
+  - without a terminal it refuses with "not signed off" and writes no signoff.json.
+- **Real pseudo-terminal:** checked on copies of pcf8574 run 1. `n`: signoff.json accepted false, export refused, no out/. `y`: exported, and report.md says "Signed off: accepted".
+Tests:
+- **tests/test_signoff.py, 9 tests (new module):** warnings, y/n/re-ask, no terminal, end of input, never signed, stale warnings, and the learn UI's sign-off passing the gate.
+- **tests/test_export.py:**
+  - the routed-board helper writes an accepted sign-off, as a person would;
+  - new tests: refused never-signed-off and declined boards, the report carrying the sign-off, and the CLI's y, n, no-terminal, existing-sign-off and refuse-without-asking cases;
+  - 5 failed first. The existing-sign-off and refuse-without-asking cases already passed on the old code (nothing to gate yet).
+`pytest -q` → 769 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).

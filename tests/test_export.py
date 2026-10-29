@@ -2,11 +2,12 @@
 
 The board is a real eval run (tests/data/fab/README.md). Export never runs on a
 board that failed verify, isn't fully routed with 0 DRC errors, was changed
-after its DRC, or carries a part number from outside the resolver
-(golden rules 5 and 6).
+after its DRC, carries a part number from outside the resolver
+(golden rules 5 and 6), or that a person hasn't signed off (L-03).
 """
 import csv
 import dataclasses
+import io
 import json
 import os
 import shutil
@@ -16,7 +17,7 @@ import pytest
 
 from reflow import cli
 from reflow.cli import find_kicad_cli
-from reflow.contracts import FabPackage, ResolvedParts, RouteResult, Spec, VerifyReport, from_dict, to_dict
+from reflow.contracts import FabPackage, ResolvedParts, RouteResult, SignOff, Spec, VerifyReport, from_dict, to_dict
 from reflow.export import ExportRefused, export_fab
 from reflow.route import route_report
 
@@ -52,8 +53,20 @@ def _routed(tmp_path: Path) -> Board:
     run = Path(shutil.copytree(RUN, tmp_path / "run"))
     build = run / "attempts" / "01" / "build"
     route = route_report(build / "circuit.json", build / "board.kicad_pcb", run / "route")
+    _sign(run, accepted=True)
     return Board(run, build, _load(VerifyReport, run / "attempts" / "01" / "verify.json"), route,
                  _load(ResolvedParts, run / "parts.json"), _load(Spec, run / "spec.json"))
+
+
+def _sign(run: Path, *, accepted: bool) -> None:
+    """What `reflow export` or the learn UI writes when a person answers the sign-off (no warnings on this board)."""
+    signed = SignOff(accepted=accepted, warnings_acknowledged=[], overrides=[], at="2026-10-28T12:00:00Z")
+    (run / "signoff.json").write_text(json.dumps(to_dict(signed)), encoding="utf-8")
+
+
+class Terminal(io.StringIO):
+    def isatty(self) -> bool:
+        return True
 
 
 @pytest.fixture(scope="module")
@@ -206,9 +219,30 @@ def test_refuses_into_a_folder_that_already_holds_files(exported, tmp_path):
 
 # --- reflow export RUN_DIR ---------------------------------------------------
 
-def test_cli_routes_the_best_attempt_and_exports_into_the_run_folder(tmp_path, capsys):
+def test_refuses_a_board_never_signed_off(tmp_path):
+    board = _routed(tmp_path)
+    (board.run / "signoff.json").unlink()
+    assert any("not signed off" in r for r in _refused(board, tmp_path / "out"))
+
+
+def test_refuses_a_board_whose_signoff_was_declined(tmp_path):
+    board = _routed(tmp_path)
+    _sign(board.run, accepted=False)
+    assert any("declined" in r for r in _refused(board, tmp_path / "out"))
+
+
+def test_the_package_report_carries_the_signoff(exported):
+    _, package = exported
+    report = json.loads(Path(package.report_json).read_text(encoding="utf-8"))
+    assert report["signoff"]["accepted"] is True
+    assert "Signed off: accepted" in Path(package.design_md).read_text(encoding="utf-8")
+
+
+def test_cli_routes_the_best_attempt_and_exports_into_the_run_folder(tmp_path, capsys, monkeypatch):
     run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    monkeypatch.setattr("sys.stdin", Terminal("y\n"))
     assert cli.main(["export", str(run)]) == 0
+    assert _load(SignOff, run / "signoff.json").accepted is True
     route = _load(RouteResult, run / "route" / "route.json")
     assert route.status == "routed" and route.drc.errors == 0
     package = _load(FabPackage, run / "out" / "fab_package.json")
@@ -236,6 +270,43 @@ def test_cli_refuses_a_run_whose_best_attempt_failed_verify(tmp_path, capsys):
     report = json.loads((run / "report.json").read_text(encoding="utf-8"))
     assert report["route"]["status"] == "routed" and report["verify"]["errors"] == 1
     assert (run / "report.md").is_file()
+
+
+def test_cli_answering_n_at_signoff_stops_before_any_fab_file(tmp_path, capsys, monkeypatch):
+    run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    monkeypatch.setattr("sys.stdin", Terminal("n\n"))
+    assert cli.main(["export", str(run)]) == 1
+    captured = capsys.readouterr()
+    assert "Send this board to fab? [y/n]" in captured.out and "declined" in captured.err
+    assert not (run / "out").exists()
+    assert _load(SignOff, run / "signoff.json").accepted is False
+    assert json.loads((run / "report.json").read_text(encoding="utf-8"))["signoff"]["accepted"] is False
+
+
+def test_cli_without_a_terminal_refuses_rather_than_assume_a_signoff(tmp_path, capsys):
+    run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    assert cli.main(["export", str(run)]) == 1
+    assert "not signed off" in capsys.readouterr().err
+    assert not (run / "out").exists() and not (run / "signoff.json").exists()
+
+
+def test_cli_uses_an_existing_signoff_without_asking_again(tmp_path, capsys):
+    run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    _sign(run, accepted=True)
+    assert cli.main(["export", str(run)]) == 0
+    assert "[y/n]" not in capsys.readouterr().out
+
+
+def test_cli_does_not_ask_for_signoff_on_a_board_it_would_refuse_anyway(tmp_path, capsys, monkeypatch):
+    run = Path(shutil.copytree(RUN, tmp_path / "run"))
+    data = json.loads((run / "parts.json").read_text(encoding="utf-8"))
+    data["resolved"] = [p for p in data["resolved"] if p["lcsc"] != "C25900"]
+    (run / "parts.json").write_text(json.dumps(data), encoding="utf-8")
+    monkeypatch.setattr("sys.stdin", Terminal("y\n"))
+    assert cli.main(["export", str(run)]) == 1
+    captured = capsys.readouterr()
+    assert "[y/n]" not in captured.out and "C25900" in captured.err
+    assert not (run / "signoff.json").exists()
 
 
 def test_cli_rejects_a_folder_that_is_not_a_run(tmp_path, capsys):
