@@ -197,7 +197,7 @@ def test_cli_json_matches_verify_report():
     # compile_board is implemented (K-01, K-02); tests/test_compile.py covers it.
     # catalog search is implemented (P-01, P-03); tests/test_catalog.py covers it.
     ("reflow.route", "route"),
-    ("reflow.export", "export_fab"),
+    # export_fab is implemented (O-01); tests/test_export.py covers it.
 ])
 def test_agent_stubs_exist_and_are_honest(module, func):
     """Stubs import cleanly and refuse to pretend they work."""

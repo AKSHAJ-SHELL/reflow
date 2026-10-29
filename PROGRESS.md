@@ -872,3 +872,39 @@ Tests:
 - tests/test_learn_server.py: `/api/route` returns the trace.
 - All 10 affected tests failed first.
 `pytest -q` → 722 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
+
+## 2026-10-28 · agent (Claude) · O-01: fab export, refused without the verify and DRC report
+Did: built `reflow/export.py` and `reflow export RUN_DIR [--out DIR]`.
+- **`export_fab(kicad_pcb, circuit_json, out_dir, *, verify, route, parts, spec) -> FabPackage`.** The docstring's old signature took a `.kicad_sch`. It now takes circuit.json, because tscircuit's `.kicad_sch` has the wrong connectivity (Blocked, 10-20) and the BOM's part numbers come from circuit.json. `FabPackage` is unchanged.
+- **Output (kicad-cli 10.0.5) into a new or empty folder:**
+  - `gerbers/`: F/B copper, mask, paste and silkscreen, Edge.Cuts, plus the job file;
+  - `board.drl`: one Excellon file in mm;
+  - `board-pos.csv`: KiCad's CSV in mm, both sides. Not converted to JLCPCB's CPL headers or rotations;
+  - `bom.csv`: Comment, Designator, Footprint, LCSC Part #, MPN, with identical parts grouped (R1,R2);
+  - `drc.json`: a copy of our DRC report;
+  - `report.json`: the VerifyReport and RouteResult.
+  - `design_md` and `report_html` are "" (O-02/O-03).
+- **Refuses (`ExportRefused`, every reason listed, nothing written) when:**
+  - verify has errors;
+  - the board isn't "routed", with its unrouted nets and over-length traces listed;
+  - DRC has errors or unconnected items;
+  - the DRC ran on another board;
+  - the DRC report is missing;
+  - the board's file time is newer than its DRC report;
+  - a part number came from outside the resolver;
+  - the output folder isn't empty.
+- **Part-number check:** moved from `reflow/evals.py` into `reflow/part_numbers.py` (`foreign_part_numbers`), so evals and export share one check.
+- **CLI:** routes and DRC-checks the best attempt (`route/route.json`), then exports to `RUN_DIR/out` and writes `fab_package.json`. Exit codes: 1 on a refusal or when nothing compiled, 2 when the folder isn't a run.
+- **Real runs** (copies of run 20261028T161716Z):
+  - pcf8574 run 1 exports (routed 12/12, 0 DRC errors);
+  - pcf8574 run 2 is refused: "routing is partial; GND C1.pin2–U1.A0 is 14.01 mm (limit 5.0 mm)".
+Tests:
+- **Fixture:** tests/data/fab/pcf8574_run/, the real run 1 folder (README).
+- **tests/test_export.py, 19 tests, which failed first:**
+  - the layers, drill, pos refs and BOM rows (every LCSC/MPN pair is the resolver's);
+  - report.json and drc.json;
+  - each refusal reason;
+  - the CLI's success, refusal and bad-folder cases.
+- **tests/test_contracts.py:** export_fab dropped from the stub-honesty list now that it is built, with a comment (as for compile_board and catalog search).
+- **Not checked:** the gerbers in a viewer or JLCPCB's upload checker. The sign-off gate (L-03) isn't wired in front of export yet.
+`pytest -q` → 740 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record).
