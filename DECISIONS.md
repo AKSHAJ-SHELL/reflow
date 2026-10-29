@@ -47,3 +47,4 @@ Format: `ID · date · status (PROPOSED | ACCEPTED | REJECTED | SUPERSEDED) · d
 | ID | Date | Proposal | Options | Proposed by |
 |---|---|---|---|---|
 | P-1 | 2026-10-17 | Add `runs/` to .gitignore | done provisionally; revert if unwanted | agent |
+| R-11 | 2026-10-29 | Verifier rules from published sources: `i2c.pullup_too_strong` (UM10204 Rev. 7.0 §7.1 Eq. 2), `i2c.pullup_too_weak` (§7.1 Eq. 1, Table 10), `input.floating` (TI SCBA004E §1, §3, §5), optional `i2c.speed_unstated`. Per-part requirements stay in rules.toml (V-2b). Rule code is HUMAN. Full text: `docs/proposals/R-11-cited-rules.md` | Q1 rail voltage source; Q2 default bus speed and Cb; Q3 new ID or widen `address.floating`; Q4 which first | agent |

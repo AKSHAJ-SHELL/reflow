@@ -1017,3 +1017,21 @@ Tests:
 - **tests/test_report.py:** the schematic section, checked and refused.
 - All the new tests failed first. I fixed two of my own new assertions while building: the grid test now checks connection points, not KiCad's symbol artwork, and an edited schematic leaves the PCB matching.
 `pytest -q` → 788 passed, 2 failed (the unpowered pull-up rail test on purpose, and the deliberate tscircuit record). The suite now takes ~19 min (was ~8.5): every export test draws and ERC-checks a schematic.
+
+## 2026-10-29 · agent (Claude) · R-11: cited rule candidates for the verifier (no code)
+Did: the human asked for the verifier to carry "book knowledge" and chose "I draft, you write" (rule code stays HUMAN). I wrote docs/proposals/R-11-cited-rules.md and a PROPOSED row in DECISIONS.md.
+- **Sources, read from the documents themselves:**
+  - NXP UM10204 Rev. 7.0 (1 Oct 2021): §7.1 Eq. 1 and 2, and Table 10;
+  - TI SCBA004E (revised July 2021): §1, §3 and §5.
+- **Candidates:**
+  - `i2c.pullup_too_strong` (error): Rp < (VDD − 0.4 V) / 3 mA, which is 967 Ω at 3.3 V;
+  - `i2c.pullup_too_weak` (warning): Rp > tr / (0.8473 × Cb);
+  - `input.floating` (warning): any unconnected input pin;
+  - optional `i2c.speed_unstated`.
+- **Not general rules:** decoupling value, the LDO output cap, LED current and used open-drain outputs need the part's datasheet, so they stay in rules.toml per part (V-2b).
+- **Checked against the boards:**
+  - all eval boards use 4.7 kΩ on 3.3 V, which passes rule 1;
+  - rule 2 depends on the assumed speed and Cb: with Fast-mode and 100 pF every eval board warns, with Standard-mode all pass;
+  - no floating inputs on the good fixtures or on our schematics of the eval boards (KiCad pin types).
+- **Open questions for the human:** where a rail's voltage comes from, the default speed and Cb, a new ID or widening `address.floating`, and which rule first.
+No code changed.
