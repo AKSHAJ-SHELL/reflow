@@ -216,8 +216,8 @@ class CompileResult:
     ok: bool
     errors: list[CompileError]  # empty when ok
     stderr_tail: str            # last <= 40 lines, already trimmed
-    kicad_sch: str = ""         # paths; "" when ok is False
-    kicad_pcb: str = ""
+    kicad_sch: str = ""         # always "": tscircuit's schematic isn't exported (O-04a)
+    kicad_pcb: str = ""         # paths; "" when ok is False
     circuit_json: str = ""
 
 

@@ -1044,3 +1044,15 @@ Did: the human opened our MCP9808 schematic in KiCad and got 3 warnings, all "sy
 - **Options:** A, stop exporting tscircuit's schematic (recommended); B, point `kicad_sch` to ours, drawn per compile try; C, rename it.
 - **Questions for the human:** which option; for B, where drawing failures go; whether `reflow design` should draw and check our schematic at the end of every run.
 No code changed.
+
+## 2026-10-30 · agent (Claude) · O-04a: tscircuit's schematic is no longer exported
+Did: the human accepted O-04a, option A, in chat. Q3 (draw our schematic at the end of `reflow design`) is not decided.
+- `compile_board` now asks tsci for circuit-json and kicad_pcb only.
+- `CompileResult.kicad_sch` is always "". The field stays, so old run folders still parse.
+- So `attempts/NN/build/` has no `.kicad_sch` that could be opened by mistake. Our schematic is in `schematic/` and `out/kicad/` after `reflow export`.
+- **Docs:** DECISIONS (accepted row), the proposal's status, docs/04 §4, the docs/02 run tree, and the contracts.py comment.
+- **Tests:**
+  - new `test_tscircuit_schematic_is_not_exported` (the fake tsci logs the formats it was asked for), which failed first;
+  - `test_zero_exit_with_outputs_is_ok` and `test_blinky_tsx_compiles` now require `kicad_sch == ""` and no `.kicad_sch` in build/, instead of the file existing. This change was listed in the proposal.
+  - `test_integration::test_schematic_export_keeps_the_traced_nets` is the deliberate record of tscircuit's export bug. It got that file from compile_board, so it now asks tsci for the export directly. Its assertions are unchanged, and it still fails the same way (R1.pin1 `unconnected-(R1-Pad1)` instead of SDA).
+- **`pytest -q`:** 2 failed, 789 passed in 6m40s. The same 2 deliberate failures: test_i2c_pullup_rail and the tscircuit record.

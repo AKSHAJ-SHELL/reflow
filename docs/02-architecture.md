@@ -53,6 +53,7 @@ runs/<YYYYmmdd-HHMMSS>-<slug>/
     response.md               exactly what it returned
     index.circuit.tsx
     compile.json              CompileResult (one per compile try: compile-1.json, compile-2.json)
+    build/                    circuit.json  board.kicad_pcb  board.kicad_pro (no schematic: O-04a)
     verify.json               VerifyReport
     feedback.json             RetryFeedback sent to attempt 02
   learn.json   signoff.json

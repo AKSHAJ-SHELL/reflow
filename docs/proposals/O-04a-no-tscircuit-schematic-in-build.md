@@ -1,7 +1,7 @@
 # O-04a: no tscircuit schematic in build/
 
-Status: PROPOSED 2026-10-29 by the agent, at the human's request. It changes what
-`CompileResult.kicad_sch` means, so it needs the human's yes (golden rule 3). Nothing here is built.
+Status: ACCEPTED 2026-10-30, option A (the human, in chat). Q3 not decided.
+Proposed 2026-10-29 by the agent, at the human's request.
 
 ## Problem
 

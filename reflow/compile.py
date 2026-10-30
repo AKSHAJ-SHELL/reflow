@@ -6,7 +6,10 @@ Contract
     circuit_json_errors(path) -> list[contracts.CompileError]
 
 - Writes `tsx` unchanged to workdir/index.circuit.tsx and runs `tsci export`
-  for circuit-json, kicad_sch, and kicad_pcb.
+  for circuit-json and kicad_pcb. tscircuit's kicad_sch export is not made
+  (O-04a): its wires miss the pins (V-1) and nothing reads it, so
+  `CompileResult.kicad_sch` is always "". Our schematic is drawn from
+  circuit.json by `reflow export` (reflow.schematic, O-04).
 - On failure returns ok=False with parsed CompileError entries and the last
   <= 40 lines of stderr. Never raises for a compile error; raises only if
   `tsci` itself is missing or times out (exit code 2 territory, like
@@ -92,7 +95,6 @@ _SKIP_PREFIXES = (
 
 _EXPORTS = (
     ("circuit-json", "circuit.json"),
-    ("kicad_sch", "board.kicad_sch"),
     ("kicad_pcb", "board.kicad_pcb"),
 )
 
@@ -249,7 +251,7 @@ def compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> CompileRe
         if not _contained(root, dest):
             return _failed("".join(stderr_parts), proc.returncode, files_ok=False)
 
-    circuit_json, kicad_sch, kicad_pcb = (root / name for _, name in _EXPORTS)
+    circuit_json, kicad_pcb = (root / name for _, name in _EXPORTS)
     built = circuit_json_errors(circuit_json)
     if built:
         return CompileResult(
@@ -267,7 +269,7 @@ def compile_board(tsx: str, workdir: Path, *, timeout_s: int = 120) -> CompileRe
         ok=True,
         errors=[],
         stderr_tail=trim_stderr("".join(stderr_parts)),
-        kicad_sch=str(kicad_sch),
+        kicad_sch="",
         kicad_pcb=str(kicad_pcb),
         circuit_json=str(circuit_json),
     )

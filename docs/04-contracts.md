@@ -93,6 +93,7 @@ Example: [generated_code.json](examples/generated_code.json)
 
 - `stderr_tail`: last ≤ 40 lines, trimmed before it is stored.
 - Paths are `""` when `ok` is false.
+- `kicad_sch` is always `""` (Decision O-04a): tscircuit's schematic export isn't made. The field stays so old run folders parse. Our schematic is `schematic/board.kicad_sch`, drawn from circuit.json and checked by `reflow export` (O-04).
 
 Example: [compile_result.json](examples/compile_result.json)
 
