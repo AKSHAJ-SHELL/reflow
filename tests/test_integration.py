@@ -62,6 +62,20 @@ def _compile(tsx: str, workdir: Path):
     return result
 
 
+def _tscircuit_kicad_sch(workdir: Path) -> str:
+    """tscircuit's own schematic export of the board compile_board just built.
+
+    compile_board no longer makes it (O-04a); the record test below asks tsci directly.
+    """
+    import subprocess
+
+    dest = Path(workdir) / "tscircuit.kicad_sch"
+    proc = subprocess.run([find_tsci(), "export", "index.circuit.tsx", "-f", "kicad_sch", "-o", str(dest)],
+                          cwd=workdir, capture_output=True, text=True, timeout=180)
+    assert proc.returncode == 0 and dest.is_file(), proc.stderr[-2000:]
+    return str(dest)
+
+
 def _netlist(kicad_sch: str, tmp: Path):
     return load_netlist(export_netlist(KICAD_CLI, Path(kicad_sch), tmp / "board.net"))
 
@@ -140,8 +154,8 @@ def test_schematic_export_keeps_the_traced_nets(tmp_path):
     and C1.pin2 to net.GND. Pins on one traced net must share one KiCad net,
     and a traced pin must not be "unconnected".
     """
-    result = _compile(_tsx("sensor_good.tsx"), tmp_path)
-    nl = _netlist(result.kicad_sch, tmp_path)
+    _compile(_tsx("sensor_good.tsx"), tmp_path)
+    nl = _netlist(_tscircuit_kicad_sch(tmp_path), tmp_path)
     sda = _net_of(nl, "U1", "SDA")
     assert not nl.is_unconnected(sda), f"U1.SDA exported as {sda}"
     assert _net_of(nl, "J1", "3") == sda

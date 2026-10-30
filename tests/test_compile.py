@@ -138,10 +138,37 @@ def test_zero_exit_with_outputs_is_ok(tmp_path, monkeypatch):
     result = compile_board("export default () => (<board />)", work)
     assert result.ok is True
     assert result.errors == []
-    for path in (result.kicad_sch, result.kicad_pcb, result.circuit_json):
+    for path in (result.kicad_pcb, result.circuit_json):
         file = Path(path)
         assert file.is_file() and file.stat().st_size > 0
         file.resolve().relative_to(work.resolve())
+    assert result.kicad_sch == ""                     # O-04a: tscircuit's schematic isn't exported
+
+
+def test_tscircuit_schematic_is_not_exported(tmp_path, monkeypatch):
+    """O-04a (A): tscircuit's .kicad_sch is wrong (V-1) and nothing reads it, so tsci is never asked for it."""
+    log = tmp_path / "formats.txt"
+    _install_tsci(
+        tmp_path / "bin",
+        textwrap.dedent(
+            f"""
+            import pathlib, sys
+            args = sys.argv[1:]
+            fmt = args[args.index("-f") + 1]
+            with open({str(log)!r}, "a") as f:
+                f.write(fmt + "\\n")
+            out = pathlib.Path(args[args.index("-o") + 1])
+            out.write_text("[]\\n" if fmt == "circuit-json" else "(" + fmt + " (version 20250114))\\n")
+            """
+        ),
+    )
+    _use_tsci(monkeypatch, tmp_path / "bin")
+    work = tmp_path / "work"
+    result = compile_board("export default () => (<board />)", work)
+    assert result.ok is True
+    assert log.read_text().split() == ["circuit-json", "kicad_pcb"]
+    assert result.kicad_sch == ""
+    assert list(work.rglob("*.kicad_sch")) == []
 
 
 def test_nonzero_exit_is_not_ok_even_if_files_exist(tmp_path, monkeypatch):
@@ -298,11 +325,11 @@ def test_blinky_tsx_compiles(tmp_path):
     assert result.ok is True
     assert result.errors == []
     assert (tmp_path / "index.circuit.tsx").read_text(encoding="utf-8") == tsx
-    for path in (result.kicad_sch, result.kicad_pcb, result.circuit_json):
+    for path in (result.kicad_pcb, result.circuit_json):
         file = Path(path)
         assert file.is_file() and file.stat().st_size > 0
         file.resolve().relative_to(tmp_path.resolve())
-    assert "kicad_sch" in Path(result.kicad_sch).read_text(encoding="utf-8")
+    assert result.kicad_sch == "" and list(tmp_path.rglob("*.kicad_sch")) == []
     assert "kicad_pcb" in Path(result.kicad_pcb).read_text(encoding="utf-8")
 
 
