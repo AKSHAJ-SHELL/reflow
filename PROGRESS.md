@@ -1035,3 +1035,12 @@ Did: the human asked for the verifier to carry "book knowledge" and chose "I dra
   - no floating inputs on the good fixtures or on our schematics of the eval boards (KiCad pin types).
 - **Open questions for the human:** where a rail's voltage comes from, the default speed and Cb, a new ID or widening `address.floating`, and which rule first.
 No code changed.
+
+## 2026-10-29 · agent (Claude) · O-04a: proposal, no tscircuit schematic in build/ (no code)
+Did: the human opened our MCP9808 schematic in KiCad and got 3 warnings, all "symbol library 'power' / 'Sensor_Temperature' not found". Both files are installed, and `kicad-cli sch erc --severity-all` finds 0 on the same file, before and after `sch upgrade`.
+- My guess is that the GUI ran ERC before those libraries had loaded. That is unconfirmed: the human is to click Run ERC again.
+- Their other screenshots (8 errors, 51 warnings) were tscircuit's `build/board.kicad_sch`, not ours.
+- At the human's request, I wrote docs/proposals/O-04a-no-tscircuit-schematic-in-build.md, a PROPOSED row in DECISIONS.md and an O-04a row in TASKS.md.
+- **Options:** A, stop exporting tscircuit's schematic (recommended); B, point `kicad_sch` to ours, drawn per compile try; C, rename it.
+- **Questions for the human:** which option; for B, where drawing failures go; whether `reflow design` should draw and check our schematic at the end of every run.
+No code changed.
