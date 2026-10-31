@@ -1119,3 +1119,22 @@ Did: the human said in chat "all the eval expectations look good". I recorded th
 - **`pytest -q`:** 2 failed, 789 passed in 6m58s. The same 2 deliberate failures:
   - `test_i2c_pullup_rail` needs a rule in `reflow/rules/i2c.py` (HUMAN). I drafted it for the human to paste; I didn't write it.
   - `test_schematic_export_keeps_the_traced_nets` records tscircuit's schematic bug. Making it pass would mean weakening it, so it stays as it is.
+
+## 2026-10-31 · agent (Claude) · CI-01–CI-05: CI, CODEOWNERS, injection tripwire, link check, reviewer guide
+Did: the human, maintaining reflow alone, asked for CI modelled on a hackathon project's, plus a way to vet outside PRs for prompt injection. They suggested gitignoring the CI file so nobody can tamper with it; that would switch CI off (GitHub only runs committed workflows), so protection comes from a read-only token, no secrets, CODEOWNERS + branch protection, approval for outside contributors' runs, and a test that checks the workflow file.
+- **CI-01 `.github/workflows/ci.yml`:** `portable` (Ubuntu/macOS × Python 3.11/3.12, no KiCad or tsci), `full` (Ubuntu 24.04: KiCad 10 PPA, ngspice, Bun, tsci from a lockfile; checks the tools are there before testing; KiCad's default library tables copied into place; then the wheel installed and run from /tmp). `tests/test_ci_hygiene.py`: read-only token, no pull_request_target/workflow_run/secrets, actions pinned to commit SHAs, no event text in shell, timeouts, cancel-in-progress; each rule broken once on purpose and caught.
+- **CI-02 `.github/CODEOWNERS`** + `tests/test_codeowners.py`.
+- **CI-03 `tools/check_injection.py`** + tests: invisible Unicode, hidden Markdown comments, override phrases, pipe-to-shell, remote images and long blobs in agent files. Repo scans clean (prompts' draft banner allowed by exact text).
+- **CI-04 `tools/check_links.py`** + tests: 51 relative links in 65 Markdown files resolve.
+- **CI-05 `docs/REVIEWING.md`:** GitHub settings to turn on, codebase map, where text reaches a model or agent, known risks, what CI does and doesn't check, a per-PR checklist.
+- **Verified in Docker, Ubuntu 24.04 arm64 (GitHub's runner is x86_64, so the real run is still unverified until pushed):**
+  - full job's steps: 2 failed (the deliberate two), all others pass, learn sim tests run with no skips;
+  - portable on python:3.11-slim: 1 failed (test_i2c_pullup_rail), 623 passed, 204 skipped.
+- **Found and fixed on the way:**
+  - `npm i -g tscircuit@0.0.2768` is broken on a fresh machine today: a newer `circuit-json` makes tsci fail to start. `tools/tscircuit/package-lock.json` reproduces the working 10-07 install package for package (5 overrides), with every platform's rollup binary. README/SETUP now use `npm ci --prefix tools/tscircuit`.
+  - tsci runs on Bun; README/SETUP didn't say so.
+  - On Linux, a KiCad whose GUI never ran has no library tables: ERC warns and `reflow export` refuses. In CI and SETUP's gotchas.
+  - Test portability (no assertion changed): `tests/conftest.py`'s `board` fixture now skips without kicad-cli, like every other KiCad test; fake `tsci`/`claude` scripts use `sys.executable` instead of `/usr/bin/python3`; `test_codegen_prompt_carries_the_rules` reads the MCP9808 symbol from tests/data/pinmaps/kicad instead of the installed KiCad.
+  - The Write tool turned `\u200b`-style escapes in the scanner and its test into real invisible characters. The scanner caught it once the files were tracked; both files are ASCII escapes now.
+- **Not done:** Windows (shebang-based fake tools; reflow is macOS-tested only). The GitHub settings in REVIEWING.md §1 are the human's.
+- **Known risks written down, not fixed (CI-06, CI-07):** model-written TSX runs on Bun with the user's environment, including REFLOW_API_KEY; the learn server doesn't check the Host header.
