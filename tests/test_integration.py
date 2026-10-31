@@ -39,6 +39,7 @@ from reflow.harness.loop import run_design
 from reflow.llm import Completion
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
+from reflow.schematic import write_schematic
 from reflow.verifier import make_verifier, verify_circuit_json
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,20 +61,6 @@ def _compile(tsx: str, workdir: Path):
     result = compile_board(tsx, workdir)
     assert result.ok, f"tsci failed: {result.errors}\n{result.stderr_tail}"
     return result
-
-
-def _tscircuit_kicad_sch(workdir: Path) -> str:
-    """tscircuit's own schematic export of the board compile_board just built.
-
-    compile_board no longer makes it (O-04a); the record test below asks tsci directly.
-    """
-    import subprocess
-
-    dest = Path(workdir) / "tscircuit.kicad_sch"
-    proc = subprocess.run([find_tsci(), "export", "index.circuit.tsx", "-f", "kicad_sch", "-o", str(dest)],
-                          cwd=workdir, capture_output=True, text=True, timeout=180)
-    assert proc.returncode == 0 and dest.is_file(), proc.stderr[-2000:]
-    return str(dest)
 
 
 def _netlist(kicad_sch: str, tmp: Path):
@@ -148,22 +135,29 @@ def test_pcb_export_has_the_traced_nets(tmp_path):
 
 
 def test_schematic_export_keeps_the_traced_nets(tmp_path):
-    """The verifier reads the .kicad_sch, so it must have the same nets as the TSX.
+    """The schematic reflow ships (reflow/schematic.py, O-04) has the same nets as the TSX.
 
-    sensor_good.tsx traces U1.SDA, J1.pin3 and R1.pin1 to net.SDA, and U1.GND
-    and C1.pin2 to net.GND. Pins on one traced net must share one KiCad net,
-    and a traced pin must not be "unconnected".
+    sensor_good.tsx traces U1.SDA (pin 1), J1.pin3 and R1.pin1 to net.SDA, and U1.GND (pin 4),
+    U1.A0 (pin 3) and C1.pin2 to net.GND; U1.VDD is pin 8. Pins on one traced net must share one
+    KiCad net, and a traced pin must not be "unconnected".
+
+    U1 is drawn with the MCP9808 symbol, which has the same pin count. The schematic keeps pin
+    numbers (pin n is the board's pin n) and takes pin names from the symbol, so pins are named
+    by number here. This test used to read tscircuit's own .kicad_sch export, which lost these
+    nets (V-1); reflow no longer makes that file (O-04a), and the bug is recorded in REVIEW.md §9.
     """
-    _compile(_tsx("sensor_good.tsx"), tmp_path)
-    nl = _netlist(_tscircuit_kicad_sch(tmp_path), tmp_path)
-    sda = _net_of(nl, "U1", "SDA")
+    result = _compile(_tsx("sensor_good.tsx"), tmp_path)
+    sch = write_schematic(result.circuit_json, tmp_path / "schematic",
+                          symbols={"U1": "Sensor_Temperature:MCP9808_MSOP"})
+    nl = _netlist(sch, tmp_path)
+    sda = _net_of(nl, "U1", "1")
     assert not nl.is_unconnected(sda), f"U1.SDA exported as {sda}"
     assert _net_of(nl, "J1", "3") == sda
     assert _net_of(nl, "R1", "1") == sda
-    gnd = _net_of(nl, "U1", "GND")
+    gnd = _net_of(nl, "U1", "4")
     assert _net_of(nl, "C1", "2") == gnd
-    assert _net_of(nl, "U1", "A0") == gnd
-    assert _net_of(nl, "U1", "VDD") != gnd
+    assert _net_of(nl, "U1", "3") == gnd
+    assert _net_of(nl, "U1", "8") != gnd
 
 
 def test_good_sensor_verifies_clean(tmp_path):

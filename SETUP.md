@@ -101,7 +101,7 @@ uv pip install -e '.[test,learn]'
 pytest -q                          # about 7 minutes; needs KiCad and tsci
 ```
 
-Two tests fail on purpose until their fixes land: `test_i2c_pullup_rail` (a rule not written yet) and `test_schematic_export_keeps_the_traced_nets` (a record of tscircuit's schematic export bug). See PROGRESS.md.
+Every test should pass. `i2c.pullup_rail`, which `tests/test_i2c_pullup_rail.py` checks, is an agent-written draft awaiting the maintainer's review (DECISIONS O-1d).
 
 ## Contributors only: DSN/SES bridges and freerouting
 
