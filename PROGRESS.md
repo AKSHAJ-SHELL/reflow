@@ -1083,3 +1083,13 @@ Did: the human said they checked the eval expectations, and asked for a basic se
 - DECISIONS R-11 row and TASKS R-11 row updated.
 
 No code changed.
+
+## 2026-10-31 · agent (Claude) · R-11 Part C: rules from the student's own books (no code)
+Did: the human asked that students can bring their own textbooks for rules, with no copyright problems. Added Part C to docs/proposals/R-11-cited-rules.md.
+- **Copyright rules:** reflow never fetches a book or removes DRM; the PDF and its text stay in a gitignored `.reflow/books/`; only a citation (title, edition, page) and our own `why` are saved; learn-mode notes the same; only the named pages go to the model, after asking; reflow ships no book-derived rules.
+- **Flow:** `reflow rules from-book` → model drafts with page + sentence → reflow checks the sentence is on that page, drops it loudly if not → sorted into a second source for a built-in rule, a `[[rule]]` (V-2b, unconfirmed), or a learn-mode note → `reflow rules confirm`.
+- **Honest limit:** most book advice is general, so most of it becomes a second citation or a note, not a new check.
+- **Questions Q10–Q13:** no quote for book rules (changes V-23's planned check), sending pages to the model, how a second source is recorded, when (recommended: after v1).
+- Says plainly it is a low-risk design, not legal advice. DECISIONS and TASKS R-11 rows updated.
+
+No code changed.
