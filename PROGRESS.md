@@ -1110,3 +1110,12 @@ Did: SETUP.md still described the 10-07 toolchain (atopile, freerouting as the r
 - **freerouting, Java and `KICAD_PY`** moved to a "contributors only" section, since X-02 isn't built and v1 routes with tscircuit. Gotchas kept where still true.
 - README: links SETUP.md and pins `tscircuit@0.0.2768`.
 Versions checked on this machine: kicad-cli 10.0.5, tsci 0.0.2768, node 26.3.0, ngspice 47, Claude Code 2.1.289, uv 0.11.21. No code changed.
+
+## 2026-10-31 · agent (Claude) · eval expectations marked checked (at the human's request)
+Did: the human said in chat "all the eval expectations look good". I recorded their check in the 5 `evals/*/expected.toml` (HUMAN files; written only on that instruction):
+- `status = "checked"`, `checked_by = "Akshaj Shandilya, 2026-10-31"`; the DRAFT header now says who checked them and when;
+- the `TO CHECK:` prefixes are removed from `source` lines; bare `source = "TO CHECK"` now reads "datasheet, checked by Akshaj Shandilya 2026-10-31".
+- `tests/test_eval_runner.py::_evals` copies the real MCP9808 eval as a template and assumed it was a draft. It now resets each copy to draft first, so the 4 tests start from the same state as before. No assertion changed.
+- **`pytest -q`:** 2 failed, 789 passed in 6m58s. The same 2 deliberate failures:
+  - `test_i2c_pullup_rail` needs a rule in `reflow/rules/i2c.py` (HUMAN). I drafted it for the human to paste; I didn't write it.
+  - `test_schematic_export_keeps_the_traced_nets` records tscircuit's schematic bug. Making it pass would mean weakening it, so it stays as it is.

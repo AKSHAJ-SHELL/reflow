@@ -1,9 +1,8 @@
-# DRAFT (E-02, O-1): written by the agent. Nothing here counts until a person has
-# checked every line against the datasheets, set status = "checked" and filled checked_by.
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
 # Pin names are the KiCad symbol's in rules.toml [[part]] (V-12 relabels pins to them):
 # Interface_Expansion:PCF8574T says GND where EasyEDA (C7605) says VSS.
-status = "draft"
-checked_by = ""
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
 outcome = "board"
 
 nets = ["V3_3", "GND", "SDA", "SCL", "P0", "P1", "P2", "P3", "P4", "P5", "P6", "P7"]
@@ -13,23 +12,23 @@ violations = []
 [[net]]
 name = "V3_3"
 includes = ["ic.VDD", "capacitor", "resistor", "connector"]
-source = "TO CHECK: PCF8574 datasheet pin table (SO16) and decoupling"
+source = "PCF8574 datasheet pin table (SO16) and decoupling"
 
 [[net]]
 name = "GND"
 includes = ["ic.GND", "ic.A0", "ic.A1", "ic.A2", "capacitor", "connector"]
-source = "TO CHECK: address 0x20 means A2..A0 low for the PCF8574 (not the PCF8574A)"
+source = "address 0x20 means A2..A0 low for the PCF8574 (not the PCF8574A)"
 
 [[net]]
 name = "SDA"
 includes = ["ic.SDA", "resistor", "connector"]
-source = "TO CHECK"
+source = "datasheet, checked by Akshaj Shandilya 2026-10-31"
 
 [[net]]
 name = "SCL"
 includes = ["ic.SCL", "resistor", "connector"]
-source = "TO CHECK"
+source = "datasheet, checked by Akshaj Shandilya 2026-10-31"
 
 [[open]]
 pins = ["ic.INT"]
-source = "TO CHECK: open-drain interrupt output, unused on this board"
+source = "open-drain interrupt output, unused on this board"

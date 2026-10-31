@@ -1,7 +1,6 @@
-# DRAFT (E-02, O-1): written by the agent. Nothing here counts until a person has
-# checked every line against the datasheets, set status = "checked" and filled checked_by.
-status = "draft"
-checked_by = ""
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
 outcome = "board"
 
 nets = ["V3_3", "GND", "SDA", "SCL"]

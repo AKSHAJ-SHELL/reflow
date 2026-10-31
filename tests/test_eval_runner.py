@@ -6,6 +6,7 @@ design verifier, so these tests skip without tsci. Each eval folder here is a
 copy of evals/mcp9808_breakout with a different name and, sometimes, an edit.
 """
 import json
+import re
 import shutil
 import tomllib
 from pathlib import Path
@@ -45,6 +46,12 @@ def _evals(tmp_path: Path, names: list[str]) -> Path:
     root = tmp_path / "evals"
     for name in names:
         shutil.copytree(ROOT / "evals" / "mcp9808_breakout", root / name)
+        # The real eval is checked; each copy starts as a draft, so tests choose the status.
+        path = root / name / "expected.toml"
+        text = re.sub(r'^status = ".*"\nchecked_by = ".*"$', 'status = "draft"\nchecked_by = ""',
+                      path.read_text(encoding="utf-8"), count=1, flags=re.M)
+        assert 'status = "draft"\nchecked_by = ""' in text
+        path.write_text(text, encoding="utf-8")
     return root
 
 
