@@ -1,6 +1,6 @@
 # R-11: verifier rules from published sources ("book knowledge")
 
-Status: PROPOSED 2026-10-29 by the agent. Rule code is HUMAN (`reflow/rules/`, docs/05). This file only
+Status: PROPOSED 2026-10-29 by the agent; Part B (the basic design-rules catalog) added 2026-10-31. Rule code is HUMAN (`reflow/rules/`, docs/05). This file only
 drafts candidates, each with its source, threshold, what it reads, the bad fixture to plant and what
 it does to the boards we have. Nothing here is built.
 
@@ -95,6 +95,88 @@ an unconnected pin) are enforced at 0 errors and 0 warnings before export.
   assumption visible instead of buried in the rule.
 - **This is a process rule, not physics; skip it if rule 2 assumes Standard-mode and says so.**
 
+## Part B: a basic design-rules catalog (added 2026-10-31)
+
+The human asked (2026-10-31) for a basic set of design rules beyond ERC, true for almost every
+board, for students and hobbyists to read and learn from. Candidates 1–4 above are the start; this
+part adds the rest and sorts them all into tiers. Each one cites a free document that the agent read.
+
+### Tiers
+
+| Tier | Meaning | Today |
+|---|---|---|
+| ERC | Pin types and connections, KiCad's own check on our schematic | done (O-04, 0 errors and 0 warnings to export) |
+| **error** | The board doesn't work, or works only by luck | `Violation.severity = "error"` |
+| **warning** | Works, but outside what the source recommends | `"warning"` |
+| **note** | Advice a beginner should see; leaving it out is a fair choice | **doesn't exist**, see Q5 |
+| per-part | One part's datasheet (decoupling value, LDO output cap, LED current) | rules.toml (V-2b), not here |
+
+### More sources (read 2026-10-31 from the documents themselves)
+
+- **[SZZA009]** Texas Instruments, *PCB Design Guidelines for Reduced EMI*, SZZA009, November 1999.
+  - §2.1.4 "Signal Return Grounds": on a two-layer board, gridding the ground is the closest thing
+    to a ground plane, and "the most important thing to do (after floor planning)".
+  - §2.2.3 "Gridding to Create Planes".
+  - §2.2.4 "Bypassing and Ferrite Beads": make the bypass loop as small as possible in area and
+    length; a 3:1 length-to-width rule for its traces.
+  - §2.4.1: no unrelated component within 1 inch of a crystal.
+  - https://www.ti.com/lit/pdf/szza009
+- **[SLVA680]** Texas Instruments, *ESD Protection Layout Guide*, SLVA680A, February 2015, revised
+  April 2022.
+  - §1: ESD usually comes in through a user interface such as a cable connector.
+  - §2.1: place the TVS "as near to the ESD Source as the PCB design rules allow", with no stub
+    between it and the protected line.
+  - https://www.ti.com/lit/pdf/slva680
+- **[IPC-2221 via Digi-Key]** IPC-2221 itself is paid, so this is the free reproduction.
+  - Digi-Key's PCB trace width calculator gives the IPC-2221 curve fit: I = k·ΔT^0.44·A^0.725,
+    with A in mil² and k = 0.048 for external layers, 0.024 for internal.
+  - It suggests 1 oz copper and a 10 °C rise.
+  - https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-pcb-trace-width
+
+Analog Devices' MT-101 (decoupling) and MT-031 (grounding) would be good sources too, but
+analog.com refused the downloads on 2026-10-31, so nothing here cites them.
+
+### The catalog
+
+S = schematic (netlist from circuit.json), P = PCB (.kicad_pcb). "Boards" means the five eval
+boards of run 20261028T161716Z.
+
+| # | Rule ID | Tier | Level | Rule | Source | Boards |
+|---|---|---|---|---|---|---|
+| 1 | `i2c.pullup_too_strong` | error | S | Rp < (VDD − 0.4 V)/3 mA | UM10204 §7.1 Eq. 2 | all pass (4.7 kΩ) |
+| 2 | `i2c.pullup_too_weak` | warning | S | Rp > tr/(0.8473·Cb) | UM10204 §7.1 Eq. 1 | depends on Q2 |
+| 3 | `i2c.pullup_rail` | error | S | pull-up to a rail the bus devices aren't powered from | UM10204 §7.1 (Rp to VDD) | **already the human's**, failing test `test_i2c_pullup_rail.py` |
+| 4 | `input.floating` | warning | S | input pin unconnected | SCBA004 §1, §3, §5 | none floating |
+| 5 | `led.no_limiter` | error | S | LED with no series resistor or current source | the LED's If(max); Ohm's law | already R-01 |
+| 6 | `decoupling.far` | warning | P | bypass cap's path to its pin longer than *N* mm | SZZA009 §2.2.4 | not measured; threshold *N* is Q6 |
+| 7 | `ground.no_pour` | warning on 2-layer | P | no ground zone or grid on a 2-layer board | SZZA009 §2.1.4, §2.2.3 | **all 5 fire**: no board has a zone (0 `(zone` in every .kicad_pcb) |
+| 8 | `esd.unprotected_connector` | note | S + P | a connector's signal pin goes to an IC with no TVS between | SLVA680 §1, §2.1 | **all fire** (every board has a bare header) |
+| 9 | `esd.tvs_far` | warning | P | a TVS that is present but far from its connector, or on a stub | SLVA680 §2.1 | none (no TVS) |
+| 10 | `trace.too_narrow` | warning | P | trace narrower than IPC-2221 needs for its current at a 10 °C rise | IPC-2221 via Digi-Key | needs each net's current, Q7 |
+| 11 | `crystal.crowded` | warning | P | an unrelated part within 25.4 mm of a crystal | SZZA009 §2.4.1 | no crystals |
+
+Notes:
+
+- **#7** fires on every board today because tscircuit's autorouter doesn't pour ground. If it
+  is a warning, every board warns until codegen or the router adds a pour. That's honest, but it is
+  noise until it's fixed, so the tier is Q8.
+- **#8** is a note because a header on a bench board without ESD protection is a fair choice. It
+  is exactly what a hobbyist doesn't know to think about.
+- **#10** needs a current per net. The netlist has none. Options: `Spec.power`, rules.toml, or
+  only power nets with an assumed current, stated in the message.
+- **#11**: SZZA009 gives 1 inch with no derivation. It's a rule of thumb, which is why it is a
+  warning.
+
+### Considered and left out
+
+- **SZZA009 §2.2.5:** a series resistor on every I/O pin, and 1000 pF on inputs. It is aimed at EMI
+  in production microcontroller boards, the note itself says it isn't widely accepted, and it
+  would fire everywhere.
+- **A bulk capacitor at the power input:** a common rule, but the agent found no free source to
+  cite yet.
+- **Polarity marks on the silkscreen for LEDs, diodes and polarized caps:** a real assembly
+  problem. The source would be the fab's assembly guide, which the agent hasn't read yet.
+
 ## Not proposed as general rules (they need the part's datasheet)
 
 These come in through `rules.toml` per part (V-2b drafts, a person confirms), not `reflow/rules/`:
@@ -109,11 +191,20 @@ These come in through `rules.toml` per part (V-2b drafts, a person confirms), no
 
 ## Questions for the human
 
-1. Rules 1–2: where does a rail's voltage come from (fixed name table, `Spec.power`, or rules.toml)?
-2. Rule 2: the default bus speed and Cb, or should the rule refuse to judge until the spec states them?
-3. Rule 3: a new rule ID `input.floating`, or widen `address.floating`?
-4. Which of 1–4 to build first. The agent can make the bad fixtures' circuit.json + schematic inputs
+1. Candidates 1–2 (catalog #1–2): where does a rail's voltage come from (fixed name table, `Spec.power`, or rules.toml)?
+2. Candidate 2 (catalog #2): the default bus speed and Cb, or should the rule refuse to judge until the spec states them?
+3. Candidate 3 (catalog #4): a new rule ID `input.floating`, or widen `address.floating`?
+4. Which to build first. The agent can make the bad fixtures' circuit.json + schematic inputs
    in tests/data/ with the O-04 generator if that helps; `fixtures/` stays yours.
+5. A `note` severity: add it to `Violation` (a contract change; a note never fails a board or
+   counts as a warning)? Or send notes only to learn mode as concept cards?
+6. Catalog #6: the distance limit. codegen already asks for `maxDecouplingTraceLength="3mm"`; use the
+   same 3 mm?
+7. Catalog #10: where each net's current comes from.
+8. Catalog #7: a warning now, even though every board fires until tscircuit pours ground, or a note
+   until then?
+9. Who writes catalog #6–11: the human (as now), or an O-1-style exception where the agent writes them
+   and the human reviews every line?
 
 ## When accepted
 
