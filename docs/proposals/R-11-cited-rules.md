@@ -1,6 +1,6 @@
 # R-11: verifier rules from published sources ("book knowledge")
 
-Status: PROPOSED 2026-10-29 by the agent; Part B (the basic design-rules catalog) added 2026-10-31. Rule code is HUMAN (`reflow/rules/`, docs/05). This file only
+Status: PROPOSED 2026-10-29 by the agent; Part B (the basic design-rules catalog) added 2026-10-31; Part C (rules from the student's own books, after launch) added 2026-10-31. Rule code is HUMAN (`reflow/rules/`, docs/05). This file only
 drafts candidates, each with its source, threshold, what it reads, the bad fixture to plant and what
 it does to the boards we have. Nothing here is built.
 
@@ -177,6 +177,84 @@ Notes:
 - **Polarity marks on the silkscreen for LEDs, diodes and polarized caps:** a real assembly
   problem. The source would be the fab's assembly guide, which the agent hasn't read yet.
 
+## Part C: rules from the student's own books (added 2026-10-31, after launch)
+
+The human asked that students can bring their own textbooks (Horowitz & Hill, Ott, Montrose, a
+course reader) and get rules from them, with no copyright problems. Parts A and B cite only free
+vendor documents. Books are copyrighted, so this part is mostly about what reflow never stores,
+sends or publishes.
+
+The agent isn't a lawyer, and this is a design that keeps the copyright risk low, not legal advice.
+The basis it relies on: copyright covers a book's wording, not the facts or design rules in it
+(US: 17 U.S.C. §102(b)). A rule restated in our own words with a page reference is a citation; the
+book's own sentences, figures and tables are not ours to copy.
+
+### Copyright rules (the non-negotiables for this part)
+
+1. **reflow never gets a book for the student.** It reads only a local file the student passes in.
+   No downloading, no search for PDFs, no list of where to find them. A file it can't read (DRM,
+   scanned images with no text layer) is refused with that reason; reflow never removes DRM or
+   OCRs around it.
+2. **The book never enters the repo or a shared file.** The PDF and the text extracted from it stay
+   in a gitignored local folder (`.reflow/books/`, proposed). `reflow init` adds that folder to
+   `.gitignore`. A test checks that `reflow init`'s `.gitignore` has it.
+3. **What gets saved is ours.** A rule from a book keeps:
+   - `source`: title, edition, author, section and page (a citation);
+   - `why`: the student's or the model's own words, never pasted text.
+   The book's sentence is used only to check the rule (below) and is **not** written to
+   `rules.toml`. That differs from V-2b, where a datasheet rule keeps its `quote`; see Q10.
+4. **Learn mode follows the same rule.** A concept card or vault note made from a book holds our
+   own summary and the page reference, never the book's text, figures or tables.
+5. **Only the pages needed go to the model.** The student names the chapter or page range. reflow
+   sends those pages' text to the configured model provider to draft rules and nothing more, and
+   says so before it does (see Q11).
+6. **reflow ships no book-derived rules.** Parts A and B stay cited only to free documents.
+   Rules from a book live in the student's own project.
+
+### How it would work
+
+1. `reflow rules from-book BOOK.pdf --pages 112-130 --cite "Ott, EMC Engineering, 2009"`.
+   - It extracts the text of those pages locally.
+   - It says which pages will go to the model, and asks before sending.
+2. The model drafts candidate rules. For each one it must return a page number and the exact
+   sentence the rule rests on.
+3. **reflow checks every quote against the extracted text of that page.** If the sentence isn't
+   on that page, the candidate is dropped and the run lists it with the reason. This is the
+   loud-failure check: no page and sentence means no rule.
+4. Each surviving candidate is sorted:
+   - **It matches a built-in rule** (Part A or B, e.g. catalog #6, decoupling distance): reflow
+     records the book as a second source for that rule in the student's project and shows the
+     page when the rule fires. No new check.
+   - **It's a per-pin requirement** that fits `rules.toml`'s `on`/`need`/`to`/`value` (a value
+     range, a pull-up, a tie, a cap to ground): it becomes a `[[rule]]` with `drafted_by = "model"`
+     and no `confirmed_by`, as V-2b already requires.
+   - **Anything else** becomes a learn-mode note. It never fails a board.
+5. The student goes through each one with `reflow rules confirm` (V-2b), with the page open,
+   before it counts as confirmed. The book sentence is shown on screen for that check, read from
+   the local copy, and then forgotten.
+
+The honest limit: most textbook advice is general ("keep the loop small"), not per-pin. So most
+of what a book gives is a second citation for a built-in rule, or a note. Few book rules become
+new checks.
+
+### What it touches
+
+- A new CLI command (AGENT) and its prompt in `prompts/` (AGENT drafts, HUMAN approves, as H-08).
+- The quote check (AGENT, with a failing test first: a quote not on its page is dropped).
+- Sorting a candidate into "matches a built-in rule" is a judgment about rules, so the matching
+  table is HUMAN (as docs/05).
+- Possibly a contract change: a second `source` on a built-in rule's violation, or a
+  `ProjectRule` field marking a book source (Q12).
+- Learn mode: book notes as concept cards. Learn-mode selection (L-01) is HUMAN.
+
+### Considered and left out
+
+- **A shared library of rules from popular books.** It would be the most useful thing, and the
+  riskiest: one file of many rules from one book, even in our words, starts to look like a
+  summary of the book. Left out of v1; ask a lawyer before ever doing it.
+- **Uploading the book to a reflow server.** reflow has no server for this, and the book should
+  stay on the student's machine.
+
 ## Not proposed as general rules (they need the part's datasheet)
 
 These come in through `rules.toml` per part (V-2b drafts, a person confirms), not `reflow/rules/`:
@@ -205,6 +283,14 @@ These come in through `rules.toml` per part (V-2b drafts, a person confirms), no
    until then?
 9. Who writes catalog #6–11: the human (as now), or an O-1-style exception where the agent writes them
    and the human reviews every line?
+10. Part C: for a book rule, keep no quote in `rules.toml` (the agent's recommendation), or keep a
+    short one as V-2b does for datasheets? If no quote, `drafted_by = "model"` without `quote`
+    must be allowed when the source is a book, which changes V-23's planned check.
+11. Part C: sending book pages to the model provider. Ask every time (recommended), allow a
+    setting in `reflow.toml`, or extract rules only from pages the student pastes in themselves?
+12. Part C: how a book is recorded as a second source for a built-in rule. A field on the
+    student's project (no contract change), or a second `source` on `Violation` (contract)?
+13. Part C: when. The agent's recommendation is after v1, once Parts A and B are built.
 
 ## When accepted
 
