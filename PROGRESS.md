@@ -1093,3 +1093,11 @@ Did: the human asked that students can bring their own textbooks for rules, with
 - Says plainly it is a low-risk design, not legal advice. DECISIONS and TASKS R-11 rows updated.
 
 No code changed.
+
+## 2026-10-31 · agent (Claude) · README brought up to date for v1 (D-01 prep)
+Did: the human asked for a clean-install test, then for the README to match v1.
+- **Clean install, from a fresh clone of `shashi` in an empty folder:** `uv venv` + `uv pip install -e .` and plain `pip` on Python 3.12 both work in seconds (`reflow check` has no dependencies). `reflow check` gives `decoupling.series` on real_series_cap (exit 1), clean on real_good (exit 0), exit 2 on a missing path, valid `--json`, and clean on our MCP9808 eval schematic copied elsewhere. Works without `KICAD_CLI` set.
+- **README rewritten:** status table dated 10-31 (design loop, resolver, export, learn, report all working; request → spec → plan not built), the 10-28 eval result marked as draft because expectations aren't checked, a "Design a board" section, folder guide, and honest limits (you write spec and plan; simple low-speed 2-layer boards; no high-speed check; few rules; tscircuit routing; macOS only).
+- **Every new README command run once:** `reflow design --spec/--plan evals/mcp9808_breakout/...` with `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet` (one-off, `.env` unchanged) → passed on attempt 1 in 19 s; `reflow report` wrote report.md; `reflow learn --no-browser` served the index (200); `reflow export` **refused**: routing partial (V3_3 C1.pin1–J1 at 6.05 mm, limit 5 mm, X-04) and not signed off. Our schematic: ERC 0 errors, 0 warnings. The README now says export can refuse this way and to re-run design.
+- **Found:** GitHub's main is at dde218a, 91 commits behind `shashi`; anyone cloning from the README today gets the 10-17 version. SETUP.md is stale too (atopile, reflow names); not changed.
+- **Not run:** the full suite in the fresh clone (same code as the working copy). `pytest -q tests/test_repo_hygiene.py tests/test_cli.py` → 6 passed.
