@@ -1101,3 +1101,12 @@ Did: the human asked for a clean-install test, then for the README to match v1.
 - **Every new README command run once:** `reflow design --spec/--plan evals/mcp9808_breakout/...` with `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet` (one-off, `.env` unchanged) → passed on attempt 1 in 19 s; `reflow report` wrote report.md; `reflow learn --no-browser` served the index (200); `reflow export` **refused**: routing partial (V3_3 C1.pin1–J1 at 6.05 mm, limit 5 mm, X-04) and not signed off. Our schematic: ERC 0 errors, 0 warnings. The README now says export can refuse this way and to re-run design.
 - **Found:** GitHub's main is at dde218a, 91 commits behind `shashi`; anyone cloning from the README today gets the 10-17 version. SETUP.md is stale too (atopile, reflow names); not changed.
 - **Not run:** the full suite in the fresh clone (same code as the working copy). `pytest -q tests/test_repo_hygiene.py tests/test_cli.py` → 6 passed.
+
+## 2026-10-31 · agent (Claude) · SETUP.md matches v1
+Did: SETUP.md still described the 10-07 toolchain (atopile, freerouting as the router, "reflow"). Rewrote it from what the code actually calls:
+- **Tools:** KiCad 10.0.5, Python 3.11+, Node, tscircuit 0.0.2768 (pinned; the version tests/data was made with), Claude Code (optional, `claude-code` provider), ngspice 47 (optional; learn sim falls back to KiCad's bundled library). atopile is gone: nothing in reflow/ or tests/ uses it.
+- **Settings:** the reflow.toml caps and every env var reflow reads (grep of `REFLOW_*`, `KICAD_CLI`, `TSCI` in reflow/), with defaults from config.py, snapshot.py, claude_code.py and sim.py.
+- **Tests:** how to run them and the 2 deliberate failures.
+- **freerouting, Java and `KICAD_PY`** moved to a "contributors only" section, since X-02 isn't built and v1 routes with tscircuit. Gotchas kept where still true.
+- README: links SETUP.md and pins `tscircuit@0.0.2768`.
+Versions checked on this machine: kicad-cli 10.0.5, tsci 0.0.2768, node 26.3.0, ngspice 47, Claude Code 2.1.289, uv 0.11.21. No code changed.

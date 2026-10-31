@@ -38,10 +38,10 @@ Exit codes: `0` clean · `1` errors (or warnings with `--strict`) · `2` tool/in
 
 ## Design a board
 
-Extra one-time setup:
+Extra one-time setup (every tool, version and setting: [SETUP.md](SETUP.md)):
 
 ```bash
-npm i -g tscircuit                 # provides tsci, which compiles the AI's board code
+npm i -g tscircuit@0.0.2768        # provides tsci, which compiles the AI's board code
 reflow parts update                # downloads the JLCPCB parts snapshot (about 1.5 GB)
 uv pip install -e '.[learn]'       # learn mode's local web server
 ```
