@@ -1056,3 +1056,30 @@ Did: the human accepted O-04a, option A, in chat. Q3 (draw our schematic at the 
   - `test_zero_exit_with_outputs_is_ok` and `test_blinky_tsx_compiles` now require `kicad_sch == ""` and no `.kicad_sch` in build/, instead of the file existing. This change was listed in the proposal.
   - `test_integration::test_schematic_export_keeps_the_traced_nets` is the deliberate record of tscircuit's export bug. It got that file from compile_board, so it now asks tsci for the export directly. Its assertions are unchanged, and it still fails the same way (R1.pin1 `unconnected-(R1-Pad1)` instead of SDA).
 - **`pytest -q`:** 2 failed, 789 passed in 6m40s. The same 2 deliberate failures: test_i2c_pullup_rail and the tscircuit record.
+
+## 2026-10-31 · agent (Claude) · R-11 Part B: basic design-rules catalog (no code)
+Did: the human said they checked the eval expectations, and asked for a basic set of design rules beyond ERC for students and hobbyists. The `expected.toml` files still say `status = "draft"`. They are the human's, so I didn't change them.
+- **Added Part B to docs/proposals/R-11-cited-rules.md.**
+  - **Tiers:** error, warning, note, per-part.
+  - **11 rules,** schematic and PCB. #1–4 are the earlier candidates, #5 is R-01, #3 is the human's pull-up rail rule, and #6–11 are new:
+    - decoupling distance;
+    - ground pour on 2-layer boards;
+    - ESD on connectors, and TVS placement;
+    - trace width for current;
+    - crystal spacing.
+  - **Left out:** series resistors on every I/O, the bulk input cap (no free source found) and silkscreen polarity (source not read).
+- **Sources, read from the documents themselves:**
+  - TI SZZA009 (Nov 1999): §2.1.4, §2.2.3, §2.2.4, §2.4.1;
+  - TI SLVA680A (rev. April 2022): §1, §2.1;
+  - IPC-2221's curve-fit constants from Digi-Key's calculator page, since the standard is paid.
+  - analog.com refused the MT-101 and MT-031 downloads, so nothing cites them.
+- **Checked on run 20261028T161716Z:** no eval board has a ground zone (0 `(zone` in all 7 board files), so #7 would fire on every board. Every board has a header with no TVS, so #8 fires everywhere, which is why it's a note.
+- **Questions Q5–Q9 for the human:**
+  - a `note` severity (contract change) or learn-mode only;
+  - the decoupling distance limit;
+  - where net currents come from;
+  - the ground-pour tier;
+  - who writes #6–11.
+- DECISIONS R-11 row and TASKS R-11 row updated.
+
+No code changed.
