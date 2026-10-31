@@ -112,3 +112,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: python tools/check_injection.py
+      - run: python tools/check_links.py
