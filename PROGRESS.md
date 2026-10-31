@@ -1138,3 +1138,13 @@ Did: the human, maintaining reflow alone, asked for CI modelled on a hackathon p
   - The Write tool turned `\u200b`-style escapes in the scanner and its test into real invisible characters. The scanner caught it once the files were tracked; both files are ASCII escapes now.
 - **Not done:** Windows (shebang-based fake tools; reflow is macOS-tested only). The GitHub settings in REVIEWING.md §1 are the human's.
 - **Known risks written down, not fixed (CI-06, CI-07):** model-written TSX runs on Bun with the user's environment, including REFLOW_API_KEY; the learn server doesn't check the Host header.
+
+## 2026-10-31 · agent (Claude) · R-12: `i2c.pullup_rail` drafted (O-1d), awaiting the human's review
+Did: the human said "I draft both" for the two deliberate failures; recorded as DECISIONS O-1d (an ownership exception for this one rule in `reflow/rules/i2c.py`).
+- **Rule:** for each I²C line, the supply nets of the ICs on it come from their `power_in` pins (`bus_supplies`). A pull-up whose far end isn't one of them is `i2c.pullup_rail` (error). The fix hint names the rail and each supply with its chips, since it goes back to the model.
+- **Stays quiet** when no IC on the line has a typed power pin (unbound boards: can't judge), and when a capacitor bridges the rail to a chip's supply (`cap_bridges`). The first draft fired on `bad_series_cap` and `real_series_cap` as well as `decoupling.series`; each bad fixture must give exactly its rule, and the series cap is the root cause.
+- **Checked:**
+  - `tests/test_i2c_pullup_rail.py` both pass: SDA and SCL errors, hint names V3_3 and Net-(C1-pin1); the corrected board stays clean;
+  - test_netlist (every fixture's expected.toml), test_cli, test_verifier, test_pinbind, test_evals, test_rules_*, test_learn_engine: 126 passed;
+  - all 21 compiled attempts of eval run 20261028T161716Z re-verified with the rule: 0 changed results.
+- docs/05 catalog row added, marked draft. No `fixtures/` bad board (HUMAN); the bad case is the real run in tests/data.

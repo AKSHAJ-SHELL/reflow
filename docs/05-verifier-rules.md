@@ -26,6 +26,7 @@ Every rule follows the same shape:
 | `decoupling.missing` | IC power pin with no cap to ground | netlist | none yet | built, needs fixture |
 | `i2c.missing_pullup` | SDA/SCL with no pull-up | netlist | `bad_no_pullups` | built |
 | `i2c.duplicate_pullup` | More than one pull-up on a line (warning) | netlist | none yet | built, needs fixture |
+| `i2c.pullup_rail` | A pull-up on SDA/SCL goes to a rail that powers no chip on the bus (a cap between them is left to `decoupling.series`); quiet when no chip has a typed power pin | netlist + pin types | none in `fixtures/` yet; real board in `tests/data/real_runs/mcp9808_lightning_pullup_rail_20261022` | draft (agent-written 10-31 at the human's request; awaiting the human's line-by-line review) |
 | `address.floating` | I²C address pin (A0–A2, ADDR) left unconnected | netlist + pin names | `bad_floating_addr` | built |
 | `parts.provenance` | A part number in the design that came from neither the resolver nor the user | netlist + `ResolvedParts` + `Spec` | `bad_hallucinated_mpn` (to make) | planned (R-03) |
 | `scope.high_speed` | USB/DDR/Ethernet/RF nets present, so autorouting is refused | netlist net names | `bad_usb_route` (to make) | planned (R-04) |
