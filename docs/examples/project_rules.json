@@ -1,0 +1,62 @@
+{
+  "rule": [
+    {
+      "on": "U1.VDD",
+      "need": "cap",
+      "to": "GND",
+      "value": "100nF..1uF",
+      "source": "MCP9808 datasheet, 6.1 Layout Considerations, p.35",
+      "why": "Recommended decoupling between VDD and GND, ceramic, placed right at the pins."
+    },
+    {
+      "on": "U1.SDA",
+      "need": "pullup",
+      "to": "V3_3",
+      "value": "4.7k",
+      "source": "MCP9808 datasheet, 3.1 Serial Data Line, p.11",
+      "why": "SDA is open-drain: the chip can only pull it low, so a resistor has to pull it high."
+    },
+    {
+      "on": "U1.SCL",
+      "need": "pullup",
+      "to": "V3_3",
+      "value": "4.7k",
+      "source": "MCP9808 datasheet, 4.0 Serial Communication; I2C bus is open-drain",
+      "why": "Same as SDA. 4.7k is a common choice for a short 3.3V bus."
+    },
+    {
+      "on": "U1.A0",
+      "need": "tie",
+      "to": "GND",
+      "source": "MCP9808 datasheet, Table 3-2, p.11",
+      "why": "Address is 0011 A2 A1 A0. The spec wants 0x18, so A2, A1 and A0 are all 0."
+    },
+    {
+      "on": "U1.A1",
+      "need": "tie",
+      "to": "GND",
+      "source": "MCP9808 datasheet, Table 3-2, p.11",
+      "why": "See A0."
+    },
+    {
+      "on": "U1.A2",
+      "need": "tie",
+      "to": "GND",
+      "source": "MCP9808 datasheet, Table 3-2, p.11",
+      "why": "See A0."
+    },
+    {
+      "on": "U1.ALERT",
+      "need": "open",
+      "source": "MCP9808 datasheet, 3.3 Alert, p.11",
+      "why": "Open-drain alert output. This board doesn't use it, so it stays unconnected."
+    }
+  ],
+  "part": [
+    {
+      "ref": "U1",
+      "mpn": "MCP9808",
+      "symbol": "Sensor_Temperature:MCP9808_MSOP"
+    }
+  ]
+}

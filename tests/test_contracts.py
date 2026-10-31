@@ -23,8 +23,11 @@ EXAMPLES = ROOT / "docs" / "examples"
 FROZEN = {
     "Violation": ("rule_id", "severity", "message", "why", "fix_hint", "refs", "nets"),
     "OpenQuestion": ("id", "question", "answer"),
+    "ProjectRule": ("on", "need", "source", "why", "to", "value"),
+    "RulePart": ("ref", "mpn", "symbol"),
+    "ProjectRules": ("rule", "part"),
     "Spec": ("request", "title", "power", "interfaces", "constraints", "named_parts",
-             "open_questions", "confirmed"),
+             "open_questions", "confirmed", "rules_file"),
     "PartRequest": ("id", "role", "category", "value", "package", "tolerance", "voltage",
                     "mpn", "notes"),
     "Block": ("name", "purpose", "part_ids"),
@@ -35,6 +38,10 @@ FROZEN = {
     "ResolvedParts": ("resolved", "unresolved"),
     "GeneratedCode": ("attempt", "compile_try", "tsx", "model", "input_tokens", "output_tokens"),
     "CompileError": ("message", "line", "column", "file"),
+    "Citation": ("doc", "locator", "url"),
+    "CardPin": ("number", "name", "kind"),
+    "PartCard": ("family", "mpns", "lcsc", "package", "pins", "pin_source", "verified_by",
+                 "verified_on"),
     "CompileResult": ("ok", "errors", "stderr_tail", "kicad_sch", "kicad_pcb", "circuit_json"),
     "VerifyReport": ("schematic", "components", "nets", "errors", "warnings", "violations"),
     "FeedbackViolation": ("rule_id", "severity", "message", "fix_hint", "refs", "nets"),
@@ -46,17 +53,29 @@ FROZEN = {
                          "explanation"),
     "LearnRecord": ("interactions", "skipped_concepts"),
     "SignOff": ("accepted", "warnings_acknowledged", "overrides", "at"),
+    "ConceptCard": ("concept", "fsrs", "last_reviewed", "ratings"),
+    "VaultNote": ("path", "kind", "title", "links"),
+    "SimSignal": ("name", "unit", "t", "v"),
+    "SimRequest": ("concept", "target_refs", "variant", "change"),
+    "SimResult": ("concept", "variant", "signals", "exit_code", "deck_path", "ran", "verdict", "notes",
+                  "assumptions"),
+    "FixEdit": ("kind", "ref", "pin", "value", "part", "a", "b"),
+    "FixResult": ("number", "base_attempt", "edits", "compiled", "compile_errors", "errors", "warnings",
+                  "violations", "refused", "tsx_path", "circuit_json"),
     "DrcSummary": ("errors", "warnings", "unconnected", "report_path"),
+    "TraceLength": ("net", "ports", "length_mm", "limit_mm"),
     "RouteResult": ("status", "router", "tries", "routed_nets", "total_nets", "unrouted_nets",
-                    "refused_nets", "drc", "kicad_pcb"),
+                    "refused_nets", "drc", "kicad_pcb", "too_long"),
     "FabPackage": ("gerbers_dir", "drill", "pos_csv", "bom_csv", "design_md", "report_json",
                    "report_html"),
 }
 
 EXAMPLE_FILES = {
     "spec.json": c.Spec,
+    "project_rules.json": c.ProjectRules,
     "plan.json": c.Plan,
     "resolved_parts.json": c.ResolvedParts,
+    "part_card.json": c.PartCard,
     "generated_code.json": c.GeneratedCode,
     "compile_result.json": c.CompileResult,
     "verify_report.json": c.VerifyReport,
@@ -64,6 +83,10 @@ EXAMPLE_FILES = {
     "run_result.json": c.RunResult,
     "learn_record.json": c.LearnRecord,
     "signoff.json": c.SignOff,
+    "concept_card.json": c.ConceptCard,
+    "vault_note.json": c.VaultNote,
+    "sim_result.json": c.SimResult,
+    "fix_result.json": c.FixResult,
     "route_result.json": c.RouteResult,
     "fab_package.json": c.FabPackage,
 }
@@ -139,6 +162,12 @@ def test_enums_in_examples():
     assert all(p.category in c.PART_CATEGORIES for p in plan.parts)
     report = c.from_dict(c.VerifyReport, json.loads((EXAMPLES / "verify_report.json").read_text()))
     assert all(v.severity in c.SEVERITIES for v in report.violations)
+    card = c.from_dict(c.PartCard, json.loads((EXAMPLES / "part_card.json").read_text()))
+    assert all(p.kind in c.PIN_KINDS for p in card.pins)
+    rules = c.from_dict(c.ProjectRules, json.loads((EXAMPLES / "project_rules.json").read_text()))
+    assert rules.rule and all(r.need in c.RULE_NEEDS for r in rules.rule)
+    refs = {p.ref for p in rules.part}
+    assert all(r.on.split(".", 1)[0] in refs for r in rules.rule)
 
 
 def test_plan_only_copies_user_named_mpns():
@@ -165,10 +194,10 @@ def test_cli_json_matches_verify_report():
 
 @pytest.mark.parametrize("module, func", [
     ("reflow.llm", "load_model"),
-    ("reflow.compile", "compile_board"),
-    ("reflow.parts.catalog", "search"),
+    # compile_board is implemented (K-01, K-02); tests/test_compile.py covers it.
+    # catalog search is implemented (P-01, P-03); tests/test_catalog.py covers it.
     ("reflow.route", "route"),
-    ("reflow.export", "export_fab"),
+    # export_fab is implemented (O-01); tests/test_export.py covers it.
 ])
 def test_agent_stubs_exist_and_are_honest(module, func):
     """Stubs import cleanly and refuse to pretend they work."""
@@ -176,3 +205,15 @@ def test_agent_stubs_exist_and_are_honest(module, func):
     fn = getattr(importlib.import_module(module), func)
     with pytest.raises(NotImplementedError):
         fn(*([None] * fn.__code__.co_argcount))
+
+
+def test_route_result_lists_over_length_traces_and_old_files_still_parse():
+    """X-04a: `too_long` is typed, and a route_result.json written before it existed still parses."""
+    data = json.loads((EXAMPLES / "route_result.json").read_text())
+    route = c.from_dict(c.RouteResult, data)
+    assert route.too_long and all(isinstance(t, c.TraceLength) for t in route.too_long)
+    assert route.too_long[0].length_mm > route.too_long[0].limit_mm
+    old = {k: v for k, v in data.items() if k != "too_long"}
+    assert c.from_dict(c.RouteResult, old).too_long == []
+    with pytest.raises(c.ContractError):
+        c.from_dict(c.RouteResult, {**data, "too_long": [{"net": "GND", "ports": [], "length_mm": "14", "limit_mm": 5}]})

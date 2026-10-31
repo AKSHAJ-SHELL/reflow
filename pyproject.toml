@@ -9,8 +9,16 @@ description = "Open-source AI PCB verifier"
 requires-python = ">=3.11"
 dependencies = []
 
+[project.optional-dependencies]
+# Learn mode's local web server (DECISIONS L-2). `reflow check` and `reflow design` need none of it.
+learn = ["fastapi==0.161.1", "uvicorn==0.54.0", "fsrs==6.3.2"]
+test = ["pytest>=8", "httpx==0.28.1"]
+
 [project.scripts]
 reflow = "reflow.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["reflow*"]
+
+[tool.setuptools.package-data]
+"reflow.learn" = ["static/*", "static/assets/*"]

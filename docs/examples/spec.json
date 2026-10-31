@@ -9,5 +9,6 @@
     {"id": "q1", "question": "Break out the ALERT pin?", "answer": "no"},
     {"id": "q2", "question": "Add I2C pull-ups on the board, or does the host have them?", "answer": "on the board"}
   ],
-  "confirmed": true
+  "confirmed": true,
+  "rules_file": ""
 }

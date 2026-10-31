@@ -24,6 +24,25 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | R-04 | `scope.high_speed` | netlist net names | rule + `bad_usb_route` | USB/DDR/RF nets flagged; good clean | — | HUMAN | todo |
 | R-05 | Optional context arg for rules (`check(nl, pcb=None, ctx=None)`) | rules API | backward-compatible `run_all` | all existing tests unchanged and green | — | HUMAN | todo |
 
+## Verifier input and project rules (DECISIONS V-1, V-2)
+
+| ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| V-10 | `circuit.json` → `Netlist` loader | `CompileResult.circuit_json` | `reflow/circuit_netlist.py` | recorded sensor boards load with the traced nets; rules on them give the planted bug only; malformed input raises | V-1 | AGENT | done (10-20) |
+| V-11 | Pin-map importer (vendor pin data, then KiCad symbol; signed card overrides) | LCSC id / MPN + package | pin map per IC | MCP9808 and STM32F103C8 maps match their datasheets; a disagreement between sources is reported | V-1 | AGENT | done (10-20) |
+| V-12 | Bind ICs to pin maps: relabel pins by physical number | Netlist, ResolvedParts, pin maps | card-labelled Netlist | wrong TSX pinout → mismatch findings; no pin map → finding | V-10, V-11 | AGENT→HUMAN (O-1b: human reviews the diff) | doing (awaiting human review) |
+| V-13 | Rules `parts.no_card`, `pinout.mismatch`, `verify.pcb_mismatch`, and how shorted named nets surface | V-12 output | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
+| V-14 | `.kicad_pcb` pad-net reader | `CompileResult.kicad_pcb` | {(ref, pad): net} | recorded board matches its `circuit.json` nets | — | AGENT | done (10-20) |
+| V-16 | Verifier adapter `(circuit_json, ResolvedParts, Spec) → VerifyReport` | V-10..V-14 | callable for `run_design` | integration tests in `tests/test_integration.py` go green on the circuit.json path | V-10..V-14 | AGENT | done (10-20); loop test green once loop patch applied |
+| R-07 | Citations for every rule in docs/05 | rules | docs/05 | every catalog row names its source | — | HUMAN | todo |
+| R-11 | Rules from published sources ("book knowledge"), plus a basic design-rules catalog (Part B) and rules from the student's own books (Part C, after launch) | docs/proposals/R-11-cited-rules.md | rules + bad fixtures + docs/05 rows | each bad fixture → exactly its rule; good fixtures and eval boards as listed in the proposal | R-11 accepted | HUMAN (agent drafted the catalog) | proposed (10-29) |
+| R-10 | The six `need` checks (`project.cap`, `.pullup`, `.pulldown`, `.tie`, `.open`, `.connected`) | ProjectRules, Netlist | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
+| V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | done (10-21) |
+| V-22 | Render project rules into codegen/fix prompts | ProjectRules | prompt text | one line per rule; no `why`/`source` in any prompt | V-21, H-08 | AGENT→HUMAN | done (10-21; human reviewed codegen.md and applied the loop patch, 30cc4b4). 10-22: each [[part]]'s pin table added (V-22a), awaiting human review |
+| V-23 | Contract patch for V-2b: `ProjectRule` gains optional `drafted_by`, `quote`, `confirmed_by`; `reflow rules check` warns on unconfirmed rules; design/eval label runs with unconfirmed rules; eval boards need every rule confirmed | ProjectRules | contracts + labels | existing rules.toml files still parse; `drafted_by = "model"` without `quote` fails check; an unconfirmed rule → warning, `unconfirmed_rules: N` in run.json, eval board left out of the go/no-go | V-2b, V-21 | AGENT→HUMAN (contract) | todo |
+| V-24 | `reflow rules confirm [RULES] [--ref U1]` | rules.toml | `confirmed_by = "<name>, <date>"` on confirmed rules | refuses without a TTY (no `--yes`); name typed, defaulting to git user.name; confirm/edit/skip per rule; write-back changes only `confirmed_by` (rest of the file byte-identical) | V-23 | AGENT | todo |
+| I-01 | `reflow init [DIR] [--part REF=MPN[:Lib:Symbol]]` | skill, pin map | `.claude/skills/datasheet-tutor/SKILL.md`, `AGENTS.md`, `CLAUDE.md` (`@AGENTS.md`), skeleton `rules.toml` | never overwrites (existing files reported, skipped); skeleton has one blank entry per pin that needs a decision and fails `reflow rules check` until filled; check that Claude Code loads the project skill | V-23, H-08b | AGENT | todo |
+
 ## Contracts
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
@@ -34,15 +53,17 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| H-00 | Answer Q3–Q6 + COMPILE_CAP in DECISIONS.md | 06-harness-design | accepted decisions | each Q has one chosen option | — | HUMAN | todo (by Mon 10-19) |
-| H-01 | Harness skeleton: dataclasses + signatures, no bodies | contracts | `reflow/harness/*.py` | imports cleanly; signatures use contracts types | H-00, C-01 | HUMAN | todo |
-| H-02 | Context builder + Violation→`RetryFeedback` conversion | `VerifyReport`, `CompileResult` | `RetryFeedback` + rendered prompt text | output parses as `RetryFeedback`; contains no `why`; prompt within token budget | H-01 | HUMAN | todo |
-| H-03 | Core loop | everything above | `RunResult` | fake model + fake compiler: passes on attempt 2 → status passed, best_attempt 2 | H-02, M-01, K-01 | HUMAN | todo |
-| H-04 | Retry termination + best-attempt selection | attempt records | `RunResult.status`, `best_attempt` | table test of the Q3/Q5 scenarios | H-03 | HUMAN | todo |
+| H-00 | Answer Q3–Q6 + COMPILE_CAP in DECISIONS.md | 06-harness-design | accepted decisions | each Q has one chosen option | — | HUMAN | done (10-19) |
+| H-01 | Harness skeleton: dataclasses + signatures, no bodies | contracts | `reflow/harness/*.py` | imports cleanly; signatures use contracts types | H-00, C-01 | HUMAN | done (10-19) |
+| H-02 | Context builder + Violation→`RetryFeedback` conversion | `VerifyReport`, `CompileResult` | `RetryFeedback` + rendered prompt text | output parses as `RetryFeedback`; contains no `why`; prompt within token budget | H-01 | HUMAN | done (10-19) |
+| H-03 | Core loop | everything above | `RunResult` | fake model + fake compiler: passes on attempt 2 → status passed, best_attempt 2 | H-02, M-01, K-01 | HUMAN | done (10-19) |
+| H-04 | Retry termination + best-attempt selection | attempt records | `RunResult.status`, `best_attempt` | table test of the Q3/Q5 scenarios | H-03 | HUMAN | done (10-19) |
 | H-05 | Run folder I/O (+ resume if Q4=a) | `RunResult`, artifacts | `runs/<id>/...` per 02-architecture | kill mid-run → files from completed steps exist and parse | H-01 | AGENT | todo |
 | H-06 | Spec checkpoint + planner call (CLI side) | request | confirmed `Spec`, `Plan` | `Plan` parses strictly; `mpn` only from `named_parts` | M-01, H-08 | AGENT | todo |
-| H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | todo |
-| H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | todo |
+| H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | done (10-19) |
+| H-09 | Wire `reflow design` to config, `compile_board`, catalog + resolver, design verifier | config, H-03, V-16 | runnable command | scripted model + real tsci: no-pull-up board fails then passes from config; missing key / bad config / catalog failure exit 2 | H-07, V-16 | AGENT | done (10-21) |
+| H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | doing (awaiting human review) |
+| H-08b | Tighten the datasheet-tutor skill (study first, write only when asked, `drafted_by`/`quote`, never `confirmed_by`) and write the `AGENTS.md` text | V-2b | `skills/datasheet-tutor/SKILL.md`, AGENTS.md template | human approved | V-2b | AGENT→HUMAN (prompt text) | todo |
 
 ## Model + compiler (AGENT)
 
@@ -50,42 +71,56 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 |---|---|---|---|---|---|---|---|
 | M-01 | Model adapters behind `complete(system, prompt)` | config | `reflow/llm.py` | mock-server/unit tests per adapter; errors raise `ModelError` | D-1 | AGENT | todo |
 | M-02 | Config loader (`reflow.toml` + env) | — | config dict | no secrets in repo; missing key → clear error | — | AGENT | todo |
+| M-03 | Reply budget: `max_tokens` in config, and a cut-off reply raises a clear error | config | `max_tokens` key; ModelError on `stop_reason`/`finish_reason` cut-off | config and env set the budget; a cut-off reply says so | M-01, M-02 | AGENT | done (10-21) |
+| M-04 | `REFLOW_PROVIDER=claude-code`: model calls through `claude -p` on the user's Claude Code login (no API key) | config | `reflow/claude_code.py` | print mode, tools off (`--tools ""`), empty temp folder, prompt on stdin, `--no-session-persistence`, no ANTHROPIC_API_KEY passed; no REFLOW_API_KEY needed; errors and timeouts raise ModelError | M-01, M-02 | AGENT | done (10-24) |
 | K-01 | `compile_board()` via `tsci` | TSX string | `CompileResult` | blinky TSX compiles; a syntax error returns ok=False with ≥1 `CompileError` | — | AGENT | todo |
-| K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | todo |
+| K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | todo (10-22: circuit.json `source_*_error` elements are now compile errors, since tsci exits 0 on them) |
 
 ## Parts
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| P-01 | Catalog client | category query | `CatalogPart[]` | "4.7k 0402" returns ≥1 in-stock part with a real LCSC id; network error raises `CatalogError` | D-6 | AGENT | todo |
-| P-02 | Resolver validity + ranking | `PartRequest`, candidates | `ResolvedPart` / `Unresolved` | package matches request; basic > stock > price; IC only if in `named_parts` | P-01 | HUMAN | todo |
-| P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | todo |
+| P-01 | Catalog client | category query | `CatalogPart[]` | "4.7k 0402" returns ≥1 in-stock part with a real LCSC id; network error raises `CatalogError` | D-6 | AGENT | retired (jlcsearch; replaced by P-05, D-6a) |
+| P-02 | Resolver validity + ranking | `PartRequest`, candidates | `ResolvedPart` / `Unresolved` | package matches request; basic > stock > price; IC only if in `named_parts` | P-01 | HUMAN | done |
+| P-03 | Local catalog cache / offline snapshot | catalog | cached results | second run makes no network calls | P-01 | AGENT | done via the local snapshot (P-04, P-05) |
+| P-04 | `reflow parts update`: download the jlcparts snapshot, join + inflate, CRC check, install atomically (D-6a) | jlcparts data URL | `cache.sqlite3` + `snapshot.json` at `REFLOW_PARTS_DB` | split-archive fixture installs; a missing or corrupt part fails and keeps the old database | D-6a | AGENT | done (10-21) |
+| P-05 | Catalog client on the local snapshot, category-aware queries; candidates carry `category` (C2 catalog half) | `PartRequest` | `CatalogPart[]` | MCP9808 plan resolves its 4.7k/100nF/header/IC requests from a snapshot fixture | P-04 | AGENT | done (10-21); header + IC resolve once P-02b lands |
+| P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | AGENT→HUMAN (O-1: human reviews the diff) | doing (awaiting human review) |
+| P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal approved by the human) | done (10-21) |
 
 ## Learn mode
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| L-01 | Interaction selection + grading + skip logic | `RunResult`, violations | `LearnInteraction` list | every interaction's `rule_id` is a real violation from the run | H-03, D-4 | HUMAN | todo |
+| L-01 | Interaction selection + grading + skip logic | run folder, violations, concept cards | `LearnInteraction` list | every interaction's `rule_id` is a real violation from the run; graded by the part clicked; a concept with recall above 0.9 is skipped and the skip is shown | H-03, D-4 | AGENT→HUMAN (O-1c: human reviews line by line) | doing (10-22: selection, grading and skip logic (recall > 0.9, shown, "do it anyway") built; awaiting human review) |
 | L-02 | Terminal screens for spot-the-bug | L-01 output | interactive prompts | scripted-input test records a `LearnRecord` | L-01 | AGENT | todo |
-| L-03 | Sign-off gate | warnings, overrides | `SignOff` | `n` stops before export | — | AGENT | todo |
+| L-03 | Sign-off gate | warnings, overrides | `SignOff` | `n` stops before export | — | AGENT | done (10-28: `reflow export` shows the remaining warnings and asks y/n at a terminal; `n` writes a declined signoff.json and no fab files; export refuses with no, a declined, or a stale sign-off (warnings changed); no terminal: refused, never assumed; the learn UI's sign-off passes the same gate) |
+| L-04 | `reflow study REF [--datasheet PATH] [--print-command]` | rules.toml `[[part]]` | a separate Claude Code session | macOS: opens a Terminal window and runs `claude --name … "<first message>"` in the project folder (never `-p`); `--print-command`, or no `claude` on PATH: prints the commands; Windows/Linux print (later); reads nothing back | I-01, H-08b | AGENT | todo |
+| L-10 | Learn v2 phase 1: `reflow learn RUN_DIR` serves a local web app (schematic + PCB viewers, learn panel, sign-off); spot-the-bug by clicking a part | run folder | `learn.json`, `signoff.json` | server tests on a recorded failed run: /run, /learn/next, /learn/answer grades by the part clicked, /signoff writes a strict `SignOff`; front-end build shipped in the package; a click verified in a browser | L-01, L-03, L-2 | AGENT | done (10-22; spot-the-bug, reveal and sign-off clicked through in a browser on a real run) |
+| L-11 | Learn v2 phase 2: concept cards (fsrs) and skip logic, an Obsidian-compatible vault (`~/.reflow/vault/`, `REFLOW_VAULT`), and a vault graph in the UI | answers | `ConceptCard`, `VaultNote`, notes | Good/Hard/Again from what the user did; recall above 0.9 skips (shown); concept/mistake/board notes link with [[wikilinks]]; /vault/graph returns them | L-10 | AGENT (selection/skip parts O-1c) | done (10-22; skip, do-it-anyway and the vault graph clicked through in a browser) |
+| L-12 | Learn v2 phase 3 (L-2a): ngspice testbenches for decoupling and I2C pull-ups, schematic level and PCB level | board values, layout | `SimResult` | each testbench: hand-calculated value, known-good and known-bad tests; assumptions shown; no testbench → "can't simulate this yet" | L-11 | AGENT→HUMAN (O-1c) | doing (10-22: built, each testbench within 1.2% of its hand calculation; awaiting human review) |
+| L-14 | Fix-it tools (L-2a): edit the AI's failed draft (add R/C, change value, connect, disconnect, delete), recompile with tsci and re-verify, then simulate | draft TSX | `FixResult` | each edit gives the expected TSX; a correct fix of a real failed draft verifies clean; the AI's fix is hidden until the user tries | L-10, L-12 | AGENT | done (10-22; the real draft fixed in a browser verifies clean; set_trace_limit added) |
+| L-13 | Learn v2 phase 4: click-to-explore and make-the-call | plan, spec, rule catalog | explanations, value choices | every explanation comes from the run's plan/spec/rules; value choices answered by a validated testbench | L-12 | AGENT | todo |
 
 ## Routing + output (AGENT)
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| X-01 | Router wrapper (tscircuit router) | placed board | `RouteResult` | sensor board routes; `drc` from our kicad-cli run | K-01 | AGENT | todo |
+| X-01 | Router wrapper (tscircuit router) | placed board | `RouteResult` | sensor board routes; `drc` from our kicad-cli run | K-01 | AGENT | done (10-22: tscircuit routes inside tsci export; `route_report` reads it and runs our DRC. Boards route once decoupling caps get maxDecouplingTraceLength="3mm"; codegen asks for it; 10-27: codegen leaves board size and placement to tscircuit unless the spec gives a size, so headers fit inside the edge) |
 | X-02 | freerouting fallback via bridges | `.kicad_pcb` | `RouteResult` | round trip on scratch demo board, zones refilled | X-01 | AGENT | todo (cut #1) |
-| X-04 | Re-DRC + compare + honest partial report | routed board | `DrcSummary`, unrouted list | partial board lists unrouted nets | X-01 | AGENT | todo |
-| O-01 | Fab export | routed board | `FabPackage` | gerbers/drill/pos/BOM exist; refuses without verify+DRC report | X-04 | AGENT | todo |
-| O-02 | `report.json` / `report.md` | run folder | reports | includes every attempt's violations and final DRC | H-03 | AGENT | todo |
+| X-04 | Re-DRC + compare + honest partial report | routed board | `DrcSummary`, unrouted list | partial board lists unrouted nets | X-01 | AGENT | done (10-22: status routed only with every net in copper and 0 DRC errors; unrouted nets listed; exported boards carry JLCPCB standard 2-layer rules (board.kicad_pro, 10-23), and the routed eval board has 0 DRC errors under them; 10-27: hole-to-copper via 0.2 mm / PTH 0.28 mm in board.kicad_dru; codegen asks for 0.4 mm via pads so router vias meet it; 10-28: a trace over its length limit makes the board partial, listed in `RouteResult.too_long` (X-04a) and on the learn UI's routing line) |
+| O-01 | Fab export | routed board | `FabPackage` | gerbers/drill/pos/BOM exist; refuses without verify+DRC report | X-04 | AGENT | done (10-28: `reflow export RUN_DIR`; gerbers, drill, pos, BOM, report.json, drc.json; refuses on verify errors, not routed, DRC errors, DRC on another board or older than the board, or a part number from outside the resolver. DESIGN.md is O-02's) |
+| O-02 | `report.json` / `report.md` | run folder | reports | includes every attempt's violations and final DRC | H-03 | AGENT | done (10-28: `reflow report RUN_DIR`; every attempt's compile errors and violations, routing + DRC from route/route.json, parts, sign-off; fails loudly when the run folder disagrees with run.json; `reflow export` writes it to the run folder, refused or not, and into out/) |
+| O-04 | Our own KiCad schematic from circuit.json, held to the human's bar (2026-10-29): 0 ERC errors and 0 warnings, then `reflow check` | circuit.json, rules.toml [[part]] symbols, .kicad_pcb | `reflow/schematic.py`; `out/kicad/` project | each eval board's schematic: ERC 0/0, reflow check clean, nets = circuit.json = PCB pads; tscircuit's export fails the same check; export refuses a board that misses it | O-01 | AGENT | done (10-29: 9/9 compiled MCP9808/PCF8574/AT24C02 boards of run 20261028T161716Z pass; LEDs refused on pad-1 polarity; AMS1117 refused on pin 4) |
+| O-04a | No tscircuit schematic in build/ (contract meaning of `CompileResult.kicad_sch`) | docs/proposals/O-04a-no-tscircuit-schematic-in-build.md | `reflow/compile.py`; docs/04 | per the option chosen (failing test listed in the proposal); eval exports' ERC unchanged | O-04a accepted | AGENT | done (10-30, option A) |
 | O-03 | `report.html` (KiCanvas/iBOM) | run folder | html | opens offline | O-02 | AGENT | todo (cut #2) |
 
 ## Evaluation + launch
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | HUMAN | todo |
-| E-01 | Eval runner + metrics (first-pass vs post-retry pass rate, hallucinated-part rate, tokens) | E-02 | `evals/results/*.json` | reproducible with a fixed seed/model | H-07 | AGENT | todo |
+| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | doing (5 drafts; the 4 IC boards have a rules.toml [[part]] symbol for V-12, checked against KiCad; awaiting human check) |
+| E-01 | Eval runner + metrics (first-pass vs post-retry pass rate, hallucinated-part rate, tokens) | E-02 | `evals/results/*.json` | reproducible with a fixed seed/model | H-07 | AGENT | done (10-21); records model, commit, tsci, parts snapshot; providers aren't seeded, so runs vary. 10-22: failing stage per board, model-call retries counted apart from design failures, `--repeat N` with per-board rates, prompt hashes |
 | D-02 | Demo recording (simple board end to end + honest stop on a harder one) | v1 | video | real runs, no staged failures | v1 | HUMAN | todo (10-31) |
 
 **Go/no-go: Sun 2026-10-25, evening.** `reflow design "MCP9808 breakout, I2C header, 3.3V"` produces a verifier-clean compiled board within 3 attempts on ≥ 3 of 5 eval prompts, with zero part numbers outside the resolver. **No-go → cut routing to v1.1** and launch "design + verify" on 11-01.

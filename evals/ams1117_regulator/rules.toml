@@ -1,0 +1,12 @@
+# rules.toml for evals/ams1117_regulator (DRAFT, E-02 / O-1).
+# [[part]] tells reflow's pin binding (V-12) which pin map U1 uses.
+# KiCad names the pins GND, VO, VI (pins 1-3); EasyEDA's symbol for C6186 calls them GND, VOUT, VIN and also
+# lists the tab as pin 4 (VOUT), which KiCad's 3-pin symbol doesn't have (checked 2026-10-22).
+# The rule list is empty on purpose: write each rule from the datasheet, with its page (V-2).
+
+rule = []
+
+[[part]]
+ref    = "U1"
+mpn    = "AMS1117-3.3"
+symbol = "Regulator_Linear:AMS1117-3.3"

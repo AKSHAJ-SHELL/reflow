@@ -1,0 +1,15 @@
+{
+  "ok": false,
+  "errors": [
+    {
+      "message": "model response contained no code fence",
+      "line": 0,
+      "column": 0,
+      "file": "index.circuit.tsx"
+    }
+  ],
+  "stderr_tail": "",
+  "kicad_sch": "",
+  "kicad_pcb": "",
+  "circuit_json": ""
+}

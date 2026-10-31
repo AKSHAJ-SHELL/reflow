@@ -1,0 +1,22 @@
+{
+  "schematic": "circuit.json",
+  "components": 5,
+  "nets": 4,
+  "errors": 1,
+  "warnings": 0,
+  "violations": [
+    {
+      "rule_id": "pinout.mismatch",
+      "severity": "error",
+      "message": "U1 pin 4 is labelled pin4, but KiCad symbol library Regulator_Linear Regulator_Linear:AMS1117-3.3 has no pin 4",
+      "why": "A pin number the package doesn't have can't be placed on the footprint, so its trace goes nowhere.",
+      "fix_hint": "Remove pin4 from U1's pinLabels and route that net to the pin the pin map names for it.",
+      "refs": [
+        "U1"
+      ],
+      "nets": [
+        "unconnected-(U1-pin4-Pad4)"
+      ]
+    }
+  ]
+}

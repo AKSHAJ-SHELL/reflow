@@ -1,0 +1,39 @@
+{
+  "run_id": "mcp9808_breakout",
+  "status": "passed",
+  "attempts": [
+    {
+      "attempt": 1,
+      "compile_tries": 1,
+      "compiled": true,
+      "errors": 10,
+      "warnings": 0,
+      "rule_ids": [
+        "decoupling.missing",
+        "decoupling.missing",
+        "i2c.missing_pullup",
+        "pinout.mismatch",
+        "pinout.mismatch",
+        "pinout.mismatch",
+        "pinout.mismatch",
+        "pinout.mismatch",
+        "pinout.mismatch",
+        "pinout.mismatch"
+      ],
+      "dir": "runs/evals/20261022T193720Z/mcp9808_breakout/attempts/01"
+    },
+    {
+      "attempt": 2,
+      "compile_tries": 1,
+      "compiled": true,
+      "errors": 0,
+      "warnings": 0,
+      "rule_ids": [],
+      "dir": "runs/evals/20261022T193720Z/mcp9808_breakout/attempts/02"
+    }
+  ],
+  "best_attempt": 2,
+  "run_dir": "runs/evals/20261022T193720Z/mcp9808_breakout",
+  "input_tokens": 5579,
+  "output_tokens": 41320
+}

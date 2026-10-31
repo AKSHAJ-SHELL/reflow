@@ -1,0 +1,18 @@
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
+outcome = "board"
+
+nets = ["V3_3", "GND"]
+parts = { led = 1, resistor = 1, connector = 1 }
+violations = []
+
+[[net]]
+name = "V3_3"
+includes = ["resistor", "connector"]
+source = "the resistor sits between 3.3V and the LED anode"
+
+[[net]]
+name = "GND"
+includes = ["led.cathode", "connector"]
+source = "KT-0603R datasheet for which pad is the cathode; ~1.3 mA at 3.3V through 1k with ~2 V forward drop"

@@ -1,0 +1,51 @@
+export default () => (
+  <board width="25mm" height="20mm">
+    <chip
+      name="U1"
+      footprint="soic8"
+      pinLabels={{ pin1: "VDD", pin2: "GND", pin3: "SDA", pin4: "SCL", pin5: "A0", pin6: "A1", pin7: "A2", pin8: "ALERT" }}
+      manufacturerPartNumber="MCP9808T-E/MS"
+      supplierPartNumbers={["C129490"]}
+      jlcpcb="C129490"
+    />
+    <capacitor
+      name="C1"
+      capacitance="100nF"
+      footprint="0402"
+      manufacturerPartNumber="CL05B104KB54PNC"
+      supplierPartNumbers={["C307331"]}
+      jlcpcb="C307331"
+    />
+    <resistor
+      name="R1"
+      resistance="4.7k"
+      footprint="0402"
+      manufacturerPartNumber="0402WGF4701TCE"
+      supplierPartNumbers={["C25900"]}
+      jlcpcb="C25900"
+    />
+    <resistor
+      name="R2"
+      resistance="4.7k"
+      footprint="0402"
+      manufacturerPartNumber="0402WGF4701TCE"
+      supplierPartNumbers={["C25900"]}
+      jlcpcb="C25900"
+    />
+    <pinheader name="J1" pinCount={4} supplierPartNumbers={["C32713270"]} jlcpcb="C32713270" />
+    <trace from=".C1 > .pin1" to=".U1 > .VDD" />
+    <trace from=".C1 > .pin2" to="net.GND" />
+    <trace from=".R1 > .pin1" to="net.SDA" />
+    <trace from=".R1 > .pin2" to="net.V3_3" />
+    <trace from=".R2 > .pin1" to="net.SCL" />
+    <trace from=".R2 > .pin2" to="net.V3_3" />
+    <trace from=".U1 > .A0" to="net.GND" />
+    <trace from=".U1 > .A1" to="net.GND" />
+    <trace from=".U1 > .A2" to="net.GND" />
+    <trace from=".J1 > .pin1" to="net.V3_3" />
+    <trace from=".J1 > .pin2" to="net.GND" />
+    <trace from=".J1 > .pin3" to="net.SDA" />
+    <trace from=".J1 > .pin4" to="net.SCL" />
+    <net name="GND" />
+  </board>
+)

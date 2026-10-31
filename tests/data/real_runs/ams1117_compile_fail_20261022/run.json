@@ -1,0 +1,30 @@
+{
+  "run_id": "ams1117_regulator",
+  "status": "failed_verify",
+  "attempts": [
+    {
+      "attempt": 1,
+      "compile_tries": 2,
+      "compiled": true,
+      "errors": 1,
+      "warnings": 0,
+      "rule_ids": [
+        "pinout.mismatch"
+      ],
+      "dir": "tests/data/real_runs/ams1117_compile_fail_20261022/attempts/01"
+    },
+    {
+      "attempt": 2,
+      "compile_tries": 2,
+      "compiled": false,
+      "errors": 0,
+      "warnings": 0,
+      "rule_ids": [],
+      "dir": "tests/data/real_runs/ams1117_compile_fail_20261022/attempts/02"
+    }
+  ],
+  "best_attempt": 1,
+  "run_dir": "tests/data/real_runs/ams1117_compile_fail_20261022",
+  "input_tokens": 9809,
+  "output_tokens": 66995
+}

@@ -1,0 +1,1 @@
+AMS1117-3.3 regulator board: 5V in on a 2-pin header, 3.3V out on a 2-pin header

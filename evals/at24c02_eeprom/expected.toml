@@ -1,0 +1,28 @@
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
+outcome = "board"
+
+nets = ["V3_3", "GND", "SDA", "SCL"]
+parts = { ic = 1, capacitor = 1, resistor = 2, connector = 1 }
+violations = []
+
+[[net]]
+name = "V3_3"
+includes = ["ic.VCC", "capacitor", "resistor", "connector"]
+source = "AT24C02 datasheet pin table and decoupling recommendation (pin names and numbers unverified)"
+
+[[net]]
+name = "GND"
+includes = ["ic.GND", "ic.A0", "ic.A1", "ic.A2", "ic.WP", "capacitor", "connector"]
+source = "address 0x50 means A2..A0 low; WP low enables writes (datasheet device-address and WP sections)"
+
+[[net]]
+name = "SDA"
+includes = ["ic.SDA", "resistor", "connector"]
+source = "SDA is open-drain and needs a pull-up"
+
+[[net]]
+name = "SCL"
+includes = ["ic.SCL", "resistor", "connector"]
+source = "datasheet, checked by Akshaj Shandilya 2026-10-31"

@@ -33,12 +33,12 @@ Orange = human · blue = LLM · green = deterministic code.
 | 2 | Part resolver | deterministic | `reflow/parts/` | `Plan.parts` → `ResolvedParts` | catalog client: AGENT · validity/ranking: **HUMAN** |
 | 3 | Codegen | LLM | `prompts/codegen.md`, `prompts/fix.md` | `Spec`+`Plan`+`ResolvedParts`(+`RetryFeedback`) → `GeneratedCode` | prompts: HUMAN-approve |
 | 4 | Compiler | deterministic | `reflow/compile.py` | `GeneratedCode` → `CompileResult` | AGENT |
-| 5 | Verifier | deterministic | `reflow/rules/`, `reflow/cli.py` | KiCad schematic → `VerifyReport` | rules: **HUMAN** · CLI: AGENT |
+| 5 | Verifier | deterministic | `reflow/rules/`, `reflow/cli.py`, `cards/` | `circuit.json` + `PartCard`s (design) or KiCad schematic (check) → `VerifyReport` | rules, cards: **HUMAN** · loaders: AGENT |
 | 6 | Feedback conversion | deterministic | `reflow/harness/` | `VerifyReport` / `CompileResult` → `RetryFeedback` | **HUMAN** |
 | 7 | Harness loop | deterministic | `reflow/harness/` | everything above → `RunResult` | **HUMAN** (core loop, termination) · run-dir I/O: AGENT |
 | 8 | Learn mode + sign-off | human | `reflow/learn/` (planned) | `RunResult` → `LearnRecord`, `SignOff` | selection logic: **HUMAN** · terminal UI: AGENT |
 | 9 | Router | deterministic | `reflow/route.py`, `tools/bridges/` | `.kicad_pcb` → `RouteResult` | AGENT (scope rule: HUMAN) |
-| 10 | Output | deterministic | `reflow/export.py` | routed board → `FabPackage` | AGENT |
+| 10 | Output | deterministic | `reflow/export.py`, `reflow/report.py` | routed board → `FabPackage`; run folder → report | AGENT |
 
 ## Where state lives
 
@@ -53,11 +53,15 @@ runs/<YYYYmmdd-HHMMSS>-<slug>/
     response.md               exactly what it returned
     index.circuit.tsx
     compile.json              CompileResult (one per compile try: compile-1.json, compile-2.json)
+    build/                    circuit.json  board.kicad_pcb  board.kicad_pro (no schematic: O-04a)
     verify.json               VerifyReport
     feedback.json             RetryFeedback sent to attempt 02
   learn.json   signoff.json
-  route/      route.json  drc.json  board.kicad_pcb
-  out/        gerbers/  board.drl  board-pos.csv  bom.csv  DESIGN.md  report.json
+  report.json  report.md      every attempt, routing + DRC, parts, sign-off (`reflow report`, O-02)
+  route/      route.json  drc.json
+  schematic/  board.kicad_sch  board-erc.json  schematic.json   our schematic from circuit.json and its check (O-04)
+  out/        gerbers/  board.drl  board-pos.csv  bom.csv  drc.json  report.json  report.md  fab_package.json
+              kicad/  board.kicad_sch (ours)  board.kicad_pcb  board.kicad_pro  board.kicad_dru
 ```
 
 Runs go in `runs/`, which must be gitignored.
@@ -68,3 +72,5 @@ Runs go in `runs/`, which must be gitignored.
 |---|---|---|
 | `reflow check <board>` | built | Verifier only, on any KiCad schematic |
 | `reflow design "<request>"` | planned (H-07) | Full pipeline above |
+| `reflow export <run>` | built (O-01) | Route-check the best attempt with our DRC, then write fab files; refused without a clean verify + DRC |
+| `reflow report <run>` | built (O-02) | report.json + report.md: every attempt, routing + DRC, parts, sign-off |

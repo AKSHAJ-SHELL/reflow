@@ -1,0 +1,885 @@
+(kicad_pcb
+  (version 20241229)
+  (generator circuit-json-to-kicad)
+  (generator_version 0.0.1)
+  (general
+    (thickness 1.4)
+  )
+  (paper
+    A4
+  )
+  (layers
+    (0 "F.Cu" signal)
+    (31 "B.Cu" signal)
+    (32 "B.Adhes" user)
+    (33 "F.Adhes" user)
+    (34 "B.Paste" user)
+    (35 "F.Paste" user)
+    (36 "B.SilkS" user)
+    (37 "F.SilkS" user)
+    (38 "B.Mask" user)
+    (39 "F.Mask" user)
+    (40 "Dwgs.User" user)
+    (41 "Cmts.User" user)
+    (42 "Eco1.User" user)
+    (43 "Eco2.User" user)
+    (44 "Edge.Cuts" user)
+    (45 "Margin" user)
+    (46 "B.CrtYd" user)
+    (47 "F.CrtYd" user)
+    (48 "B.Fab" user)
+    (49 "F.Fab" user)
+  )
+  (setup
+    (pad_to_mask_clearance 0)
+  )
+  (net 0 "")
+  (net 1 "V5")
+  (net 2 "GND")
+  (net 3 "V3_3")
+  (footprint
+    "tscircuit:AMS1117-3_3"
+    (layer F.Cu)
+    (uuid 0ef793e0-4b78-aa01-5a17-181e005925c3)
+    (at 100 100 0)
+    (property "Reference" "U1"
+      (at 0 -3 0)
+      (layer F.SilkS)
+      (hide yes)
+      (uuid 65eabe80-6cf1-7821-3fcd-aec212a9e563)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "AMS1117-3.3"
+      (at 0 3 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 2ed052c0-4a17-71a1-655e-90827f5a509d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 4889acc0-75ad-761f-5d2e-c082300af723)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Description" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 3f096860-4d9f-a621-25b7-4b5e66f1c323)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Supplier Part Number" "C6186"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 494a8a5e-544d-7382-0e1a-8e9e708290be)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "MPN" "AMS1117-3.3"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 4d401f80-1cbd-407f-13c5-9e8244487d83)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_text
+      reference
+      "U1"
+      (at 0 0 0)
+      (layer F.SilkS)
+      (effects
+        (font
+          (size 0.5 0.5)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_line
+      (start -1.85 -3.45)
+      (end 1.85 -3.45)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start 1.85 -3.45)
+      (end 1.85 -2.225)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start -1.85 3.45)
+      (end 1.85 3.45)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start 1.85 3.45)
+      (end 1.85 2.225)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_rect
+      (start -4.4 -3.6)
+      (end 4.4 3.6)
+      (layer F.CrtYd)
+      (stroke
+        (width 0.05)
+        (type default)
+      )
+      (fill no)
+    )
+    (pad "1" smd rect
+      (at -3.15 -2.3 0)
+      (size 2 1.5)
+      (layers F.Cu F.Paste F.Mask)
+      (net 2 "GND")
+      (uuid 11f0a9ac-7a60-a7ac-1d2f-5a544b40a3ac)
+    )
+    (pad "2" smd rect
+      (at -3.15 0 0)
+      (size 2 1.5)
+      (layers F.Cu F.Paste F.Mask)
+      (net 3 "V3_3")
+      (uuid 0c45da20-59c5-13ff-58bb-b2220b3c7843)
+    )
+    (pad "3" smd rect
+      (at -3.15 2.3 0)
+      (size 2 1.5)
+      (layers F.Cu F.Paste F.Mask)
+      (net 1 "V5")
+      (uuid 17ef99a0-2d57-57a1-42bf-15a25826d3a3)
+    )
+    (pad "4" smd rect
+      (at 3.15 0 0)
+      (size 2 3.8)
+      (layers F.Cu F.Paste F.Mask)
+      (uuid 170f9718-63e2-2558-4f4b-4c680278be28)
+    )
+  )
+  (footprint
+    "tscircuit:CL21A106KAYNNNE"
+    (layer F.Cu)
+    (uuid 58efd4c0-2668-7101-5a3f-493e2518fc83)
+    (at 93.65 100 90)
+    (property "Reference" "C1"
+      (at 0 -3 0)
+      (layer F.SilkS)
+      (hide yes)
+      (uuid 01f440c0-2b2f-889f-5853-51fe7a88e4a3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "10uF"
+      (at 0 3 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 26fdb900-4244-d7e1-5d8b-f6c278d315a3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 1f555280-0dce-76df-3af2-403e6816099d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Description" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 02db5360-707b-9e1f-1c2d-70625729811d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Supplier Part Number" "C15850"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 2f1dd37e-334a-2ea2-6a4d-cf3e07e5cd1e)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "MPN" "CL21A106KAYNNNE"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 10516a40-40d4-4941-7157-28425e25f8bd)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_text
+      reference
+      "C1"
+      (at -2.465190328815662e-32 -1.6000000000000005 0)
+      (layer F.SilkS)
+      (effects
+        (font
+          (size 0.4 0.4)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_line
+      (start 0.9125 -1.1000000000000005)
+      (end -1.6249999999999998 -1.1000000000000005)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start -1.6249999999999998 -1.1000000000000005)
+      (end -1.6249999999999998 1.1000000000000005)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start -1.6249999999999998 1.1000000000000005)
+      (end 0.9125 1.1000000000000005)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_rect
+      (start -1.68 -0.95)
+      (end 1.68 0.95)
+      (layer F.CrtYd)
+      (stroke
+        (width 0.05)
+        (type default)
+      )
+      (fill no)
+    )
+    (pad "1" smd rect
+      (at -0.9125 0 0)
+      (size 1.4 1.025)
+      (layers F.Cu F.Paste F.Mask)
+      (net 1 "V5")
+      (uuid 342c1420-1ec4-561f-095c-981e0c0b25e3)
+    )
+    (pad "2" smd rect
+      (at 0.9125 0 0)
+      (size 1.4 1.025)
+      (layers F.Cu F.Paste F.Mask)
+      (net 2 "GND")
+      (uuid 763a00ce-275d-fd12-3b0a-050e628df8d2)
+    )
+  )
+  (footprint
+    "tscircuit:CL31A226KAHNNNE"
+    (layer F.Cu)
+    (uuid 329b2f80-283d-59df-1ddf-843e1381ae9d)
+    (at 92.32 96.19 180)
+    (property "Reference" "C2"
+      (at 0 -3 0)
+      (layer F.SilkS)
+      (hide yes)
+      (uuid 724dc0a0-608e-7601-336a-aca20646e343)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "22uF"
+      (at 0 3 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 386be0e0-1d24-c1ff-01dd-a31e19697bc3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 54ecaee0-7def-87c1-50cb-be6223a7f503)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Description" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 1e4b29c0-6e5d-e4c1-04f9-0cbe784ffe3d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Supplier Part Number" "C12891"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 0ae7ddc4-6d4f-dfe4-3048-1dfc321fe424)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "MPN" "CL31A226KAHNNNE"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 0523bc20-35a6-9b21-6629-7a226953a6dd)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_text
+      reference
+      "C2"
+      (at -2.173748068486552e-16 -1.775 0)
+      (layer F.SilkS)
+      (effects
+        (font
+          (size 0.4 0.4)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_line
+      (start 1.4625000000000001 -1.2749999999999997)
+      (end -2.2249999999999996 -1.2750000000000001)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start -2.2249999999999996 -1.2750000000000001)
+      (end -2.2249999999999996 1.2749999999999997)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_line
+      (start -2.2249999999999996 1.2749999999999997)
+      (end 1.4625000000000006 1.2750000000000001)
+      (stroke
+        (width 0.1)
+        (type default)
+      )
+      (layer F.SilkS)
+    )
+    (fp_rect
+      (start -2.28 -1.13)
+      (end 2.28 1.13)
+      (layer F.CrtYd)
+      (stroke
+        (width 0.05)
+        (type default)
+      )
+      (fill no)
+    )
+    (pad "1" smd rect
+      (at -1.4625000000000004 0 0)
+      (size 1.125 1.75)
+      (layers F.Cu F.Paste F.Mask)
+      (net 3 "V3_3")
+      (uuid 3c5d8a20-1596-c09f-678b-0b5e4680a9e3)
+    )
+    (pad "2" smd rect
+      (at 1.4624999999999995 -4.440892098500626e-16 0)
+      (size 1.125 1.75)
+      (layers F.Cu F.Paste F.Mask)
+      (net 2 "GND")
+      (uuid 0f389c20-22e1-201f-3689-a41e4a32281d)
+    )
+  )
+  (footprint
+    "tscircuit:PZ254V-11-02P"
+    (layer F.Cu)
+    (uuid 15d1c4f0-2b8b-1970-6ce7-f7d051bb29d0)
+    (at 89.93 101.36 90)
+    (property "Reference" "J1"
+      (at 0 -3 0)
+      (layer F.SilkS)
+      (hide yes)
+      (uuid 76011660-48dd-4d01-1bb9-83a2116a45bd)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "J1"
+      (at 0 3 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 467a4a20-61c1-6901-7d08-87e267b0593d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 6c9dd7e0-663e-5ec1-391a-95620bf6cc03)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Description" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 16c4bcc0-75e4-51c1-028d-604270c9913d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Supplier Part Number" "C492401"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 004a928c-621d-6f94-3b7a-8e4c26ed73d4)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "MPN" "PZ254V-11-02P"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 69672ee0-38e4-4fdf-0861-70de28216e23)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_text
+      reference
+      "J1"
+      (at 6.65144614333175e-17 -2.539999999999999 0)
+      (layer F.SilkS)
+      (effects
+        (font
+          (size 0.7 0.7)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_rect
+      (start -3.04 -1.77)
+      (end 3.04 1.77)
+      (layer F.CrtYd)
+      (stroke
+        (width 0.05)
+        (type default)
+      )
+      (fill no)
+    )
+    (pad "1" thru_hole rect
+      (at -1.27 7.776507174585693e-17 0)
+      (size 1.5 1.5)
+      (drill 1)
+      (layers *.Cu *.Mask)
+      (net 1 "V5")
+      (uuid 5c5febca-2c32-f4d6-4b3a-2a8a3d58b616)
+    )
+    (pad "2" thru_hole circle
+      (at 1.27 -7.776507174585693e-17 0)
+      (size 1.5 1.5)
+      (drill 1)
+      (layers *.Cu *.Mask)
+      (net 2 "GND")
+      (uuid 623e44ac-152e-dab4-7364-05ec04091974)
+    )
+  )
+  (footprint
+    "tscircuit:PZ254V-11-02P"
+    (layer F.Cu)
+    (uuid 10a1a300-5726-461f-6255-16c21bd073a3)
+    (at 94.07666666666667 92.29 180)
+    (property "Reference" "J2"
+      (at 0 -3 0)
+      (layer F.SilkS)
+      (hide yes)
+      (uuid 01bf1500-2b64-b45f-5888-7dbe7a53b8e3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "J2"
+      (at 0 3 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 18ef4fc0-0257-cf21-1d9e-ee0238e60ce3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Datasheet" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 1f2026c0-0e03-a29f-3b27-6bfe684b355d)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Description" ""
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 37eb39e0-54bd-d4a1-1e99-1cde6e0ff1a3)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Supplier Part Number" "C492401"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 39bb1eb6-63dc-df2a-0174-dd0a60f32516)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "MPN" "PZ254V-11-02P"
+      (at 0 0 0)
+      (layer F.Fab)
+      (hide yes)
+      (uuid 7494dd00-4411-fdff-138f-1efe1cf3c003)
+      (effects
+        (font
+          (size 1.27 1.27)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_text
+      reference
+      "J2"
+      (at -3.110602869834277e-16 -2.54 0)
+      (layer F.SilkS)
+      (effects
+        (font
+          (size 0.7 0.7)
+          (thickness 0.15)
+        )
+      )
+    )
+    (fp_rect
+      (start -3.04 -1.77)
+      (end 3.04 1.77)
+      (layer F.CrtYd)
+      (stroke
+        (width 0.05)
+        (type default)
+      )
+      (fill no)
+    )
+    (pad "1" thru_hole rect
+      (at -1.2699999999999996 1.555301434917138e-16 0)
+      (size 1.5 1.5)
+      (drill 1)
+      (layers *.Cu *.Mask)
+      (net 3 "V3_3")
+      (uuid 43eae550-0ed2-5990-2646-32305b5ebdf0)
+    )
+    (pad "2" thru_hole circle
+      (at 1.2699999999999996 -1.555301434917138e-16 0)
+      (size 1.5 1.5)
+      (drill 1)
+      (layers *.Cu *.Mask)
+      (net 2 "GND")
+      (uuid 5f5fbf8a-2a47-33ca-0ad1-57f63fe9e3b6)
+    )
+  )
+  (segment
+    (start 96.85 97.7)
+    (end 95.037 97.7)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 633d55a0-58df-7fff-4e81-aa5e4423d4bd)
+  )
+  (segment
+    (start 95.037 97.7)
+    (end 93.65 99.0875)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 0aaf32be-684d-f53e-3a13-4842238b7a3e)
+  )
+  (segment
+    (start 89.93 100.09)
+    (end 92.647 100.09)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 546946c0-01d0-46a1-5809-d40251bc9e9d)
+  )
+  (segment
+    (start 92.647 100.09)
+    (end 93.65 99.0875)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 617a1fb8-2d8d-c1a8-436a-5cf84b9d8468)
+  )
+  (segment
+    (start 89.93 100.09)
+    (end 89.93 97.118)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 7201f7ae-1463-352e-493b-8d525925b02e)
+  )
+  (segment
+    (start 89.93 97.118)
+    (end 90.8575 96.19)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 07ed0560-4e4c-8801-5b79-ea9e05405d3d)
+  )
+  (segment
+    (start 92.80666666666667 92.29)
+    (end 92.80666666666667 94.24133333333333)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 35c52094-4d2a-c134-6490-61d47bf60274)
+  )
+  (segment
+    (start 92.80666666666667 94.24133333333333)
+    (end 90.8575 96.19)
+    (width 0.15)
+    (layer F.Cu)
+    (net 2)
+    (uuid 5d5231aa-4145-d256-2022-29aa7e75da56)
+  )
+  (segment
+    (start 95.34666666666666 92.29)
+    (end 95.34666666666666 94.62633333333333)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 3c763770-2510-96d0-0daa-f63009baaa70)
+  )
+  (segment
+    (start 95.34666666666666 94.62633333333333)
+    (end 93.7825 96.19)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 7b578c2c-2340-77d4-3e27-842c60707fd4)
+  )
+  (segment
+    (start 96.85 100)
+    (end 98.025001 98.824999)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 397d3058-2612-3d98-12a7-4ad800c3a7e8)
+  )
+  (segment
+    (start 98.025001 98.824999)
+    (end 98.025001 96.72716497662654)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 56380932-1480-76ae-7f38-f68e160e8992)
+  )
+  (segment
+    (start 98.025001 96.72716497662654)
+    (end 94.32016497662653 96.72716497662654)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 0dd754fc-5981-941c-5ad4-2cc40f29eda4)
+  )
+  (segment
+    (start 94.32016497662653 96.72716497662654)
+    (end 93.7825 96.19)
+    (width 0.15)
+    (layer F.Cu)
+    (net 3)
+    (uuid 1c47f982-4520-027e-5978-018207effa7e)
+  )
+  (segment
+    (start 96.85 102.3)
+    (end 95.038 102.3)
+    (width 0.15)
+    (layer F.Cu)
+    (net 1)
+    (uuid 212269a0-0b61-5721-0a5f-bb5e2020cddd)
+  )
+  (segment
+    (start 95.038 102.3)
+    (end 93.65 100.9125)
+    (width 0.15)
+    (layer F.Cu)
+    (net 1)
+    (uuid 0af2c354-7bea-e1f4-131c-ff6c5ddb1f34)
+  )
+  (segment
+    (start 89.93 102.63)
+    (end 91.932 102.63)
+    (width 0.15)
+    (layer F.Cu)
+    (net 1)
+    (uuid 33da7ae0-225f-1281-7898-9fe2312dd2bd)
+  )
+  (segment
+    (start 91.932 102.63)
+    (end 93.65 100.9125)
+    (width 0.15)
+    (layer F.Cu)
+    (net 1)
+    (uuid 046f52e0-4d84-f7df-6086-bd620e9272a3)
+  )
+  (gr_line
+    (start 87.18 105.38)
+    (end 106.15 105.38)
+    (width 0.1)
+    (layer Edge.Cuts)
+  )
+  (gr_line
+    (start 106.15 105.38)
+    (end 106.15 89.53999999999999)
+    (width 0.1)
+    (layer Edge.Cuts)
+  )
+  (gr_line
+    (start 106.15 89.53999999999999)
+    (end 87.18 89.53999999999999)
+    (width 0.1)
+    (layer Edge.Cuts)
+  )
+  (gr_line
+    (start 87.18 89.53999999999999)
+    (end 87.18 105.38)
+    (width 0.1)
+    (layer Edge.Cuts)
+  )
+)

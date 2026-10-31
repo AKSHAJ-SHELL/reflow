@@ -1,20 +1,59 @@
-"""`reflow check` — export a schematic's netlist with kicad-cli and run the rules."""
+"""`reflow check` and the `reflow design` command.
+
+`design` loads a confirmed Spec and an optional Plan, then runs the harness
+loop with pieces built from config: the model from `reflow.toml` and
+REFLOW_* env (`load_model`), `compile_board`, parts from `--parts` or from
+the local parts snapshot (`reflow parts update`) + resolver, and the design verifier on circuit.json. The retry
+policy lives in that loop, not here. Tests inject those pieces through
+`main(...)` keywords instead.
+
+Parts are resolved from a plan, so without `--plan` or `--parts` the command
+only accepts the spec (the loop plans after it checks parts, H-03).
+
+IC pins are bound to trusted pin maps before the rules run (V-12,
+`reflow.pinbind.binder_for_spec`): the rules file's `[[part]]` symbols, then
+vendor pin data. `PIN_BINDING`, when set, replaces that binder (tests).
+"""
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 from dataclasses import asdict
 from pathlib import Path
 
+from reflow.checkpoint import (
+    CheckpointError,
+    load_plan,
+    load_spec,
+    reject_foreign_mpn,
+    require_confirmed,
+)
+from reflow.circuit_netlist import CircuitJsonError
+from reflow.compile import TsciMissingError, TsciTimeoutError, compile_board
+from reflow.config import ConfigError, load_config
+from reflow.contracts import ContractError, ResolvedParts, from_dict
+from reflow.harness.loop import run_design
+from reflow.claude_code import load_model
+from reflow.providers import KEYLESS_PROVIDERS
+from reflow.llm import ModelError
+from reflow.parts.catalog import CatalogError
+from reflow.parts.local_catalog import search as catalog_search
+from reflow.parts.resolver import resolve
+from reflow.parts.snapshot import SnapshotError, update_snapshot
 from reflow.netlist import load_netlist
 from reflow.rules import run_all
 
 MAC_KICAD_CLI = "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli"
 SEVERITY_ORDER = {"error": 0, "warning": 1}
+
+# Replaces the V-12 pin binder when set: bind(netlist, parts, spec, part_numbers).
+PIN_BINDING = None
 
 
 class InputError(Exception):
@@ -155,6 +194,159 @@ def cmd_check(args) -> int:
     return 0
 
 
+def cmd_design(
+    args,
+    codegen=None,
+    *,
+    model=None,
+    compiler=None,
+    verifier=None,
+    parts=None,
+    run_dir=None,
+    max_attempts=3,
+    compile_cap=2,
+) -> int:
+    """Accept a confirmed spec, then run the design loop.
+
+    With nothing injected, the pieces come from config (`_run_from_config`).
+    `model`/`compiler`/`verifier`/`parts` are test seams; `codegen` is the
+    checkpoint seam that only receives the spec and plan. This command does
+    not invent a part number and does not contain a second copy of the retry
+    policy.
+    """
+    try:
+        if not args.spec:
+            raise InputError("reflow design needs --spec PATH to a confirmed Spec JSON")
+        spec = load_spec(Path(args.spec))
+        if args.request is not None and args.request != spec.request:
+            raise InputError(f"request does not match Spec.request ({spec.request!r})")
+        require_confirmed(spec)
+        plan = None
+        if args.plan:
+            plan = load_plan(Path(args.plan))
+            reject_foreign_mpn(plan, spec)
+        spec = _with_rules_file(spec, Path(args.spec))
+        if model is None:
+            if codegen is not None:
+                codegen(spec, plan)
+                return 0
+            if plan is None and not getattr(args, "parts", None):
+                print(
+                    "spec accepted; design loop not run: parts are resolved from a plan, "
+                    "so pass --plan (or --parts). The H-03 loop plans only after it checks parts."
+                )
+                return 0
+            return _run_from_config(args, spec, plan, run_dir)
+        if compiler is None or verifier is None:
+            raise InputError("reflow design needs a compiler and a verifier")
+        resolved = parts if parts is not None else _load_parts(args)
+        if resolved is None:
+            raise InputError("resolved parts are required; refusing to invent a part number")
+        return _execute(
+            spec, plan, resolved,
+            model=model, compiler=compiler, verifier=verifier,
+            folder=_run_folder(spec, run_dir, args),
+            max_attempts=max_attempts, compile_cap=compile_cap,
+        )
+    except _RUN_ERRORS as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+
+
+_RUN_ERRORS = (
+    InputError, CheckpointError, ContractError, ModelError, ConfigError, CatalogError,
+    TsciMissingError, TsciTimeoutError, CircuitJsonError,
+)
+
+
+def _run_from_config(args, spec, plan, run_dir) -> int:
+    """The shell path: every piece comes from config, the catalog, or this package."""
+    from reflow.verifier import VerifierInputError, make_verifier
+
+    config = load_config(keyless_providers=KEYLESS_PROVIDERS)
+    model = load_model(config)
+    resolved = _load_parts(args)
+    if resolved is None:
+        resolved = _resolve_from_catalog(plan, spec)
+    from reflow.pinbind import binder_for_spec
+
+    bind = PIN_BINDING or binder_for_spec(spec)
+    try:
+        return _execute(
+            spec, plan, resolved,
+            model=model, compiler=compile_board, verifier=make_verifier(bind=bind),
+            folder=_run_folder(spec, run_dir, args),
+            max_attempts=config["max_attempts"], compile_cap=config["compile_cap"],
+        )
+    except VerifierInputError as exc:
+        raise InputError(str(exc)) from exc
+
+
+def _execute(spec, plan, resolved, *, model, compiler, verifier, folder, max_attempts, compile_cap) -> int:
+    result = run_design(
+        spec, plan, resolved,
+        model=model, compiler=compiler, verifier=verifier, run_dir=folder,
+        max_attempts=max_attempts, compile_cap=compile_cap,
+    )
+    if result.status == "aborted":
+        raise InputError(getattr(result, "abort_reason", "") or "aborted")
+    print(f"status={result.status} best_attempt={result.best_attempt} run_dir={result.run_dir}")
+    return 0 if result.status == "passed" else 1
+
+
+def _resolve_from_catalog(plan, spec) -> ResolvedParts:
+    """One local-snapshot query per plan part (D-6a), then the resolver picks (or refuses) each."""
+    candidates = {part.id: catalog_search(part) for part in plan.parts}
+    return resolve(plan.parts, spec.named_parts, candidates)
+
+
+def _with_rules_file(spec, spec_path: Path):
+    """Resolve Spec.rules_file next to the spec, and refuse a missing or invalid one (V-22)."""
+    from dataclasses import replace
+
+    from reflow.project_rules import RulesFileError, load_rules
+
+    if not spec.rules_file.strip():
+        return spec
+    path = Path(spec.rules_file)
+    if not path.is_absolute():
+        path = spec_path.parent / path
+    try:
+        rules = load_rules(path)
+    except RulesFileError as exc:
+        raise InputError(str(exc)) from exc
+    for part in rules.part:
+        if part.mpn not in spec.named_parts:
+            raise InputError(f"{path}: [[part]] {part.ref} is {part.mpn!r}, which is not one of the parts "
+                             f"the spec names ({', '.join(spec.named_parts) or 'none'})")
+    return replace(spec, rules_file=str(path.resolve()))
+
+
+def _load_parts(args):
+    path = getattr(args, "parts", None)
+    if not path:
+        return None
+    file = Path(path)
+    try:
+        data = json.loads(file.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise InputError(f"{file}: {exc.strerror or exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise InputError(f"{file}: invalid JSON ({exc.msg})") from exc
+    return from_dict(ResolvedParts, data)
+
+
+def _run_folder(spec, run_dir, args) -> Path:
+    if run_dir is not None:
+        return Path(run_dir)
+    chosen = getattr(args, "run_dir", None)
+    if chosen:
+        return Path(chosen)
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+    slug = re.sub(r"[^a-z0-9]+", "-", spec.title.lower()).strip("-") or "board"
+    return Path("runs") / f"{stamp}-{slug}"
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="reflow", description="AI-assisted PCB verifier")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -163,14 +355,329 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--json", action="store_true", help="print results as JSON")
     check.add_argument("--strict", action="store_true", help="exit 1 on warnings too")
     check.set_defaults(func=cmd_check)
+    design = sub.add_parser(
+        "design",
+        help="accept a confirmed spec and optional plan",
+        description=(
+            "Load a confirmed Spec JSON and, when given, a Plan JSON. "
+            "A non-empty part mpn must appear in Spec.named_parts. "
+            "Runs the design loop when a model is supplied."
+        ),
+    )
+    design.add_argument(
+        "request",
+        nargs="?",
+        help="board request; must match Spec.request when both are given",
+    )
+    design.add_argument("--spec", metavar="PATH", help="path to a Spec JSON file")
+    design.add_argument("--plan", metavar="PATH", help="path to a Plan JSON file")
+    design.add_argument("--parts", metavar="PATH", help="path to a ResolvedParts JSON file")
+    design.add_argument("--run-dir", metavar="PATH", help="run folder to create")
+    parts = sub.add_parser("parts", help="manage the local parts database")
+    parts_sub = parts.add_subparsers(dest="parts_command", required=True)
+    update = parts_sub.add_parser(
+        "update",
+        help="download and install the jlcparts snapshot",
+        description=(
+            "Download the jlcparts parts database (about 216 MB, 1.5 GB installed), "
+            "check it, and install it at --db, REFLOW_PARTS_DB, or "
+            "~/.cache/reflow/jlcparts/cache.sqlite3. The old database is kept if anything fails."
+        ),
+    )
+    update.add_argument("--db", metavar="PATH", help="where to install cache.sqlite3")
+    update.add_argument("--url", metavar="URL", help="snapshot base URL (default: REFLOW_PARTS_URL or jlcparts)")
+    update.set_defaults(func=cmd_parts_update)
+    evaluate = sub.add_parser(
+        "eval",
+        help="run the eval boards and report the go/no-go numbers",
+        description=(
+            "Run every board in --evals through the design loop with the configured model, then "
+            "report first-pass and after-retry pass rates, part numbers outside the resolver, "
+            "expectation misses and tokens. Results go to --out as JSON."
+        ),
+    )
+    evaluate.add_argument("--evals", metavar="DIR", default="evals", help="eval folders (default: evals)")
+    evaluate.add_argument("--out", metavar="DIR", default="evals/results", help="where the results JSON goes")
+    evaluate.add_argument("--runs", metavar="DIR", default="runs/evals", help="run folders for each board")
+    evaluate.add_argument("--only", metavar="NAME", action="append", help="run only this board (repeatable)")
+    evaluate.add_argument("--repeat", metavar="N", type=_positive_int, default=1,
+                          help="run each board N times and report pass rates (default: 1)")
+    evaluate.set_defaults(func=cmd_eval)
+    export = sub.add_parser(
+        "export",
+        help="route-check a run's best board and write its fab files",
+        description=(
+            "Run our KiCad DRC on the best attempt's board (route/route.json), then write gerbers, "
+            "drill, placement and BOM into --out (default RUN_DIR/out). Refuses, exit 1, unless the "
+            "board passed verify, every net is routed with 0 DRC errors, every part number came "
+            "from the resolver, and you signed off: at a terminal it shows the remaining warnings "
+            "and asks y/n (or sign off in reflow learn). Exit 2 if RUN_DIR isn't a run folder."
+        ),
+    )
+    export.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    export.add_argument("--out", metavar="DIR", help="new or empty folder for the files (default: RUN_DIR/out)")
+    export.set_defaults(func=cmd_export)
+    report = sub.add_parser(
+        "report",
+        help="write report.json and report.md for a run",
+        description=(
+            "Write RUN_DIR/report.json and report.md: every attempt's compile errors and verify "
+            "violations, routing and our KiCad DRC when route/route.json exists (reflow export writes "
+            "it), parts and sign-off. Exit 2 if RUN_DIR isn't a run folder or disagrees with itself."
+        ),
+    )
+    report.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    report.set_defaults(func=cmd_report)
+    learn = sub.add_parser(
+        "learn",
+        help="open learn mode for a run folder in your browser",
+        description=(
+            "Serve learn mode for a finished run on 127.0.0.1 and open it in your browser: the AI's "
+            "failed draft in the schematic and PCB viewers, spot-the-bug, then sign-off. Writes "
+            "learn.json and signoff.json into the run folder. Needs pip install 'reflow-pcb[learn]'."
+        ),
+    )
+    learn.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it holds run.json)")
+    learn.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: any free port)")
+    learn.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    learn.add_argument("--vault", metavar="DIR", type=Path, default=None,
+                       help="your learning vault (default: REFLOW_VAULT, else ~/.reflow/vault)")
+    learn.set_defaults(func=cmd_learn)
+    rules = sub.add_parser("rules", help="work with a project's rules.toml")
+    rules_sub = rules.add_subparsers(dest="rules_command", required=True)
+    check_rules_cmd = rules_sub.add_parser(
+        "check",
+        help="check a rules.toml against its parts' pin maps",
+        description=(
+            "Parse a rules.toml strictly and report errors (bad fields, blank why/source, pins that "
+            "aren't on the part) and warnings (power, ground, reset and boot pins no rule mentions). "
+            "Say which part each reference is with --symbol REF=Library:Symbol (KiCad) or "
+            "--mpn REF=MPN (vendor pin data). Exit 1 on errors, 2 if the input can't be used."
+        ),
+    )
+    check_rules_cmd.add_argument("rules_file", metavar="RULES", help="path to rules.toml")
+    check_rules_cmd.add_argument("--symbol", metavar="REF=LIB:SYMBOL", action="append", default=[],
+                                 help="pin map for REF from a KiCad symbol (repeatable)")
+    check_rules_cmd.add_argument("--mpn", metavar="REF=MPN", action="append", default=[],
+                                 help="pin map for REF from vendor pin data (repeatable)")
+    check_rules_cmd.set_defaults(func=cmd_rules_check)
     return parser
 
 
-def main(argv=None) -> int:
+def cmd_rules_check(args) -> int:
+    from reflow.parts.pinmap import PinMapError, from_kicad_symbol, import_pin_map
+    from reflow.project_rules import RulesFileError, check_rules, load_rules, pin_maps_from_parts
+
+    try:
+        rules = load_rules(Path(args.rules_file))
+        pin_maps, part_warnings = pin_maps_from_parts(rules)
+        for option, build in (("symbol", lambda v: from_kicad_symbol(v)),
+                              ("mpn", lambda v: import_pin_map(v).pin_map)):
+            for pair in getattr(args, option):
+                ref, sep, value = pair.partition("=")
+                if not sep or not ref.strip() or not value.strip():
+                    raise InputError(f"--{option} takes REF=VALUE, got {pair!r}")
+                pin_maps[ref.strip()] = build(value.strip())
+    except (InputError, PinMapError, RulesFileError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    result = check_rules(rules, pin_maps)
+    result.warnings[:0] = [w for w in part_warnings if w.split(":", 1)[0] not in pin_maps]
+    for error in result.errors:
+        print(f"error: {error}")
+    for warning in result.warnings:
+        print(f"warning: {warning}")
+    print(f"{result.rules} rules, {len(result.errors)} errors, {len(result.warnings)} warnings")
+    return 1 if result.errors else 0
+
+
+def cmd_learn(args) -> int:
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        from reflow.learn.server import serve
+    except ModuleNotFoundError as exc:
+        print(f"reflow: learn mode needs its optional extra ({exc}). Install it with: "
+              "pip install 'reflow-pcb[learn]'", file=sys.stderr)
+        return 2
+    serve(run_dir, port=args.port, open_browser=not args.no_browser, vault=args.vault)
+    return 0
+
+
+def cmd_export(args) -> int:
+    from reflow.contracts import RouteResult, RunResult, Spec, VerifyReport, to_dict
+    from reflow.export import ExportRefused, export_fab, refusals
+    from reflow.report import ReportError, write_report
+    from reflow.route import route_report
+    from reflow.signoff import SignOffError, prompt_signoff, signoff_refusals
+
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        run = from_dict(RunResult, json.loads((run_dir / "run.json").read_text(encoding="utf-8")))
+        if run.best_attempt == 0:
+            print("reflow: export refused: no attempt compiled, so there is no board", file=sys.stderr)
+            return 1
+        attempt = run_dir / "attempts" / f"{run.best_attempt:02d}"
+        build = attempt / "build"
+        verify = from_dict(VerifyReport, json.loads((attempt / "verify.json").read_text(encoding="utf-8")))
+        spec = from_dict(Spec, json.loads((run_dir / "spec.json").read_text(encoding="utf-8")))
+        parts = from_dict(ResolvedParts, json.loads((run_dir / "parts.json").read_text(encoding="utf-8")))
+        route = route_report(build / "circuit.json", build / "board.kicad_pcb", run_dir / "route")
+        (run_dir / "route" / "route.json").write_text(json.dumps(to_dict(route), indent=2) + "\n", encoding="utf-8")
+        write_report(run_dir, route=route)
+        print(f"routing (tscircuit): {route.status}, {route.routed_nets}/{route.total_nets} nets; "
+              f"KiCad DRC (JLCPCB 2-layer rules): {route.drc.errors} errors, {route.drc.unconnected} unconnected")
+        board = dict(verify=verify, route=route, parts=parts, spec=spec, run_dir=run_dir)
+        blocked = refusals(build / "board.kicad_pcb", build / "circuit.json", **board)
+        write_report(run_dir, route=route)
+        print(_schematic_summary(json.loads((run_dir / "schematic" / "schematic.json").read_text(encoding="utf-8"))))
+        # Ask for sign-off only on a board that is otherwise ready, and only a person at a terminal.
+        if not blocked and signoff_refusals(run_dir) and sys.stdin.isatty():
+            prompt_signoff(run_dir)
+            write_report(run_dir, route=route)
+        out = Path(args.out) if args.out else run_dir / "out"
+        package = export_fab(build / "board.kicad_pcb", build / "circuit.json", out, **board)
+    except ExportRefused as exc:
+        print("reflow: export refused:\n" + "\n".join(f"  - {r}" for r in exc.reasons), file=sys.stderr)
+        return 1
+    except SignOffError as exc:
+        print(f"reflow: export stopped: {exc}", file=sys.stderr)
+        return 1
+    except (ContractError, OSError, ValueError, RuntimeError, ReportError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    (out / "fab_package.json").write_text(json.dumps(to_dict(package), indent=2) + "\n", encoding="utf-8")
+    print(f"fab files in {out}: gerbers/, {Path(package.drill).name}, {Path(package.pos_csv).name}, "
+          f"{Path(package.bom_csv).name}, report.json, report.md, drc.json, kicad/ (schematic + board)")
+    return 0
+
+
+def _schematic_summary(schematic: dict) -> str:
+    if schematic["erc"] is None:
+        return "schematic (ours, from circuit.json): not drawn: " + "; ".join(schematic["problems"])
+    nets = "match" if schematic["nets"]["circuit_json"] and schematic["nets"]["pcb"] else "differ"
+    return (f"schematic (ours, from circuit.json): KiCad ERC {schematic['erc']['errors']} errors, "
+            f"{schematic['erc']['warnings']} warnings; reflow check {schematic['check']['errors']} errors; "
+            f"nets {nets} with circuit.json and the PCB")
+
+
+def cmd_report(args) -> int:
+    from reflow.report import STATUS_WORDS, ReportError, write_report
+
+    run_dir = Path(args.run_dir)
+    if not (run_dir / "run.json").is_file():
+        print(f"reflow: {run_dir} is not a run folder (no run.json)", file=sys.stderr)
+        return 2
+    try:
+        json_path, md_path = write_report(run_dir)
+    except ReportError as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    report = json.loads(json_path.read_text(encoding="utf-8"))
+    print(f"{report['title']}: {STATUS_WORDS.get(report['status'], report['status'])}, "
+          f"{len(report['attempts'])} attempts. Wrote {json_path} and {md_path}")
+    return 0
+
+
+def _positive_int(text: str) -> int:
+    value = int(text)
+    if value < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return value
+
+
+def cmd_eval(args) -> int:
+    from reflow.evals import run_evals
+    from reflow.pinbind import binder_for_spec
+
+    try:
+        config = load_config(keyless_providers=KEYLESS_PROVIDERS)
+        model = load_model(config)
+        summary = run_evals(
+            Path(args.evals),
+            make_model=lambda name: model,
+            compiler=compile_board,
+            make_bind=(lambda spec: PIN_BINDING) if PIN_BINDING else binder_for_spec,
+            runs_dir=Path(args.runs),
+            out_dir=Path(args.out),
+            only=args.only,
+            max_attempts=config["max_attempts"],
+            compile_cap=config["compile_cap"],
+            repeats=args.repeat,
+        )
+    except (ConfigError, ModelError, CatalogError, ContractError, OSError) as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    for board in summary["boards"]:
+        detail = board["abort_reason"] or board["error"] or "; ".join(board["expectation_misses"])
+        foreign = len(board["foreign_part_numbers"])
+        name = board["name"] if args.repeat == 1 else f"{board['name']} run {board['repeat']}/{args.repeat}"
+        retried = f", {board['model_retries']} model call(s) retried" if board.get("model_retries") else ""
+        print(f"{name}: {board['status']} (stage {board['stage']}) in {board['attempts']} attempt(s), "
+              f"{'clean' if board['clean'] else 'not clean'}, {foreign} foreign part number(s){retried}"
+              + (f" ({detail})" if detail else ""))
+    if args.repeat > 1:
+        for name, row in summary["by_board"].items():
+            stages = ", ".join(f"{stage} {count}" for stage, count in row["stages"].items())
+            print(f"{name}: {row['passed']}/{row['runs']} passed, {row['clean']}/{row['runs']} clean "
+                  f"(stages: {stages})")
+    t = summary["totals"]
+    print(f"{t['passed']}/{t['boards']} passed ({t['first_pass']} on the first attempt), {t['clean']} clean, "
+          f"{t['foreign_part_numbers']} part number(s) outside the resolver, "
+          f"{t['input_tokens']} in / {t['output_tokens']} out tokens")
+    print(f"{t['model_errors']} model error(s), {t['design_failures']} design failure(s)")
+    go = summary["go_no_go"]
+    print(f"go/no-go: {go['decision']} ({go['reason']})")
+    return 0
+
+
+def cmd_parts_update(args) -> int:
+    try:
+        info = update_snapshot(
+            Path(args.db) if args.db else None,
+            base_url=args.url,
+            on_part=lambda name: print(f"fetching {name}", file=sys.stderr),
+        )
+    except SnapshotError as exc:
+        print(f"reflow: {exc}", file=sys.stderr)
+        return 2
+    print(f"installed {info.path}: {info.components} parts, rows fetched {info.oldest_row} to {info.newest_row}")
+    return 0
+
+
+def main(
+    argv=None,
+    *,
+    codegen=None,
+    model=None,
+    compiler=None,
+    verifier=None,
+    parts=None,
+    run_dir=None,
+    max_attempts=3,
+    compile_cap=2,
+) -> int:
     try:
         args = build_parser().parse_args(argv)
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 2
+    if args.command == "design":
+        return cmd_design(
+            args,
+            codegen=codegen,
+            model=model,
+            compiler=compiler,
+            verifier=verifier,
+            parts=parts,
+            run_dir=run_dir,
+            max_attempts=max_attempts,
+            compile_cap=compile_cap,
+        )
     return args.func(args)
 
 

@@ -32,6 +32,11 @@ RUN_STATUSES = {"passed", "failed_verify", "failed_compile", "aborted"}
 ROUTE_STATUSES = {"routed", "partial", "refused", "failed"}
 ROUTERS = {"tscircuit", "freerouting"}
 LEARN_KINDS = {"spot_bug", "make_call"}
+PIN_KINDS = {
+    "power", "ground", "i2c_sda", "i2c_scl", "address", "input", "output",
+    "open_drain_out", "io", "nc", "thermal_pad",
+}
+RULE_NEEDS = {"cap", "pullup", "pulldown", "tie", "open", "connected"}
 PART_CATEGORIES = {
     "resistor", "capacitor", "inductor", "led", "diode", "transistor",
     "ic", "regulator", "connector", "crystal", "switch", "other",
@@ -58,6 +63,35 @@ class Spec:
     named_parts: list[str]      # part numbers the USER typed; the only MPNs the model may copy
     open_questions: list[OpenQuestion] = field(default_factory=list)
     confirmed: bool = False     # True only after the user confirms
+    rules_file: str = ""        # path to the project's rules.toml (V-2); "" = none
+
+
+# ----------------------------------------------------------------------------
+# 0b. rules.toml -> ProjectRules  (PROJECT RULES, written by the student; DECISIONS V-2)
+#     Each rule goes to codegen as a one-line constraint and is checked at verify.
+#     `why` and `source` are for people; they never reach the model.
+# ----------------------------------------------------------------------------
+@dataclass
+class ProjectRule:
+    on: str                     # "U1.VDD": part reference + datasheet pin name or number
+    need: str                   # one of RULE_NEEDS
+    source: str                 # "MCP9808 datasheet, 6.1 Layout Considerations, p.35"
+    why: str                    # the student's own words
+    to: str = ""                # net on the other side (cap, pullup, pulldown, tie)
+    value: str = ""             # "100nF" or "100nF..1uF"; "" = any
+
+
+@dataclass
+class RulePart:
+    ref: str                    # "U1": the reference the rules use, and codegen must give this part
+    mpn: str                    # the named part it is, e.g. "MCP9808" (a Spec.named_parts string)
+    symbol: str = ""            # optional KiCad library id for its pin map, "Sensor_Temperature:MCP9808_MSOP"
+
+
+@dataclass
+class ProjectRules:
+    rule: list[ProjectRule]     # named `rule` so a [[rule]] TOML file parses as-is
+    part: list[RulePart] = field(default_factory=list)   # [[part]]: which part each rule reference is (V-2a)
 
 
 # ----------------------------------------------------------------------------
@@ -104,7 +138,7 @@ class ResolvedPart:
     stock: int
     basic: bool                 # JLCPCB basic/preferred part
     unit_price_usd: float
-    source: str                 # "jlcsearch" | "jlcparts-local" | "spec" | ...
+    source: str                 # "jlcparts" | "spec" | ...
     fetched_at: str             # ISO-8601 UTC
 
 
@@ -118,6 +152,39 @@ class Unresolved:
 class ResolvedParts:
     resolved: list[ResolvedPart]
     unresolved: list[Unresolved]
+
+
+# ----------------------------------------------------------------------------
+# 2b. Part card  (GROUND TRUTH, HUMAN-verified, read by the verifier; DECISIONS V-1, V-2)
+#     The verifier takes an IC's pin names and kinds from a trusted pin map, by
+#     physical pin number, never from labels in the TSX. Pin maps come from
+#     vendor pin data, then the KiCad symbol library; a signed PartCard
+#     overrides both. No trusted pin map: the IC fails.
+# ----------------------------------------------------------------------------
+@dataclass
+class Citation:
+    doc: str                    # "Microchip DS20005095B"
+    locator: str                # "Table 3-1, p.11 (MSOP column)"
+    url: str = ""
+
+
+@dataclass
+class CardPin:
+    number: str                 # physical pin / pad number, "1"
+    name: str                   # datasheet symbol, "VDD"
+    kind: str                   # one of PIN_KINDS
+
+
+@dataclass
+class PartCard:
+    family: str                 # "MCP9808"
+    mpns: list[str]             # orderable MPNs this card covers
+    lcsc: list[str]             # LCSC ids for those MPNs, e.g. ["C129490"]
+    package: str                # "MSOP-8"
+    pins: list[CardPin]
+    pin_source: Citation        # where every pin row was checked
+    verified_by: str            # the person who checked it; "" = draft, verifier ignores it
+    verified_on: str            # ISO-8601 date; "" for a draft
 
 
 # ----------------------------------------------------------------------------
@@ -149,18 +216,22 @@ class CompileResult:
     ok: bool
     errors: list[CompileError]  # empty when ok
     stderr_tail: str            # last <= 40 lines, already trimmed
-    kicad_sch: str = ""         # paths; "" when ok is False
-    kicad_pcb: str = ""
+    kicad_sch: str = ""         # always "": tscircuit's schematic isn't exported (O-04a)
+    kicad_pcb: str = ""         # paths; "" when ok is False
     circuit_json: str = ""
 
 
 # ----------------------------------------------------------------------------
 # 5. CompileResult -> VerifyReport  (VERIFIER, deterministic, already built)
 #    Field names match `reflow check --json` exactly.
+#    Input (DECISIONS V-1): `reflow design` verifies CompileResult.circuit_json,
+#    with IC pins taken from PartCards; `reflow check` verifies a KiCad schematic.
+#    Both build one Netlist and run the same rules. tscircuit's .kicad_sch
+#    export is never verified.
 # ----------------------------------------------------------------------------
 @dataclass
 class VerifyReport:
-    schematic: str
+    schematic: str              # file the netlist came from: "board.kicad_sch" or "circuit.json"
     components: int
     nets: int
     errors: int
@@ -246,6 +317,86 @@ class SignOff:
     at: str                     # ISO-8601 UTC
 
 
+# Learn mode v2 memory (DECISIONS L-2): one card per concept, notes in the user's vault.
+VAULT_KINDS = {"concept", "mistake", "board"}
+
+
+@dataclass
+class ConceptCard:
+    concept: str                # "decoupling", same names as LearnInteraction.concept
+    fsrs: str                   # the scheduler's card as JSON (fsrs 6.3.2 Card.to_dict()); opaque to reflow
+    last_reviewed: str = ""     # ISO-8601 UTC; "" = never reviewed
+    ratings: list[str] = field(default_factory=list)   # "2026-10-22T12:00:00Z good", oldest first
+
+
+@dataclass
+class VaultNote:
+    path: str                   # relative to the vault: "concepts/decoupling.md"
+    kind: str                   # one of VAULT_KINDS
+    title: str
+    links: list[str]            # [[wikilink]] targets without .md: "boards/mcp9808-breakout"
+
+
+# Learn mode simulation (DECISIONS L-2, L-2a): ngspice testbenches, run as a separate process.
+@dataclass
+class SimSignal:
+    name: str                   # "V(chip)", "V(SDA)"
+    unit: str                   # "V", "A"
+    t: list[float]              # seconds
+    v: list[float]              # same length as t
+
+
+@dataclass
+class SimRequest:
+    concept: str                # "decoupling", "i2c-pullup"
+    target_refs: list[str]      # the parts it is about, e.g. ["C1", "U1"]
+    variant: str                # "broken" (the AI's draft), "yours" (the user's fix), "as_designed" (the AI's final)
+    change: str = ""            # what differs from as designed, e.g. "remove C1", "R1=47k"
+
+
+@dataclass
+class SimResult:
+    concept: str
+    variant: str
+    signals: list[SimSignal]    # empty unless ngspice ran
+    exit_code: int              # ngspice's; -1 when it didn't run
+    deck_path: str
+    ran: bool                   # False: nothing is plotted, and notes say why
+    verdict: str = "unknown"    # good | bad | unknown, from the testbench's measured values
+    notes: list[str] = field(default_factory=list)        # measured values in words
+    assumptions: list[str] = field(default_factory=list)  # every value the board file doesn't contain
+
+
+# Fix-it tools (DECISIONS L-2a): the user's edits to the AI's failed draft, checked like a run.
+FIX_KINDS = {"add_part", "set_value", "connect", "disconnect", "delete", "set_label", "set_trace_limit"}
+
+
+@dataclass
+class FixEdit:
+    kind: str                   # one of FIX_KINDS
+    ref: str = ""               # the part: "R1" (set_value, delete, set_label)
+    pin: str = ""               # a physical pin number: "8" (set_label)
+    value: str = ""             # "4.7k", "100nF", a pin label "VDD", or a length "3mm" (set_trace_limit)
+    part: str = ""              # add_part: "resistor" | "capacitor"
+    a: str = ""                 # a pin "U1.SDA" or a net "V3_3"
+    b: str = ""
+
+
+@dataclass
+class FixResult:
+    number: int                 # learn/fix/<number>/ in the run folder
+    base_attempt: int           # the attempt whose TSX was edited
+    edits: list[FixEdit]
+    compiled: bool
+    compile_errors: list[str]
+    errors: int                 # from the same verifier a run uses; 0 when it didn't compile
+    warnings: int
+    violations: list[Violation]
+    refused: str = ""           # the verifier refused the board (e.g. two named nets shorted)
+    tsx_path: str = ""
+    circuit_json: str = ""
+
+
 # ----------------------------------------------------------------------------
 # 9. kicad_pcb -> RouteResult  (ROUTER, deterministic)
 # ----------------------------------------------------------------------------
@@ -255,6 +406,14 @@ class DrcSummary:
     warnings: int
     unconnected: int
     report_path: str
+
+
+@dataclass
+class TraceLength:              # a trace over its length limit, from the router (X-04a)
+    net: str
+    ports: list[str]            # the two ports it joins, sorted
+    length_mm: float            # routed length, rounded to 0.01
+    limit_mm: float             # the limit the board asked for, rounded to 0.01
 
 
 @dataclass
@@ -268,6 +427,7 @@ class RouteResult:
     refused_nets: list[str]     # high-speed / RF nets we refuse to autoroute
     drc: DrcSummary             # from OUR re-run of kicad-cli, never the router's report
     kicad_pcb: str
+    too_long: list[TraceLength] = field(default_factory=list)   # any entry: not "routed" (X-04a)
 
 
 # ----------------------------------------------------------------------------
@@ -286,10 +446,12 @@ class FabPackage:
 
 ALL_CONTRACTS = {
     cls.__name__: cls for cls in (
-        OpenQuestion, Spec, PartRequest, Block, Plan, ResolvedPart, Unresolved,
-        ResolvedParts, GeneratedCode, CompileError, CompileResult, VerifyReport,
+        OpenQuestion, Spec, ProjectRule, RulePart, ProjectRules, PartRequest, Block, Plan, ResolvedPart, Unresolved,
+        ResolvedParts, Citation, CardPin, PartCard, GeneratedCode, CompileError, CompileResult, VerifyReport,
         FeedbackViolation, RetryFeedback, AttemptRecord, RunResult,
-        LearnInteraction, LearnRecord, SignOff, DrcSummary, RouteResult, FabPackage,
+        LearnInteraction, LearnRecord, SignOff, ConceptCard, VaultNote, SimSignal, SimRequest, SimResult,
+        FixEdit, FixResult,
+        DrcSummary, TraceLength, RouteResult, FabPackage,
     )
 }
 

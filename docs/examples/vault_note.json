@@ -1,0 +1,6 @@
+{
+  "path": "mistakes/2026-10-22-mcp9808-breakout-pinout.md",
+  "kind": "mistake",
+  "title": "MCP9808 breakout: pinout",
+  "links": ["concepts/pinout", "boards/mcp9808-breakout"]
+}

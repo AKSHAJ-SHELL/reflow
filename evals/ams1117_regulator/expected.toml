@@ -1,0 +1,25 @@
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
+# Pin names are the KiCad symbol's in rules.toml [[part]] (V-12 relabels pins to them):
+# Regulator_Linear:AMS1117-3.3 says VI/VO/GND where EasyEDA (C6186) says VIN/VOUT/GND.
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
+outcome = "board"
+
+nets = ["V5", "V3_3", "GND"]
+parts = { regulator = 1, capacitor = 2, connector = 2 }
+violations = []
+
+[[net]]
+name = "V5"
+includes = ["regulator.VI", "capacitor", "connector"]
+source = "AMS1117 datasheet pin names (VIN/VOUT/GND or ADJ) and input capacitor value"
+
+[[net]]
+name = "V3_3"
+includes = ["regulator.VO", "capacitor", "connector"]
+source = "AMS1117 datasheet output capacitor requirement (value and type/ESR for stability)"
+
+[[net]]
+name = "GND"
+includes = ["regulator.GND", "capacitor", "connector"]
+source = "fixed-voltage AMS1117 pin 1 is GND"

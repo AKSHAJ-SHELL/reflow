@@ -1,0 +1,32 @@
+# Drafted by the agent (E-02, O-1). Checked by Akshaj Shandilya against the datasheets on 2026-10-31.
+status = "checked"
+checked_by = "Akshaj Shandilya, 2026-10-31"
+outcome = "board"
+
+nets = ["V3_3", "GND", "SDA", "SCL"]
+parts = { ic = 1, capacitor = 1, resistor = 2, connector = 1 }
+violations = []
+
+[[net]]
+name = "V3_3"
+includes = ["ic.VDD", "capacitor", "resistor", "connector"]
+source = "MCP9808 DS20005095B Table 3-1 (VDD pin 8); 6.1 p.35 (0.1-1 uF VDD to GND)"
+
+[[net]]
+name = "GND"
+includes = ["ic.GND", "ic.A0", "ic.A1", "ic.A2", "capacitor", "connector"]
+source = "Table 3-1; Table 3-2 p.11: address 0011 A2 A1 A0, so 0x18 means A2..A0 all low"
+
+[[net]]
+name = "SDA"
+includes = ["ic.SDA", "resistor", "connector"]
+source = "3.1 p.11: SDA requires a pull-up resistor"
+
+[[net]]
+name = "SCL"
+includes = ["ic.SCL", "resistor", "connector"]
+source = "Table 3-1; I2C bus is open-drain (section 4.0)"
+
+[[open]]
+pins = ["ic.ALERT"]
+source = "3.3 p.11: open-drain Alert output, unused on this board (spec q: no)"

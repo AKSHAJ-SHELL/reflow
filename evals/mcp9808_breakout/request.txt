@@ -1,0 +1,1 @@
+MCP9808 temperature sensor breakout, I2C header, 3.3V
