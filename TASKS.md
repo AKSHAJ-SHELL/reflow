@@ -119,7 +119,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| CI-01 | GitHub Actions CI: portable (3 OS × Python 3.11/3.12), full (Linux, KiCad 10 + locked tsci, wheel smoke) | tests, tools/tscircuit lockfile | `.github/workflows/ci.yml` | `tests/test_ci_hygiene.py`: read-only token, no pull_request_target/secrets, SHA-pinned actions, timeouts, cancel-in-progress, tools checked before tests | — | AGENT | done (10-31) |
+| CI-01 | GitHub Actions CI: portable (Ubuntu/macOS × Python 3.11/3.12), full (Linux, KiCad 10 + locked tsci, wheel smoke) | tests, tools/tscircuit lockfile | `.github/workflows/ci.yml` | `tests/test_ci_hygiene.py`: read-only token, no pull_request_target/secrets, SHA-pinned actions, timeouts, cancel-in-progress, tools checked before tests | — | AGENT | done (10-31) |
 | CI-02 | CODEOWNERS: maintainer owns everything, sensitive paths by name | — | `.github/CODEOWNERS` | `tests/test_codeowners.py` | — | AGENT | done (10-31) |
 | CI-03 | Injection tripwire: invisible Unicode, hidden Markdown comments, override phrases, pipe-to-shell, remote images and blobs in agent files | — | `tools/check_injection.py`, CI `checks` job | `tests/test_check_injection.py`; repo scans clean | CI-01 | AGENT | done (10-31) |
 | CI-04 | Markdown link and anchor checker | — | `tools/check_links.py`, CI `checks` job | `tests/test_check_links.py`; repo links resolve | CI-01 | AGENT | done (10-31) |

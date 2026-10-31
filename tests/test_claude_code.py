@@ -7,6 +7,7 @@ stdin, an empty temporary folder, and no ANTHROPIC_API_KEY in its environment
 """
 import json
 import stat
+import sys
 import textwrap
 from pathlib import Path
 
@@ -21,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def _fake(tmp_path: Path, body: str) -> Path:
     exe = tmp_path / "bin" / "claude"
     exe.parent.mkdir(parents=True, exist_ok=True)
-    exe.write_text("#!/usr/bin/python3\n" + textwrap.dedent(body), encoding="utf-8")
+    exe.write_text(f"#!{sys.executable}\n" + textwrap.dedent(body), encoding="utf-8")
     exe.chmod(exe.stat().st_mode | stat.S_IEXEC)
     return exe
 

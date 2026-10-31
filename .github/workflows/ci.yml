@@ -22,14 +22,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # No KiCad or tsci: the tests that need them skip, everything else runs on every OS.
+  # No KiCad or tsci: the tests that need them skip, everything else runs on Linux and macOS.
+  # Not Windows yet: the tests fake tsci and claude with shebang scripts, which Windows can't run,
+  # and reflow is only tested on macOS (README, Limits).
   portable:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
         python: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

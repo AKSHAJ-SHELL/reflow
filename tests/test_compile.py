@@ -1,6 +1,7 @@
 """K-01 tsci wrapper and K-02 stderr parser. Parser samples live in this file."""
 import shutil
 import stat
+import sys
 import textwrap
 from pathlib import Path
 
@@ -26,7 +27,7 @@ LIGHTNING = ROOT / "tests" / "data" / "real_runs" / "mcp9808_lightning_20261022"
 def _install_tsci(directory: Path, body: str) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     script = directory / "tsci"
-    script.write_text("#!/usr/bin/python3\n" + body, encoding="utf-8")
+    script.write_text(f"#!{sys.executable}\n" + body, encoding="utf-8")
     script.chmod(script.stat().st_mode | stat.S_IEXEC)
 
 
