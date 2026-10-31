@@ -1,0 +1,34 @@
+# Who reviews what (task CI-02). tests/test_codeowners.py checks this file.
+# Enforced only with branch protection's "Require review from Code Owners" on main (docs/REVIEWING.md).
+
+# Everything.
+*                       @AKSHAJ-SHELL
+
+# Listed by name so a change here is never missed. Why each one matters: docs/REVIEWING.md.
+
+# Runs in CI.
+/.github/               @AKSHAJ-SHELL
+/tools/                 @AKSHAJ-SHELL
+/pyproject.toml         @AKSHAJ-SHELL
+/tests/conftest.py      @AKSHAJ-SHELL
+
+# Text a model or a coding agent reads as instructions.
+/prompts/               @AKSHAJ-SHELL
+/skills/                @AKSHAJ-SHELL
+/AGENTS.md              @AKSHAJ-SHELL
+/CLAUDE.md              @AKSHAJ-SHELL
+/docs/agents/           @AKSHAJ-SHELL
+
+# Model calls.
+/reflow/claude_code.py  @AKSHAJ-SHELL
+/reflow/llm.py          @AKSHAJ-SHELL
+/reflow.toml            @AKSHAJ-SHELL
+
+# What "correct" means: hand-written by the maintainer.
+/reflow/rules/          @AKSHAJ-SHELL
+/reflow/harness/        @AKSHAJ-SHELL
+/reflow/netlist.py      @AKSHAJ-SHELL
+/reflow/violation.py    @AKSHAJ-SHELL
+/reflow/contracts.py    @AKSHAJ-SHELL
+/fixtures/              @AKSHAJ-SHELL
+/evals/                 @AKSHAJ-SHELL
