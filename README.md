@@ -41,7 +41,9 @@ Exit codes: `0` clean · `1` errors (or warnings with `--strict`) · `2` tool/in
 Extra one-time setup (every tool, version and setting: [SETUP.md](SETUP.md)):
 
 ```bash
-npm i -g tscircuit@0.0.2768        # provides tsci, which compiles the AI's board code
+brew install node oven-sh/bun/bun   # tsci runs on Bun
+npm ci --prefix tools/tscircuit    # tsci, which compiles the AI's board code, at the locked version
+export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # or set TSCI to that tsci
 reflow parts update                # downloads the JLCPCB parts snapshot (about 1.5 GB)
 uv pip install -e '.[learn]'       # learn mode's local web server
 ```
