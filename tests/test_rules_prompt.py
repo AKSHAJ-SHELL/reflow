@@ -100,8 +100,10 @@ class _Recorder:
                           input_tokens=1, output_tokens=1)
 
 
-def test_codegen_prompt_carries_the_rules(tmp_path):
+def test_codegen_prompt_carries_the_rules(tmp_path, monkeypatch):
     """Goes green once loop.py fills {project_rules} (V-22-loop-HUMAN.patch)."""
+    # The rules' [[part]] symbol is read from the repo's copy, not whatever KiCad is installed.
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(ROOT / "tests" / "data" / "pinmaps" / "kicad"))
     model = _Recorder()
     run_design(
         _spec(confirmed=True, rules_file=str(RULES)), _plan(), ResolvedParts([], []),

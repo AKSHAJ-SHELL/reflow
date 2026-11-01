@@ -37,6 +37,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | R-07 | Citations for every rule in docs/05 | rules | docs/05 | every catalog row names its source | — | HUMAN | todo |
 | R-11 | Rules from published sources ("book knowledge"), plus a basic design-rules catalog (Part B) and rules from the student's own books (Part C, after launch) | docs/proposals/R-11-cited-rules.md | rules + bad fixtures + docs/05 rows | each bad fixture → exactly its rule; good fixtures and eval boards as listed in the proposal | R-11 accepted | HUMAN (agent drafted the catalog) | proposed (10-29) |
 | R-10 | The six `need` checks (`project.cap`, `.pullup`, `.pulldown`, `.tie`, `.open`, `.connected`) | ProjectRules, Netlist | rules + fixtures | each bad fixture → exactly its rule | V-12 | HUMAN | todo |
+| R-12 | `i2c.pullup_rail`: an I²C pull-up must go to a rail that powers a chip on the bus | real board in tests/data | rule in `reflow/rules/i2c.py` + docs/05 row | `tests/test_i2c_pullup_rail.py` both pass; good fixtures, series-cap fixtures and the 21 eval attempts unchanged | O-1d | AGENT drafts → HUMAN reviews line by line | drafted (10-31), awaiting review |
 | V-21 | `rules.toml` parser + `reflow rules check` | `Spec.rules_file` | `ProjectRules`, report | example rules.toml passes; unknown pin, missing `why` or `source` fail; uncovered power/reset/boot pins warn | V-11 | AGENT | done (10-21) |
 | V-22 | Render project rules into codegen/fix prompts | ProjectRules | prompt text | one line per rule; no `why`/`source` in any prompt | V-21, H-08 | AGENT→HUMAN | done (10-21; human reviewed codegen.md and applied the loop patch, 30cc4b4). 10-22: each [[part]]'s pin table added (V-22a), awaiting human review |
 | V-23 | Contract patch for V-2b: `ProjectRule` gains optional `drafted_by`, `quote`, `confirmed_by`; `reflow rules check` warns on unconfirmed rules; design/eval label runs with unconfirmed rules; eval boards need every rule confirmed | ProjectRules | contracts + labels | existing rules.toml files still parse; `drafted_by = "model"` without `quote` fails check; an unconfirmed rule → warning, `unconfirmed_rules: N` in run.json, eval board left out of the go/no-go | V-2b, V-21 | AGENT→HUMAN (contract) | todo |
@@ -114,6 +115,18 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | O-04 | Our own KiCad schematic from circuit.json, held to the human's bar (2026-10-29): 0 ERC errors and 0 warnings, then `reflow check` | circuit.json, rules.toml [[part]] symbols, .kicad_pcb | `reflow/schematic.py`; `out/kicad/` project | each eval board's schematic: ERC 0/0, reflow check clean, nets = circuit.json = PCB pads; tscircuit's export fails the same check; export refuses a board that misses it | O-01 | AGENT | done (10-29: 9/9 compiled MCP9808/PCF8574/AT24C02 boards of run 20261028T161716Z pass; LEDs refused on pad-1 polarity; AMS1117 refused on pin 4) |
 | O-04a | No tscircuit schematic in build/ (contract meaning of `CompileResult.kicad_sch`) | docs/proposals/O-04a-no-tscircuit-schematic-in-build.md | `reflow/compile.py`; docs/04 | per the option chosen (failing test listed in the proposal); eval exports' ERC unchanged | O-04a accepted | AGENT | done (10-30, option A) |
 | O-03 | `report.html` (KiCanvas/iBOM) | run folder | html | opens offline | O-02 | AGENT | todo (cut #2) |
+
+## CI and review (AGENT, the human sets the GitHub settings)
+
+| ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| CI-01 | GitHub Actions CI: portable (Ubuntu/macOS × Python 3.11/3.12), full (Linux, KiCad 10 + locked tsci, wheel smoke) | tests, tools/tscircuit lockfile | `.github/workflows/ci.yml` | `tests/test_ci_hygiene.py`: read-only token, no pull_request_target/secrets, SHA-pinned actions, timeouts, cancel-in-progress, tools checked before tests | — | AGENT | done (10-31) |
+| CI-02 | CODEOWNERS: maintainer owns everything, sensitive paths by name | — | `.github/CODEOWNERS` | `tests/test_codeowners.py` | — | AGENT | done (10-31) |
+| CI-03 | Injection tripwire: invisible Unicode, hidden Markdown comments, override phrases, pipe-to-shell, remote images and blobs in agent files | — | `tools/check_injection.py`, CI `checks` job | `tests/test_check_injection.py`; repo scans clean | CI-01 | AGENT | done (10-31) |
+| CI-04 | Markdown link and anchor checker | — | `tools/check_links.py`, CI `checks` job | `tests/test_check_links.py`; repo links resolve | CI-01 | AGENT | done (10-31) |
+| CI-05 | Reviewer guide: GitHub settings, codebase map, injection surfaces, known risks, PR checklist | — | `docs/REVIEWING.md` | links resolve; scanner clean | CI-01–04 | AGENT | done (10-31) |
+| CI-06 | Run tsci with a stripped environment (no REFLOW_API_KEY etc.) and refuse TSX that imports anything but tscircuit/react | REVIEWING.md §4.1 | `reflow/compile.py` | a TSX reading `process.env` or importing `fs`/`child_process` is refused or sees no key | CI-05 | AGENT | todo |
+| CI-07 | Learn server rejects a Host other than 127.0.0.1/localhost (DNS rebinding) | REVIEWING.md §4.2 | `reflow/learn/server.py` | a request with `Host: evil.example` → 400 | CI-05 | AGENT | todo |
 
 ## Evaluation + launch
 

@@ -8,7 +8,8 @@ Checked 2026-10-31 on macOS 26 (arm64). The README's Quickstart is the short ver
 |---|---|---|
 | KiCad | 10.0.5 | everything: `reflow check` reads schematics with its `kicad-cli`; export runs DRC and ERC with it |
 | Python | 3.11+ (tested on 3.12 and 3.14, via uv) | everything |
-| Node | 26 (any recent LTS should do) | `reflow design`: runs tscircuit |
+| Node | 26 (any recent LTS should do) | `reflow design`: installs tscircuit |
+| Bun | 1.4 | `reflow design`: `tsci` runs on Bun |
 | tscircuit (`tsci`) | 0.0.2768 | `reflow design`: compiles the AI's board code to circuit.json and `.kicad_pcb`, and routes it |
 | Claude Code | 2.1 | optional: `REFLOW_PROVIDER=claude-code`, model calls on your Claude Code login instead of an API key |
 | ngspice | 47 | optional: learn mode's simulations. Without it, reflow uses the ngspice library bundled with KiCad |
@@ -36,12 +37,15 @@ export KICAD_CLI=/path/to/kicad-cli
 ## 2. Designing boards
 
 ```bash
-brew install node
-npm i -g tscircuit@0.0.2768        # tscircuit releases almost daily; this is the version the tests use
+brew install node oven-sh/bun/bun
+npm ci --prefix tools/tscircuit    # tscircuit 0.0.2768 with every dependency locked
+export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # add to ~/.zshrc, or set TSCI to that tsci
 tsci --version                     # 0.0.2768
 reflow parts update                # JLCPCB parts snapshot from jlcparts, about 1.5 GB, into ~/.cache/reflow/jlcparts/
 uv pip install -e '.[learn]'       # learn mode's local web server (fastapi, uvicorn, fsrs)
 ```
+
+Why a lockfile: `npm i -g tscircuit@0.0.2768` pins tscircuit but not its dependencies. On 2026-10-31 a fresh install pulled a newer `circuit-json` and `tsci` failed to start (`Export named 'drawing_dimension_line' not found`). `tools/tscircuit/package-lock.json` was made from a working install, so `npm ci` gets exactly that tree.
 
 The learn mode web app ships prebuilt in the package, so you don't need to build `web/`.
 
@@ -97,7 +101,7 @@ uv pip install -e '.[test,learn]'
 pytest -q                          # about 7 minutes; needs KiCad and tsci
 ```
 
-Two tests fail on purpose until their fixes land: `test_i2c_pullup_rail` (a rule not written yet) and `test_schematic_export_keeps_the_traced_nets` (a record of tscircuit's schematic export bug). See PROGRESS.md.
+Every test should pass. `i2c.pullup_rail`, which `tests/test_i2c_pullup_rail.py` checks, is an agent-written draft awaiting the maintainer's review (DECISIONS O-1d).
 
 ## Contributors only: DSN/SES bridges and freerouting
 
@@ -118,6 +122,7 @@ java -Djava.awt.headless=true -jar tools/freerouting.jar --gui.enabled=false -de
 
 ## Gotchas
 
+- On Linux, a KiCad that has never opened its GUI has no global library tables, so ERC warns that every library is missing and `reflow export` refuses. Copy KiCad's defaults into place: `mkdir -p ~/.config/kicad/10.0 && cp /usr/share/kicad/template/{sym,fp}-lib-table ~/.config/kicad/10.0/` (CI does this).
 - Copy the `.kicad_pro` next to any `.kicad_pcb`. Without it, DRC uses default rules and reports nonsense.
 - Open a fixture through its `.kicad_pro`, not the `.kicad_sch`, or KiCad saves an `Untitled` project next to it.
 - A wall of `Fontconfig warning` lines from kicad-cli is harmless Homebrew noise.

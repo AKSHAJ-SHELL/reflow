@@ -1119,3 +1119,39 @@ Did: the human said in chat "all the eval expectations look good". I recorded th
 - **`pytest -q`:** 2 failed, 789 passed in 6m58s. The same 2 deliberate failures:
   - `test_i2c_pullup_rail` needs a rule in `reflow/rules/i2c.py` (HUMAN). I drafted it for the human to paste; I didn't write it.
   - `test_schematic_export_keeps_the_traced_nets` records tscircuit's schematic bug. Making it pass would mean weakening it, so it stays as it is.
+
+## 2026-10-31 · agent (Claude) · CI-01–CI-05: CI, CODEOWNERS, injection tripwire, link check, reviewer guide
+Did: the human, maintaining reflow alone, asked for CI modelled on a hackathon project's, plus a way to vet outside PRs for prompt injection. They suggested gitignoring the CI file so nobody can tamper with it; that would switch CI off (GitHub only runs committed workflows), so protection comes from a read-only token, no secrets, CODEOWNERS + branch protection, approval for outside contributors' runs, and a test that checks the workflow file.
+- **CI-01 `.github/workflows/ci.yml`:** `portable` (Ubuntu/macOS × Python 3.11/3.12, no KiCad or tsci), `full` (Ubuntu 24.04: KiCad 10 PPA, ngspice, Bun, tsci from a lockfile; checks the tools are there before testing; KiCad's default library tables copied into place; then the wheel installed and run from /tmp). `tests/test_ci_hygiene.py`: read-only token, no pull_request_target/workflow_run/secrets, actions pinned to commit SHAs, no event text in shell, timeouts, cancel-in-progress; each rule broken once on purpose and caught.
+- **CI-02 `.github/CODEOWNERS`** + `tests/test_codeowners.py`.
+- **CI-03 `tools/check_injection.py`** + tests: invisible Unicode, hidden Markdown comments, override phrases, pipe-to-shell, remote images and long blobs in agent files. Repo scans clean (prompts' draft banner allowed by exact text).
+- **CI-04 `tools/check_links.py`** + tests: 51 relative links in 65 Markdown files resolve.
+- **CI-05 `docs/REVIEWING.md`:** GitHub settings to turn on, codebase map, where text reaches a model or agent, known risks, what CI does and doesn't check, a per-PR checklist.
+- **Verified in Docker, Ubuntu 24.04 arm64 (GitHub's runner is x86_64, so the real run is still unverified until pushed):**
+  - full job's steps: 2 failed (the deliberate two), all others pass, learn sim tests run with no skips;
+  - portable on python:3.11-slim: 1 failed (test_i2c_pullup_rail), 623 passed, 204 skipped.
+- **Found and fixed on the way:**
+  - `npm i -g tscircuit@0.0.2768` is broken on a fresh machine today: a newer `circuit-json` makes tsci fail to start. `tools/tscircuit/package-lock.json` reproduces the working 10-07 install package for package (5 overrides), with every platform's rollup binary. README/SETUP now use `npm ci --prefix tools/tscircuit`.
+  - tsci runs on Bun; README/SETUP didn't say so.
+  - On Linux, a KiCad whose GUI never ran has no library tables: ERC warns and `reflow export` refuses. In CI and SETUP's gotchas.
+  - Test portability (no assertion changed): `tests/conftest.py`'s `board` fixture now skips without kicad-cli, like every other KiCad test; fake `tsci`/`claude` scripts use `sys.executable` instead of `/usr/bin/python3`; `test_codegen_prompt_carries_the_rules` reads the MCP9808 symbol from tests/data/pinmaps/kicad instead of the installed KiCad.
+  - The Write tool turned `\u200b`-style escapes in the scanner and its test into real invisible characters. The scanner caught it once the files were tracked; both files are ASCII escapes now.
+- **Not done:** Windows (shebang-based fake tools; reflow is macOS-tested only). The GitHub settings in REVIEWING.md §1 are the human's.
+- **Known risks written down, not fixed (CI-06, CI-07):** model-written TSX runs on Bun with the user's environment, including REFLOW_API_KEY; the learn server doesn't check the Host header.
+
+## 2026-10-31 · agent (Claude) · R-12: `i2c.pullup_rail` drafted (O-1d), awaiting the human's review
+Did: the human said "I draft both" for the two deliberate failures; recorded as DECISIONS O-1d (an ownership exception for this one rule in `reflow/rules/i2c.py`).
+- **Rule:** for each I²C line, the supply nets of the ICs on it come from their `power_in` pins (`bus_supplies`). A pull-up whose far end isn't one of them is `i2c.pullup_rail` (error). The fix hint names the rail and each supply with its chips, since it goes back to the model.
+- **Stays quiet** when no IC on the line has a typed power pin (unbound boards: can't judge), and when a capacitor bridges the rail to a chip's supply (`cap_bridges`). The first draft fired on `bad_series_cap` and `real_series_cap` as well as `decoupling.series`; each bad fixture must give exactly its rule, and the series cap is the root cause.
+- **Checked:**
+  - `tests/test_i2c_pullup_rail.py` both pass: SDA and SCL errors, hint names V3_3 and Net-(C1-pin1); the corrected board stays clean;
+  - test_netlist (every fixture's expected.toml), test_cli, test_verifier, test_pinbind, test_evals, test_rules_*, test_learn_engine: 126 passed;
+  - all 21 compiled attempts of eval run 20261028T161716Z re-verified with the rule: 0 changed results.
+- docs/05 catalog row added, marked draft. No `fixtures/` bad board (HUMAN); the bad case is the real run in tests/data.
+
+## 2026-10-31 · agent (Claude) · Integration record test now checks our schematic; suite fully green
+Did: the human approved ("I draft both") retargeting `tests/test_integration.py::test_schematic_export_keeps_the_traced_nets`.
+- It read tscircuit's .kicad_sch, which reflow no longer makes (O-04a) and nothing reads (V-1); it called tsci by hand only to show that export is still broken. It now checks the schematic reflow ships: `write_schematic` on the same compiled sensor_good.tsx, U1 drawn with Sensor_Temperature:MCP9808_MSOP.
+- Same pins, same nets: SDA (U1 pin 1, J1.3, R1.1) on one net and not unconnected; GND (U1 pin 4, U1 pin 3 = A0, C1.2) on one net; VDD (pin 8) not on GND. Pins are named by number, because the schematic keeps pin numbers and takes names from the symbol, and this made-up chip's labels for pins 3, 5, 6 and 7 differ from the MCP9808's. The removed `_tscircuit_kicad_sch` helper had no other user. The tscircuit bug stays recorded in REVIEW.md §9 and the O-04a proposal.
+- SETUP.md: no test fails on purpose any more. R-11 Part B row #3 points at O-1d.
+- **`pytest -q`: 828 passed, 0 failed (6m42s).** First fully green suite on this branch.

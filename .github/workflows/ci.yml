@@ -1,0 +1,117 @@
+# reflow CI (task CI-01). Written by hand; tests/test_ci_hygiene.py checks this file.
+#
+# Safety, for a project with one maintainer:
+# - A PR from a fork runs this file from the PR, with a read-only token and no secrets. Changing it
+#   in a PR can't reach anything, and the change still needs the maintainer's review (CODEOWNERS).
+# - There are no secrets here at all. Model runs (reflow design, reflow eval) stay on the
+#   maintainer's machine.
+# - Actions are pinned to full commit SHAs; the tag each one was is in its comment.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # No KiCad or tsci: the tests that need them skip, everything else runs on Linux and macOS.
+  # Not Windows yet: the tests fake tsci and claude with shebang scripts, which Windows can't run,
+  # and reflow is only tested on macOS (README, Limits).
+  portable:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e ".[test,learn]"
+      - run: python -m pytest -q
+
+  # Linux with KiCad 10 and tsci: the whole suite, then the built wheel run from another folder.
+  full:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+      - name: Install KiCad 10 (the PPA only keeps the newest 10.0.x)
+        run: |
+          sudo add-apt-repository -y ppa:kicad/kicad-10.0-releases
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends kicad kicad-symbols kicad-footprints ngspice
+      # A fresh KiCad has no global library tables until its GUI first runs, so ERC warns that every
+      # library is missing and reflow export refuses. Copy KiCad's own default tables into place.
+      # Learn mode looks for KiCad's libngspice in the macOS layout; point it at Linux's.
+      - name: KiCad library tables and libngspice
+        run: |
+          mkdir -p ~/.config/kicad/10.0
+          cp /usr/share/kicad/template/sym-lib-table /usr/share/kicad/template/fp-lib-table ~/.config/kicad/10.0/
+          echo "REFLOW_LIBNGSPICE=$(ls /usr/lib/*/libngspice.so.0)" >> "$GITHUB_ENV"
+      - name: Install tscircuit from its lockfile (tsci runs on bun)
+        run: |
+          npm ci --prefix tools/tscircuit --ignore-scripts
+          echo "$GITHUB_WORKSPACE/tools/tscircuit/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Both tools are there, so no test passes by skipping
+        run: |
+          kicad-cli version
+          tsci --version
+          ngspice --version | head -2
+      - run: python -m pip install -e ".[test,learn]"
+      - run: python -m pytest -q
+      - name: The wheel installs and runs from another folder
+        run: |
+          python -m pip wheel . --no-deps -w dist
+          unzip -l dist/*.whl | grep -q "reflow/learn/static/index.html"
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/real_good"
+          set +e
+          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/real_series_cap"
+          code=$?
+          set -e
+          test "$code" -eq 1
+
+  # Fast text checks, no installs: hidden or unexpected text (docs/REVIEWING.md), and docs links.
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: python tools/check_injection.py
+      - run: python tools/check_links.py

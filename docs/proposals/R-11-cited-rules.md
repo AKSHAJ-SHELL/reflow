@@ -145,7 +145,7 @@ boards of run 20261028T161716Z.
 |---|---|---|---|---|---|---|
 | 1 | `i2c.pullup_too_strong` | error | S | Rp < (VDD − 0.4 V)/3 mA | UM10204 §7.1 Eq. 2 | all pass (4.7 kΩ) |
 | 2 | `i2c.pullup_too_weak` | warning | S | Rp > tr/(0.8473·Cb) | UM10204 §7.1 Eq. 1 | depends on Q2 |
-| 3 | `i2c.pullup_rail` | error | S | pull-up to a rail the bus devices aren't powered from | UM10204 §7.1 (Rp to VDD) | **already the human's**, failing test `test_i2c_pullup_rail.py` |
+| 3 | `i2c.pullup_rail` | error | S | pull-up to a rail the bus devices aren't powered from | UM10204 §7.1 (Rp to VDD) | **drafted by the agent under O-1d (10-31), awaiting the human's review**; test `test_i2c_pullup_rail.py` |
 | 4 | `input.floating` | warning | S | input pin unconnected | SCBA004 §1, §3, §5 | none floating |
 | 5 | `led.no_limiter` | error | S | LED with no series resistor or current source | the LED's If(max); Ohm's law | already R-01 |
 | 6 | `decoupling.far` | warning | P | bypass cap's path to its pin longer than *N* mm | SZZA009 §2.2.4 | not measured; threshold *N* is Q6 |
