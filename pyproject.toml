@@ -12,6 +12,8 @@ dependencies = []
 [project.optional-dependencies]
 # Learn mode's local web server (DECISIONS L-2). `reflow check` and `reflow design` need none of it.
 learn = ["fastapi==0.161.1", "uvicorn==0.54.0", "fsrs==6.3.2"]
+# The terminal UI, `reflow tui` (T-01). Textual is MIT.
+tui = ["textual==8.2.8"]
 test = ["pytest>=8", "httpx==0.28.1"]
 
 [project.scripts]

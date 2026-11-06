@@ -17,7 +17,7 @@ The hard part of AI-designed boards isn't generating them. It's catching the one
 | Routing check + fab outputs (`reflow export`): tscircuit's routing checked with KiCad DRC, then gerbers, drill, placement, BOM, and a KiCad schematic | ✅ working |
 | Learn mode + sign-off (`reflow learn`): spot the AI's bug in a local web app before you can export | ✅ working |
 | Run report (`reflow report`): every attempt, error, violation and the sign-off | ✅ working |
-| Request → spec → plan from one sentence | 🚧 not built: you write `spec.json` and `plan.json` |
+| Front door (`reflow tui`): request → datasheet → plan questions → your rules.toml → design → check → fix, with a Claude Code agent beside you | 🆕 new (11-06), not yet tried by a person on a new board |
 
 Eval (2026-10-28, Sonnet via Claude Code, 5 boards × 3 runs): 12 of 15 runs gave a verifier-clean board on the first attempt, with 0 part numbers outside the resolver. The AMS1117 regulator failed all 3 runs on a pin-map question that's still open. The expected answers for these boards haven't been checked by a person yet, so treat this as a draft result. Details: [evals/README.md](evals/README.md).
 
@@ -45,7 +45,7 @@ brew install node oven-sh/bun/bun   # tsci runs on Bun
 npm ci --prefix tools/tscircuit    # tsci, which compiles the AI's board code, at the locked version
 export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # or set TSCI to that tsci
 reflow parts update                # downloads the JLCPCB parts snapshot (about 1.5 GB)
-uv pip install -e '.[learn]'       # learn mode's local web server
+uv pip install -e '.[learn,tui]'   # learn mode's local web server, and the terminal UI
 ```
 
 Pick a model. With [Claude Code](https://claude.com/claude-code) installed and logged in, no API key is needed:
@@ -56,7 +56,24 @@ export REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet
 
 Or use an API: set `REFLOW_PROVIDER` to `anthropic`, `openai` or `openai-compatible`, `REFLOW_MODEL` to a model id, `REFLOW_BASE_URL` if needed, and put the key in `REFLOW_API_KEY` (never in `reflow.toml`).
 
-Then design, learn, sign off and export. The five boards in `evals/` each have a ready `spec.json` and `plan.json`:
+**The easy way: the terminal UI.** Make a folder for your board and open reflow there:
+
+```bash
+mkdir -p ~/boards/accel && cd ~/boards/accel && reflow tui
+```
+
+It walks you through it, with an agent (Claude Code, on your login) on the right that you can ask anything:
+
+1. Type what you want and the chip's exact part number (reflow never picks one for you).
+2. Upload the chip's datasheet PDF (drag it into the window). The agent reads only that PDF and files in this folder.
+3. Draft the plan, answer its questions, accept it.
+4. Write your verifier, `rules.toml`: one rule for each thing the datasheet asks for. reflow gives you a template and checks it. Ask the agent if a section confuses you.
+5. Confirm, and the agent designs the board (up to 3 attempts).
+6. Run `reflow check` on it. If it doesn't pass, open it in KiCad and in learn mode to see what went wrong, then type the fix and run it again.
+
+Everything is saved in the folder (`spec.json`, `plan.json`, `rules.toml`, `runs/`), so you can close it and pick up later.
+
+**By hand.** Then design, learn, sign off and export. The five boards in `evals/` each have a ready `spec.json` and `plan.json`:
 
 ```bash
 reflow design --spec evals/mcp9808_breakout/spec.json --plan evals/mcp9808_breakout/plan.json --run-dir runs/mcp9808

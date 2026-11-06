@@ -42,7 +42,7 @@ npm ci --prefix tools/tscircuit    # tscircuit 0.0.2768 with every dependency lo
 export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # add to ~/.zshrc, or set TSCI to that tsci
 tsci --version                     # 0.0.2768
 reflow parts update                # JLCPCB parts snapshot from jlcparts, about 1.5 GB, into ~/.cache/reflow/jlcparts/
-uv pip install -e '.[learn]'       # learn mode's local web server (fastapi, uvicorn, fsrs)
+uv pip install -e '.[learn,tui]'   # learn mode's local web server (fastapi, uvicorn, fsrs), and the TUI (textual)
 ```
 
 Why a lockfile: `npm i -g tscircuit@0.0.2768` pins tscircuit but not its dependencies. On 2026-10-31 a fresh install pulled a newer `circuit-json` and `tsci` failed to start (`Export named 'drawing_dimension_line' not found`). `tools/tscircuit/package-lock.json` was made from a working install, so `npm ci` gets exactly that tree.
@@ -97,7 +97,7 @@ Environment only:
 ## Running the tests
 
 ```bash
-uv pip install -e '.[test,learn]'
+uv pip install -e '.[test,learn,tui]'
 pytest -q                          # about 7 minutes; needs KiCad and tsci
 ```
 

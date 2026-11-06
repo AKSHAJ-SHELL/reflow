@@ -89,6 +89,12 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | AGENT→HUMAN (O-1: human reviews the diff) | doing (awaiting human review) |
 | P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal approved by the human) | done (10-21) |
 
+## Front door (TUI)
+
+| ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T-01 | `reflow tui`: the front door. In a project folder: prompt → upload the datasheet → ask the agent for help → answer the plan questions → you write rules.toml (checked) → design loop → `reflow check` → if it fails, KiCad + learn, then tell the agent the fix → re-run | user's request, datasheet PDF, their rules.toml | spec.json, plan.json, runs/ | tests/test_tui_*.py: the flow with a fake claude; named parts only from what the user typed; no design without a confirmed spec and a rules.toml with 0 errors; the agent only reads (Read tool) | M-04, V-21, L-10 | AGENT (prompt text AGENT→HUMAN) | doing (11-06: built and tested with a fake claude, parts checked with the real one; awaiting the human's first real run) |
+
 ## Learn mode
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |

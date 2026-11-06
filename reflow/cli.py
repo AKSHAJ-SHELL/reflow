@@ -443,6 +443,18 @@ def build_parser() -> argparse.ArgumentParser:
     learn.add_argument("--vault", metavar="DIR", type=Path, default=None,
                        help="your learning vault (default: REFLOW_VAULT, else ~/.reflow/vault)")
     learn.set_defaults(func=cmd_learn)
+    tui = sub.add_parser(
+        "tui",
+        help="open reflow's terminal UI for a board project",
+        description=(
+            "Open the terminal UI in PROJECT_DIR (default: this folder): describe the board, upload the "
+            "datasheet, answer the plan's questions, write your rules.toml, run the design on Claude Code, "
+            "then reflow check it, open it in KiCad and learn mode, and tell the agent how to fix it. "
+            "Needs pip install 'reflow-pcb[tui]' and the claude CLI."
+        ),
+    )
+    tui.add_argument("project_dir", metavar="PROJECT_DIR", nargs="?", default=".", help="the board's folder")
+    tui.set_defaults(func=cmd_tui)
     rules = sub.add_parser("rules", help="work with a project's rules.toml")
     rules_sub = rules.add_subparsers(dest="rules_command", required=True)
     check_rules_cmd = rules_sub.add_parser(
@@ -504,6 +516,20 @@ def cmd_learn(args) -> int:
         return 2
     serve(run_dir, port=args.port, open_browser=not args.no_browser, vault=args.vault)
     return 0
+
+
+def cmd_tui(args) -> int:
+    project = Path(args.project_dir)
+    if not project.is_dir():
+        print(f"reflow: {project} is not a folder", file=sys.stderr)
+        return 2
+    try:
+        from reflow.tui.app import run
+    except ModuleNotFoundError as exc:
+        print(f"reflow: the TUI needs its optional extra ({exc}). Install it with: "
+              "pip install 'reflow-pcb[tui]'", file=sys.stderr)
+        return 2
+    return run(project)
 
 
 def cmd_export(args) -> int:

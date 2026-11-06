@@ -22,6 +22,7 @@
 # Model calls.
 /reflow/claude_code.py  @AKSHAJ-SHELL
 /reflow/llm.py          @AKSHAJ-SHELL
+/reflow/tui/agent.py    @AKSHAJ-SHELL
 /reflow.toml            @AKSHAJ-SHELL
 
 # What "correct" means: hand-written by the maintainer.

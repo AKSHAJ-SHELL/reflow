@@ -1168,3 +1168,36 @@ Did: wrote `docs/think-with-me-design.md` at the human's request; design only, n
   - v0 is model-free.
 - **Needs from the human before any build:** a DECISIONS entry for the new contracts (`Explanation`, `ExplanationSegment`, `ThinkStep`, `ThinkSession`, new `VAULT_KINDS`), and answers to the open decisions (D1, D2 and D5 at least, of 14).
 - **Gap found:** built-in rules cite no datasheet or standard yet (R-11 undecided), so most explanations would show "No source cited for this rule yet" until D4 is settled.
+
+## 2026-11-06 · agent (Claude) · T-01: `reflow tui`, the front door
+Did: the human asked for reflow to work the way a user would meet it. In a project folder, `reflow tui` opens a terminal UI (Textual 8.2.8, MIT, released 2026-06-30, optional extra `[tui]`). Steps, in order:
+1. the request and the exact part number, which the user types;
+2. upload the datasheet PDF (it must start with `%PDF`; it's copied into the folder);
+3. the planner drafts the spec and plan, the user answers its open questions, then accepts;
+4. the user writes their own rules.toml from a `[[part]]`-only template, and the TUI checks it; a file with no `[[rule]]` is an error;
+5. Confirm, the only place `confirmed` becomes true, and only with 0 rule errors;
+6. `reflow design` runs as a child process on Claude Code, with live progress per attempt;
+7. `reflow check` on the board's schematic (KiCad ERC + reflow's rules);
+8. if it fails: Open in KiCad, Open learn mode, then the user types the fix. The fix is added to `Spec.constraints` ("Designer's fix after <run>: …"), and a fresh, linked run starts. `loop.py` is unchanged.
+- **The agent pane** (`reflow/tui/agent.py`, `prompts/tui-agent.md`, draft) is one multi-turn Claude Code session (`--session-id`, then `--resume`):
+  - tools are Read only, allowed only inside the project folder (`--allowedTools "Read(./**)" --permission-mode dontAsk`);
+  - no API key in its environment;
+  - replies are shown as plain text, never markup.
+- **Rule 5:** `Spec.named_parts` is always the user's typed part numbers (whatever the planner wrote is replaced), and a plan part with any other mpn is refused.
+- **Checked by hand with the real claude 2.1.319:**
+  - the agent read a PDF in the folder, and noticed it wasn't the MCP9808 datasheet;
+  - the second message continued the same session;
+  - with `Read(./**)` + `dontAsk`, a read of a file outside the folder came back as a permission denial;
+  - the real planner returned a valid spec and plan with 6 open questions.
+- **Found and fixed on the way:**
+  - my first draft of the agent prompt used the `{request}` placeholder, which `load_prompt` uses to find the planner, so two files matched and planning broke. New test: each prompt is found by its own placeholder;
+  - before scoping, plain `--allowedTools Read` let the agent read any file on the machine;
+  - a config error (e.g. no REFLOW_API_KEY with an API provider) in the plan step crashed the TUI. It's now a message, with a test;
+  - my docstring named `prompts/planner.md`, which `test_package_does_not_load_unapproved_prompts` forbids. The docstring was reworded; the test is unchanged.
+- `reflow/claude_code.py`: the `claude -p` JSON parsing moved into `parse_print_result`, shared with the TUI agent. Its tests are unchanged and pass.
+- **Not done or not verified:**
+  - a person hasn't driven the TUI on a new board yet;
+  - the design step's real run wasn't driven from the TUI here; its child process is the same `reflow design` command;
+  - rules.toml rules still don't fail a run (R-10, HUMAN).
+- **`pytest -q`:** 845 passed and 1 failed (the docstring above), fixed; its file and the TUI tests then passed (33). The full suite wasn't rerun after that one-line docstring change.
+- CI installs `.[test,learn,tui]`; CODEOWNERS adds `reflow/tui/agent.py`; REVIEWING §2–3, README, SETUP and the prompts index are updated.
