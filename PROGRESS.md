@@ -1155,3 +1155,16 @@ Did: the human approved ("I draft both") retargeting `tests/test_integration.py:
 - Same pins, same nets: SDA (U1 pin 1, J1.3, R1.1) on one net and not unconnected; GND (U1 pin 4, U1 pin 3 = A0, C1.2) on one net; VDD (pin 8) not on GND. Pins are named by number, because the schematic keeps pin numbers and takes names from the symbol, and this made-up chip's labels for pins 3, 5, 6 and 7 differ from the MCP9808's. The removed `_tscircuit_kicad_sch` helper had no other user. The tscircuit bug stays recorded in REVIEW.md §9 and the O-04a proposal.
 - SETUP.md: no test fails on purpose any more. R-11 Part B row #3 points at O-1d.
 - **`pytest -q`: 828 passed, 0 failed (6m42s).** First fully green suite on this branch.
+
+## 2026-11-05 · agent (Claude) · L-20: think-with-me mode, system design (no code)
+Did: wrote `docs/think-with-me-design.md` at the human's request; design only, nothing built.
+- **The human's answers it's built on:** notes in reflow's existing vault; core Obsidian now, Dataview and Templater later; path wikilinks as vault.py writes them; the vault is synced with git.
+- **Design:**
+  - post-hoc, not in `loop.py`: it reads a run folder or `reflow check --json`;
+  - reuses learn mode's ordering, fix-it tools (copies only) and vault;
+  - a HUMAN-written explanation registry keyed by `rule_id`;
+  - every sentence labelled verified / cited / unverified;
+  - write-once `reasoning/` notes for a git vault;
+  - v0 is model-free.
+- **Needs from the human before any build:** a DECISIONS entry for the new contracts (`Explanation`, `ExplanationSegment`, `ThinkStep`, `ThinkSession`, new `VAULT_KINDS`), and answers to the open decisions (D1, D2 and D5 at least, of 14).
+- **Gap found:** built-in rules cite no datasheet or standard yet (R-11 undecided), so most explanations would show "No source cited for this rule yet" until D4 is settled.
