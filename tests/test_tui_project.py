@@ -321,3 +321,16 @@ def test_a_dragged_path_is_understood(tmp_path, dropped):
     text = dropped.format(p=pdf, e=escaped, u=quote(str(pdf)))
     assert dropped_path(text) == pdf
     assert dropped_path("just some words") is None
+
+
+def test_an_empty_upload_keeps_the_datasheet_or_says_what_to_do(tmp_path):
+    project = _started(tmp_path)
+    with pytest.raises(ProjectError, match="Drag the datasheet PDF"):
+        project.add_datasheet("")                 # nothing uploaded yet: not ". isn't a file"
+    pdf = tmp_path / "d.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    project.add_datasheet(pdf)
+    project.back()
+    assert project.stage == "datasheet"
+    assert project.add_datasheet("   ") == tmp_path / "d.pdf"   # back here after uploading: keep it
+    assert project.stage == "plan"

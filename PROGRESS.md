@@ -1242,3 +1242,9 @@ Did: the human asked that dragging the datasheet in should be enough, and should
   - the real agent answered "0.1 µF on VS", citing §8.3, page 31.
   - The page markers are the PDF's page numbers, which can differ from the numbers printed on the page.
 - Failing tests came first (7 in test_tui_project, 1 in test_tui_app). They use a minimal PDF the test writes itself.
+
+## 2026-11-06 · agent (Claude) · T-01: no stray upload after a drop; Back keeps the datasheet
+Did: from the human's screenshot ("problem: . isn't a file" right after a good upload).
+- **Cause:** the datasheet box kept the cursor after its step was hidden, so Enter "uploaded" an empty path. Each step now moves the cursor to its own first field or button, and Upload does nothing outside the datasheet step.
+- **An empty Upload** keeps the datasheet already uploaded, for when you go Back. With none uploaded, it says "Drag the datasheet PDF into the window, or type its path". Going Back to that step says which file is already uploaded.
+- Failing tests came first (1 in test_tui_project, 1 in test_tui_app); the TUI tests pass (29).

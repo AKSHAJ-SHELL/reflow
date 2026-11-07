@@ -205,3 +205,34 @@ def test_dropping_a_pdf_uploads_it_at_once(tmp_path):
 
         asyncio.run(walk())
         assert (project / "INA226 (rev B).txt").read_text().startswith("=== page 1 ===")
+
+
+def test_enter_after_a_drop_doesnt_upload_again(tmp_path):
+    pytest.importorskip("pypdf")
+    from test_tui_project import _pdf
+
+    project = tmp_path / "board"
+    project.mkdir()
+    pdf = _pdf(tmp_path / "ina226.pdf", ["Bypass VS with 0.1 uF"])
+    app = ReflowApp(project, chat=FakeChat(), planner=FakePlanner())
+    app.project.start("INA226 power monitor", ["INA226AIDGSR"])
+
+    async def walk():
+        async with app.run_test(size=(160, 60)) as pilot:
+            box = app.query_one("#datasheet-path", Input)
+            await pilot.click("#datasheet-path")
+            box.value = str(pdf)                  # dropped: uploads and moves on
+            await pilot.pause()
+            assert app.query_one("#steps", ContentSwitcher).current == "plan"
+            assert not box.has_focus              # the hidden box doesn't keep the cursor
+            await pilot.press("enter")
+            await pilot.pause()
+            log = app.query_one("#chat-log", RichLog)
+            assert not any("isn't a file" in line.text for line in log.lines)
+            await pilot.click("#back")
+            assert app.query_one("#steps", ContentSwitcher).current == "datasheet"
+            await pilot.click("#upload")          # empty: keep the one already uploaded
+            await pilot.pause()
+            assert app.query_one("#steps", ContentSwitcher).current == "plan"
+
+    asyncio.run(walk())

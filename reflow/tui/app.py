@@ -156,8 +156,13 @@ class ReflowApp(App):
     def show(self, stage: str) -> None:
         self.query_one("#steps", ContentSwitcher).current = stage
         self.query_one("#back", Button).display = stage != "request"
+        first = self.query_one(f"#{stage}").query("Input, Button").first()
+        self.call_after_refresh(first.focus)     # a hidden step's box must not keep the cursor
         self.query_one("#stage-title", Label).update(TITLES[stage])
         self.say("reflow", GUIDE[stage])
+        if stage == "datasheet" and self.project.state.datasheet:
+            self.say("reflow", f"You've uploaded {self.project.state.datasheet} already. Press Upload to keep it, "
+                               "or drop a different PDF.")
         if stage == "rules":
             self._rules_hint()
         if stage == "check" and self.project.state.runs:
@@ -226,7 +231,8 @@ class ReflowApp(App):
         self.show("datasheet")
 
     def _on_upload(self) -> None:
-        self._upload(self.query_one("#datasheet-path", Input).value)
+        if self.project.stage == "datasheet":
+            self._upload(self.query_one("#datasheet-path", Input).value)
 
     def _upload(self, text: str) -> None:
         path = self.project.add_datasheet(text)

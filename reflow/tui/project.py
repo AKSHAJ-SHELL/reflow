@@ -32,6 +32,7 @@ The flow, in the order the TUI shows it:
    pages (Claude Code reads a PDF 20 pages at a time). A PDF with no text
    layer (a scan) gets no copy, and the agent reads the PDF itself. The text
    copy needs pypdf (the `tui` extra); without it there's no copy.
+   An empty upload keeps the datasheet already uploaded (after going Back).
    A path dragged into the terminal arrives quoted, backslash-escaped or as a
    file:// URL; `dropped_path` turns each into the file.
 3. The planner prompt (the one with the `{request}` placeholder) drafts the spec and plan. Its
@@ -183,6 +184,12 @@ class Project:
         return stage
 
     def add_datasheet(self, pdf) -> Path:
+        if not str(pdf).strip():
+            kept = self.root / self.state.datasheet if self.state.datasheet else None
+            if kept is not None and kept.is_file():
+                self._go("plan")                  # back at this step after uploading: keep it
+                return kept
+            raise ProjectError("Drag the datasheet PDF into the window, or type its path")
         source = dropped_path(str(pdf)) or Path(str(pdf).strip()).expanduser()
         if not source.is_file():
             raise ProjectError(f"{source} isn't a file")
