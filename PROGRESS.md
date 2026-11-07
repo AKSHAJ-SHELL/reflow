@@ -1224,3 +1224,9 @@ Did: in the human's INA226 test, the part field got "C49851, VSSOP-10" (the JLC 
 - **A JLC/LCSC number** (`C` + digits) is refused as a part number, with a message naming the manufacturer's part number instead.
 - **Before Next,** each typed number is looked up in the local catalog, and any without an in-stock row is named (a package such as "VSSOP-10", a typo). With no parts database it can't check and doesn't block.
 - Failing tests came first: 3 in test_tui_project, 1 in test_tui_app. The TUI, prompt and CLI tests pass (43). One test needed a 0.3 s pause between two clicks on the same button, because Textual ignores a second click within its 0.2 s press effect; a person can't click that fast.
+
+## 2026-11-06 · agent (Claude) · T-01: errors stay in the chat, chat no longer cut off, agent Markdown
+Did: from the human's INA226 screenshot, three fixes.
+- **The plan draft failed** and its only sign was a 10 s toast, so it looked stuck on "Drafting the plan…". Every error now also goes into the chat as "problem: …" (test added). The cause, inferred and not confirmed: only the shunt (25121WF100MT4E) was typed as a part number, so the planner's "INA226" was refused. The refusal now says to go Back and add it.
+- **Chat lines were cut off:** RichLog's default `min_width` of 78 is wider than the pane. It's now 20 for every log.
+- **The agent's Markdown showed raw `**`:** replies now render as Markdown, with links not clickable. Rich markup like `[b]` stays literal (the existing test).

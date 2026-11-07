@@ -208,7 +208,9 @@ class Project:
         try:
             reject_foreign_mpn(plan, spec)
         except CheckpointError as exc:
-            raise ProjectError(str(exc)) from exc
+            raise ProjectError(f"The planner used a part number you didn't type ({exc}). If it's the right part, "
+                               "go Back and add it to your part numbers; reflow only uses part numbers you "
+                               "typed. Otherwise draft the plan again.") from exc
         self.state.questions = [to_dict(q) for q in questions]
         self.save()
         return Draft(spec, plan)

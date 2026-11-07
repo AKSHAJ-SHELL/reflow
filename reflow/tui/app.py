@@ -31,6 +31,7 @@ import sys
 import time
 from pathlib import Path
 
+from rich.markdown import Markdown
 from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
@@ -124,11 +125,11 @@ class ReflowApp(App):
                             yield Button("Create rules.toml", id="template")
                             yield Button("Open in editor", id="edit")
                             yield Button("Check my rules", id="check-rules", variant="primary")
-                        yield RichLog(id="rules-log", classes="box", wrap=True)
+                        yield RichLog(id="rules-log", classes="box", wrap=True, min_width=20)
                         yield Button("Confirm spec and design", id="confirm", variant="success")
                     with Vertical(id="design"):
                         yield Button("Run the design", id="run-design", variant="primary")
-                        yield RichLog(id="design-log", classes="box", wrap=True)
+                        yield RichLog(id="design-log", classes="box", wrap=True, min_width=20)
                     with Vertical(id="check"):
                         yield Static("", id="run-summary")
                         with Horizontal(classes="row"):
@@ -136,12 +137,12 @@ class ReflowApp(App):
                             yield Button("Open in KiCad", id="kicad")
                             yield Button("Open learn mode", id="learn")
                             yield Button("Export", id="export")
-                        yield RichLog(id="check-log", classes="box", wrap=True)
+                        yield RichLog(id="check-log", classes="box", wrap=True, min_width=20)
                         yield Input(placeholder="Tell the agent how to fix it", id="fix")
                         yield Button("Re-run with my fix", id="refix", variant="warning")
             with Vertical(id="chat"):
                 yield Label("Agent (Claude Code, reads only)", classes="title")
-                yield RichLog(id="chat-log", wrap=True)
+                yield RichLog(id="chat-log", wrap=True, min_width=20)
                 yield Input(placeholder="Ask the agent, e.g. what does SDO/ADDR do?", id="chat-input")
         yield Footer()
 
@@ -163,10 +164,22 @@ class ReflowApp(App):
             self._run_summary()
 
     def say(self, who: str, text: str) -> None:
-        style = {"reflow": "bold cyan", "you": "bold green", "agent": "bold magenta"}.get(who, "bold")
+        style = {"reflow": "bold cyan", "you": "bold green", "agent": "bold magenta",
+                 "problem": "bold red"}.get(who, "bold")
+        log = self.query_one("#chat-log", RichLog)
+        if who == "agent":
+            # Markdown so **bold** and lists read well; never Rich markup, and links aren't made clickable.
+            log.write(Text("agent:", style=style))
+            log.write(Markdown(text, hyperlinks=False))
+            return
         line = Text(f"{who}: ", style=style)
-        line.append(text)                         # plain text: model output is never markup
-        self.query_one("#chat-log", RichLog).write(line)
+        line.append(text)                         # plain text: never markup
+        log.write(line)
+
+    def error(self, message: str) -> None:
+        """A problem stays in the chat (a toast alone is gone in seconds)."""
+        self.notify(message, severity="error", timeout=10)
+        self.say("problem", message)
 
     def _log(self, widget_id: str, text: str, style: str = "") -> None:
         self.query_one(f"#{widget_id}", RichLog).write(Text(text, style=style))
@@ -179,7 +192,7 @@ class ReflowApp(App):
             try:
                 handler()
             except ProjectError as exc:
-                self.notify(str(exc), severity="error", timeout=8)
+                self.error(str(exc))
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "chat-input":
@@ -305,7 +318,7 @@ class ReflowApp(App):
         try:
             draft = self.project.draft_plan(self._planner_model(), answers=answers)
         except (ProjectError, ModelError, ConfigError) as exc:
-            self.call_from_thread(self.notify, str(exc), severity="error", timeout=10)
+            self.call_from_thread(self.error, str(exc))
             return
         self.call_from_thread(self._show_draft, draft)
 

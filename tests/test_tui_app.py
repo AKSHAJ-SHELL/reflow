@@ -143,6 +143,8 @@ def test_a_config_problem_is_a_message_not_a_crash(tmp_path, monkeypatch):
             await app.workers.wait_for_complete()
             await pilot.pause()
             assert app.is_running and app.query_one("#steps", ContentSwitcher).current == "plan"
+            log = app.query_one("#chat-log", RichLog)
+            assert any("REFLOW_API_KEY is not set" in line.text for line in log.lines)   # stays on screen
 
     asyncio.run(walk())
 
