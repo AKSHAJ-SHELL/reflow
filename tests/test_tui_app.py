@@ -236,3 +236,32 @@ def test_enter_after_a_drop_doesnt_upload_again(tmp_path):
             assert app.query_one("#steps", ContentSwitcher).current == "plan"
 
     asyncio.run(walk())
+
+
+def test_the_plan_buttons_stay_reachable_with_many_questions(tmp_path):
+    # Seven long planner questions pushed Re-plan and Accept below the step's
+    # window-high box, where scrolling couldn't reach them.
+    import copy
+    from test_tui_project import SPEC
+    spec = copy.deepcopy(SPEC)
+    first = spec["open_questions"][0]
+    spec["open_questions"] = [dict(first, id=f"q{i}", question=f"question {i} " + "long words " * 20)
+                              for i in range(8)]
+    app = ReflowApp(tmp_path, planner=FakePlanner(spec=spec))
+    app.project.start("MCP9808 temperature sensor breakout, I2C, 3.3V", ["MCP9808"])
+    pdf = tmp_path / "MCP9808.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    app.project.add_datasheet(pdf)
+
+    async def walk():
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.click("#draft")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            main = app.query_one("#main")
+            for button in ("#replan", "#accept"):
+                main.scroll_to_widget(app.query_one(button), animate=False)
+                await pilot.pause()
+                assert main.region.contains_region(app.query_one(button).region), button
+
+    asyncio.run(walk())

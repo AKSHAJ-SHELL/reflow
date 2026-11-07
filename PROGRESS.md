@@ -1272,3 +1272,8 @@ Did: in the human's INA226 run, the plan was refused with "p1: mpn 'INA226' is n
 Did: the human moved the board folder into `boards/` mid-session, and the agent then said it "wasn't allowed to read the file again".
 - **Cause, checked:** the resumed chat remembered `~/reflow-boards/opi-power-demo/ina226.pdf`, which is outside the new project folder, so `Read(./**)` refused it. Reading the same file by its new absolute path works; tried with the real claude.
 - **Fix:** the saved chat is tied to the folder it ran in (`chat_root`), and a moved project starts a new chat. A failing test came first; the TUI tests pass.
+
+## 2026-11-06 · agent (Claude) · T-01: the plan buttons can be scrolled to
+Did: with seven planner questions the human saw no Re-plan button.
+- **Cause, checked:** each step (a `Vertical`) was one window high, so Re-plan and Accept sat below its clipped edge, out of reach of the scrolling panel.
+- **Fix:** steps take their content's height (`#steps, #steps > Vertical { height: auto; }`). A failing test came first; the full suite passes (865).

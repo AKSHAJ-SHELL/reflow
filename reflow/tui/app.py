@@ -75,6 +75,7 @@ CSS = """
 Input { margin-bottom: 1; }
 Button { margin: 0 1 1 0; }
 .row { height: auto; }
+#steps, #steps > Vertical { height: auto; }  /* a step grows with its content, so #main can scroll to its buttons */
 RichLog.box { height: 14; border: round $panel; }
 """
 
