@@ -81,7 +81,7 @@ RichLog.box { height: 14; border: round $panel; }
 class ReflowApp(App):
     TITLE = "reflow"
     CSS = CSS
-    BINDINGS = [("ctrl+q", "quit", "Quit")]
+    BINDINGS = [("ctrl+q", "quit", "Quit"), ("ctrl+b", "back", "Back")]
 
     def __init__(self, project_dir, *, chat=None, planner=None) -> None:
         super().__init__()
@@ -97,7 +97,9 @@ class ReflowApp(App):
         yield Header()
         with Horizontal():
             with VerticalScroll(id="main"):
-                yield Label("", id="stage-title", classes="title")
+                with Horizontal(classes="row"):
+                    yield Button("← Back", id="back", compact=True)
+                    yield Label("", id="stage-title", classes="title")
                 with ContentSwitcher(id="steps", initial=self.project.stage):
                     with Vertical(id="request"):
                         yield Input(placeholder="What do you want to build? e.g. ADXL343 accelerometer breakout, I2C, 3.3V",
@@ -152,6 +154,7 @@ class ReflowApp(App):
 
     def show(self, stage: str) -> None:
         self.query_one("#steps", ContentSwitcher).current = stage
+        self.query_one("#back", Button).display = stage != "request"
         self.query_one("#stage-title", Label).update(TITLES[stage])
         self.say("reflow", GUIDE[stage])
         if stage == "rules":
@@ -185,9 +188,28 @@ class ReflowApp(App):
         elif event.input.id == "datasheet-path":
             self.on_button_pressed(Button.Pressed(self.query_one("#upload", Button)))
 
+    def _on_back(self) -> None:
+        self.action_back()
+
+    def action_back(self) -> None:
+        if any(w.group == "design" and w.is_running for w in self.workers):
+            self.notify("The design is still running; wait for it to finish.", severity="warning")
+            return
+        if self.project.stage == "request":
+            return
+        stage = self.project.back()
+        if stage in ("rules", "plan", "datasheet", "request"):
+            self.say("reflow", "Went back. The spec is unconfirmed again, so confirm it once more before the "
+                               "next design." if stage == "rules" else "Went back.")
+        self.show(stage)
+
     def _on_start(self) -> None:
         parts = self.query_one("#parts", Input).value.split(",")
-        self.project.start(self.query_one("#request-text", Input).value, parts)
+        request = self.query_one("#request-text", Input).value
+        problems = self.project.part_problems(parts)
+        if problems:
+            raise ProjectError("; ".join(problems))
+        self.project.start(request, parts)        # also refuses an empty field or a JLC number
         self.show("datasheet")
 
     def _on_upload(self) -> None:

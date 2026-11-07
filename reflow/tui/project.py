@@ -5,6 +5,8 @@ Contract
     Project(root)                                   # loads root/.reflow/tui.json if it's there
         .stage                                      # request | datasheet | plan | rules | design | check
         .start(request, part_numbers)               # the user's own words and part numbers
+        .part_problems(part_numbers) -> [str]       # each typed number the parts database doesn't have
+        .back() -> stage                            # one step back; leaving design unconfirms the spec
         .add_datasheet(pdf) -> Path                 # copied into root
         .draft_plan(model, answers=None) -> Draft   # planner prompt; answers are {question id: text}
         .accept_plan(draft)                         # writes spec.json + plan.json, unconfirmed
@@ -40,6 +42,10 @@ The flow, in the order the TUI shows it:
    "Designer's fix after <run>: ..." for the next run. The loop itself
    (reflow/harness/loop.py) is unchanged: each run starts fresh.
 
+`back` goes one step back at any point. Going back from design (or later)
+to rules or earlier sets `Spec.confirmed` false again, so a changed rule or
+plan needs a new confirm. Runs are kept.
+
 State lives in root/.reflow/tui.json, so closing and reopening the TUI
 continues where the user was.
 
@@ -69,6 +75,7 @@ PLAN_SYSTEM = "Follow the user message. Reply with JSON only."
 STAGES = ("request", "datasheet", "plan", "rules", "design", "check")
 _FENCE = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
 _TOP_SYMBOL = re.compile(r'^\t\(symbol "([^"]+)"', re.MULTILINE)
+_LCSC = re.compile(r"C\d{3,}", re.IGNORECASE)
 
 
 class ProjectError(ValueError):
@@ -126,8 +133,45 @@ class Project:
             raise ProjectError("type what you want to build")
         if not typed:
             raise ProjectError("type the exact part number of the main chip (reflow never picks one for you)")
+        for number in typed:
+            if _LCSC.fullmatch(number):
+                raise ProjectError(f"{number} is a JLC (LCSC) number, not a part number. Type the manufacturer's "
+                                   "part number, e.g. INA226AIDGSR")
         self.state.request, self.state.part_numbers = request, typed
         self._go("datasheet")
+
+    def part_problems(self, part_numbers: list[str], *, search=None) -> list[str]:
+        from reflow.contracts import PartRequest
+        from reflow.parts.catalog import CatalogError
+
+        if search is None:
+            from reflow.parts.local_catalog import search
+        problems = []
+        for number in (p.strip() for p in part_numbers):
+            if not number or _LCSC.fullmatch(number):
+                continue                          # start() refuses these with its own message
+            request = PartRequest(id="typed", role="", category="ic", value="", package="", tolerance="",
+                                  voltage="", mpn=number, notes="")
+            try:
+                found = search(request)
+            except CatalogError:
+                return []                         # no parts database here: can't check, so don't block
+            if not found:
+                problems.append(f"{number} isn't in the parts database (in stock). Check it's the manufacturer's "
+                                "full part number, not a package or a JLC number")
+        return problems
+
+    def back(self) -> str:
+        index = STAGES.index(self.stage)
+        if index == 0:
+            raise ProjectError("this is the first step")
+        stage = STAGES[index - 1]
+        if STAGES.index(stage) < STAGES.index("design") and self.spec_path.is_file():
+            spec = self._spec()
+            if spec.confirmed:
+                _write_json(self.spec_path, to_dict(replace(spec, confirmed=False)))
+        self._go(stage)
+        return stage
 
     def add_datasheet(self, pdf) -> Path:
         source = Path(str(pdf).strip().strip("'\"")).expanduser()

@@ -212,3 +212,52 @@ def test_only_the_plans_chips_get_a_part_entry(tmp_path):
     text = project.write_rules_template("Sensor_Energy:INA226").read_text()
     assert text.count("[[part]]") == 1
     assert 'mpn    = "INA226AIDGSR"' in text and "WSL2512R0100FEA" not in text.split("# Example")[0]
+
+
+def test_a_jlc_number_is_not_a_part_number(tmp_path):
+    with pytest.raises(ProjectError, match="C49851 is a JLC"):
+        Project(tmp_path).start("INA226 power monitor", ["C49851", "VSSOP-10"])
+
+
+def test_part_problems_names_each_number_the_catalog_doesnt_have(tmp_path):
+    from reflow.parts.catalog import CatalogError
+
+    stocked = {"INA226AIDGSR"}
+
+    def search(request):
+        return ["row"] if request.mpn in stocked else []
+
+    project = Project(tmp_path)
+    problems = project.part_problems(["INA226AIDGSR", "VSSOP-10"], search=search)
+    assert len(problems) == 1 and "VSSOP-10" in problems[0] and "parts database" in problems[0]
+    assert project.part_problems(["INA226AIDGSR"], search=search) == []
+
+    def no_database(request):
+        raise CatalogError("no parts database")
+
+    assert project.part_problems(["anything"], search=no_database) == []   # can't check: don't block
+
+
+def test_back_goes_one_step_and_unconfirms_the_spec(tmp_path, monkeypatch):
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(SYMBOLS))
+    project = _started(tmp_path)
+    fresh = tmp_path / "new"
+    fresh.mkdir()
+    with pytest.raises(ProjectError, match="first step"):
+        Project(fresh).back()
+    assert project.back() == "request"
+    project.start("MCP9808 temperature sensor breakout, I2C, 3.3V", ["MCP9808"])   # typed again, corrected
+    pdf = tmp_path / "d.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    project.add_datasheet(pdf)
+    project.accept_plan(project.draft_plan(FakePlanner()))
+    project.write_rules_template("Sensor_Temperature:MCP9808_MSOP")
+    rules = tmp_path / "rules.toml"
+    rules.write_text(rules.read_text() + '\n[[rule]]\non = "U1.VDD"\nneed = "cap"\nto = "GND"\n'
+                     'source = "MCP9808 datasheet, 6.1, p.35"\nwhy = "mine"\n')
+    project.confirm()
+    assert project.stage == "design"
+    assert project.back() == "rules"
+    assert json.loads((tmp_path / "spec.json").read_text())["confirmed"] is False   # change rules, confirm again
+    assert Project(tmp_path).stage == "rules"
+    assert project.back() == "plan" and project.back() == "datasheet"

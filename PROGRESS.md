@@ -1217,3 +1217,10 @@ Did: at the human's request, rewrote README's Limits section (the human had alre
   - routing can exceed a length limit;
   - model code runs on the user's machine (links REVIEWING §4).
 - **Status table:** the `reflow design` row now says the spec and plan are ones you confirm. All doc links check.
+
+## 2026-11-06 · agent (Claude) · T-01: Back, and part numbers checked on screen 1
+Did: in the human's INA226 test, the part field got "C49851, VSSOP-10" (the JLC number and the package) and the TUI moved on with no way back. Now:
+- **Back** (a button on every step after the first, and Ctrl+B) goes one step back. Going back from design to rules or earlier sets `Spec.confirmed` false, so a changed rule or plan needs a new confirm. Runs are kept. It's refused while a design is running.
+- **A JLC/LCSC number** (`C` + digits) is refused as a part number, with a message naming the manufacturer's part number instead.
+- **Before Next,** each typed number is looked up in the local catalog, and any without an in-stock row is named (a package such as "VSSOP-10", a typo). With no parts database it can't check and doesn't block.
+- Failing tests came first: 3 in test_tui_project, 1 in test_tui_app. The TUI, prompt and CLI tests pass (43). One test needed a 0.3 s pause between two clicks on the same button, because Textual ignores a second click within its 0.2 s press effect; a person can't click that fast.

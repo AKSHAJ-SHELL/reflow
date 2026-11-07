@@ -145,3 +145,29 @@ def test_a_config_problem_is_a_message_not_a_crash(tmp_path, monkeypatch):
             assert app.is_running and app.query_one("#steps", ContentSwitcher).current == "plan"
 
     asyncio.run(walk())
+
+
+def test_back_returns_to_the_previous_step(tmp_path):
+    project = tmp_path / "board"
+    project.mkdir()
+    app = ReflowApp(project, chat=FakeChat(), planner=FakePlanner())
+
+    async def walk():
+        async with app.run_test(size=(160, 60)) as pilot:
+            steps = app.query_one("#steps", ContentSwitcher)
+            assert not app.query_one("#back", Button).display        # nothing to go back to
+            app.query_one("#request-text", Input).value = "INA226 power monitor"
+            app.query_one("#parts", Input).value = "C49851, VSSOP-10"
+            await pilot.click("#start")
+            assert steps.current == "request"                        # a JLC number is refused
+            app.query_one("#parts", Input).value = "MCP9808"
+            await pilot.pause(0.3)                                   # Textual ignores a 2nd click within 0.2 s
+            await pilot.click("#start")
+            assert steps.current == "datasheet"
+            await pilot.click("#back")
+            assert steps.current == "request" and app.project.stage == "request"
+            assert app.query_one("#parts", Input).value == "MCP9808"
+            await pilot.press("ctrl+b")                              # already first: stays
+            assert steps.current == "request"
+
+    asyncio.run(walk())
