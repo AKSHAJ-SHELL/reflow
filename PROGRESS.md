@@ -1248,3 +1248,13 @@ Did: from the human's screenshot ("problem: . isn't a file" right after a good u
 - **Cause:** the datasheet box kept the cursor after its step was hidden, so Enter "uploaded" an empty path. Each step now moves the cursor to its own first field or button, and Upload does nothing outside the datasheet step.
 - **An empty Upload** keeps the datasheet already uploaded, for when you go Back. With none uploaded, it says "Drag the datasheet PDF into the window, or type its path". Going Back to that step says which file is already uploaded.
 - Failing tests came first (1 in test_tui_project, 1 in test_tui_app); the TUI tests pass (29).
+
+## 2026-11-06 · agent (Claude) · Board projects can live in boards/; reflow reinstalled after the repo moved
+Did: the human wants their `reflow tui` board project inside the repo, in `boards/`, to open it in VS Code.
+- **.gitignore** now ignores, in each `boards/<project>/`:
+  - `*.pdf`, the vendor's datasheet, which is never committed;
+  - `*.txt`, its text copy;
+  - `.reflow/`, the TUI's progress.
+
+  `spec.json`, `plan.json` and `rules.toml` still show as files to commit, and `runs/` was already ignored everywhere. Checked with a scratch folder, which showed only rules.toml; `tests/test_repo_hygiene.py` passes.
+- **Found:** the repo moved from `Desktop/reflow` to `Desktop/reflow`, and the editable install still pointed at the old path, so `reflow` would no longer start. It was reinstalled (`pip install -e ".[test,learn,tui]"`) and now imports from `Desktop/reflow`.
