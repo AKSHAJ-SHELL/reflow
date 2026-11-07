@@ -391,9 +391,7 @@ class ReflowApp(App):
         except ModelError as exc:
             self.call_from_thread(self.say, "reflow", f"The agent couldn't answer: {exc}")
             return
-        state = self.project.state
-        state.chat_session, state.chat_started = chat.session_id, chat.started
-        self.project.save()
+        self.project.remember_chat(chat.session_id, chat.started)
         self.call_from_thread(self.say, "agent", reply)
 
     @work(thread=True, exclusive=True, group="design")
@@ -517,7 +515,8 @@ class ReflowApp(App):
         })
         if self._chat is None:
             self._chat = ClaudeChat(self.project.root, system=system, model=os.environ.get("REFLOW_MODEL", ""),
-                                    session_id=state.chat_session or None, started=state.chat_started)
+                                    session_id=self.project.saved_chat()[0] or None,
+                                    started=self.project.saved_chat()[1])
         self._chat.system = system                # current every message: the datasheet may arrive mid-chat
         return self._chat
 

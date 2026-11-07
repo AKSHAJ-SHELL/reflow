@@ -105,6 +105,7 @@ class State:
     fixes: list[dict] = field(default_factory=list)
     chat_session: str = ""
     chat_started: bool = False
+    chat_root: str = ""
 
 
 @dataclass
@@ -131,6 +132,18 @@ class Project:
     def save(self) -> None:
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.state_path.write_text(json.dumps(asdict(self.state), indent=2) + "\n", encoding="utf-8")
+
+    def saved_chat(self) -> tuple[str, bool]:
+        """The agent chat to continue: (session id, started), or a new one if the folder has moved,
+        because the old chat remembers file paths in the old folder, which its Read rule now refuses."""
+        if self.state.chat_root != str(self.root):
+            return "", False
+        return self.state.chat_session, self.state.chat_started
+
+    def remember_chat(self, session_id: str, started: bool) -> None:
+        self.state.chat_session, self.state.chat_started = session_id, started
+        self.state.chat_root = str(self.root)
+        self.save()
 
     def _go(self, stage: str) -> None:
         self.state.stage = stage

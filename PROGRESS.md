@@ -1267,3 +1267,8 @@ Did: in the human's INA226 run, the plan was refused with "p1: mpn 'INA226' is n
   - nets +5V_IN, +5V_OUT, +3V3, GND, SDA, SCL, ALERT;
   - 5 open questions (current and doubled header pins, shunt value, pull-ups, address, I2C header pitch).
 - A failing test came first; the TUI and prompt tests pass (44).
+
+## 2026-11-06 · agent (Claude) · T-01: a moved project starts a new agent chat
+Did: the human moved the board folder into `boards/` mid-session, and the agent then said it "wasn't allowed to read the file again".
+- **Cause, checked:** the resumed chat remembered `~/reflow-boards/opi-power-demo/ina226.pdf`, which is outside the new project folder, so `Read(./**)` refused it. Reading the same file by its new absolute path works; tried with the real claude.
+- **Fix:** the saved chat is tied to the folder it ran in (`chat_root`), and a moved project starts a new chat. A failing test came first; the TUI tests pass.

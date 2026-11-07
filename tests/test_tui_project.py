@@ -346,3 +346,13 @@ def test_the_planner_is_given_the_typed_part_numbers_to_copy(tmp_path):
     project.draft_plan(planner)
     assert "INA226AIDGSR" in planner.prompts[0] and "25121WF100MT4E" in planner.prompts[0]
     assert "exactly" in planner.prompts[0]
+
+
+def test_a_moved_project_starts_a_new_agent_chat(tmp_path):
+    """The old chat remembers the old folder's paths; its reads there would be refused."""
+    old = tmp_path / "old"
+    project = _started(old)
+    project.remember_chat("0b0c5b9e-6f47-4b52-9d62-1f0a9c9b2a11", True)
+    assert Project(old).saved_chat() == ("0b0c5b9e-6f47-4b52-9d62-1f0a9c9b2a11", True)
+    old.rename(tmp_path / "new")
+    assert Project(tmp_path / "new").saved_chat() == ("", False)
