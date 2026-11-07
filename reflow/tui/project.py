@@ -7,7 +7,8 @@ Contract
         .start(request, part_numbers)               # the user's own words and part numbers
         .part_problems(part_numbers) -> [str]       # each typed number the parts database doesn't have
         .back() -> stage                            # one step back; leaving design unconfirms the spec
-        .add_datasheet(pdf) -> Path                 # copied into root
+        .add_datasheet(pdf) -> Path                 # copied into root, plus a page-marked text copy
+    dropped_path(text) -> Path | None              # a path dragged into the terminal, as a file
         .draft_plan(model, answers=None) -> Draft   # planner prompt; answers are {question id: text}
         .accept_plan(draft)                         # writes spec.json + plan.json, unconfirmed
         .symbol_candidates(mpn) -> [lib_id]         # KiCad symbols whose name starts that part number
@@ -26,6 +27,13 @@ The flow, in the order the TUI shows it:
    other `mpn` is refused (`reject_foreign_mpn`).
 2. The datasheet must be a PDF (it starts with `%PDF`). It's copied into the
    project folder, where the agent (reflow.tui.agent, Read only) can read it.
+   Its text goes into `<name>.txt` next to it, each page headed
+   "=== page N ===", so the agent can search the whole datasheet and cite
+   pages (Claude Code reads a PDF 20 pages at a time). A PDF with no text
+   layer (a scan) gets no copy, and the agent reads the PDF itself. The text
+   copy needs pypdf (the `tui` extra); without it there's no copy.
+   A path dragged into the terminal arrives quoted, backslash-escaped or as a
+   file:// URL; `dropped_path` turns each into the file.
 3. The planner prompt (the one with the `{request}` placeholder) drafts the spec and plan. Its
    open questions go to the user; their answers go back to the planner and
    stay in `Spec.open_questions`. `Spec.request` stays the user's words.
@@ -87,6 +95,7 @@ class State:
     request: str = ""
     part_numbers: list[str] = field(default_factory=list)
     datasheet: str = ""
+    datasheet_text: str = ""
     stage: str = "request"
     questions: list[dict] = field(default_factory=list)
     runs: list[str] = field(default_factory=list)
@@ -174,7 +183,7 @@ class Project:
         return stage
 
     def add_datasheet(self, pdf) -> Path:
-        source = Path(str(pdf).strip().strip("'\"")).expanduser()
+        source = dropped_path(str(pdf)) or Path(str(pdf).strip()).expanduser()
         if not source.is_file():
             raise ProjectError(f"{source} isn't a file")
         with source.open("rb") as f:
@@ -184,6 +193,7 @@ class Project:
         if source.resolve() != dest.resolve():
             shutil.copyfile(source, dest)
         self.state.datasheet = dest.name
+        self.state.datasheet_text = _text_copy(dest)
         self._go("plan")
         return dest
 
@@ -355,6 +365,38 @@ class Project:
 
     def _spec(self) -> Spec:
         return from_dict(Spec, json.loads(self.spec_path.read_text(encoding="utf-8")))
+
+
+def dropped_path(text: str) -> Path | None:
+    s = text.strip()
+    if s.startswith("file://"):
+        from urllib.parse import unquote, urlparse
+
+        s = unquote(urlparse(s).path)
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in "'\"":
+        s = s[1:-1]
+    elif "\\" in s:
+        s = re.sub(r"\\(.)", r"\1", s)          # Terminal escapes spaces and brackets with a backslash
+    path = Path(s).expanduser()
+    return path if s and path.is_file() else None
+
+
+def _text_copy(pdf: Path) -> str:
+    """Write <name>.txt with "=== page N ===" before each page's text; "" when there's no text to copy."""
+    target = pdf.with_suffix(".txt")
+    if target.exists():
+        target.unlink()
+    try:
+        from pypdf import PdfReader
+
+        pages = [page.extract_text() or "" for page in PdfReader(pdf).pages]
+    except Exception:                             # no pypdf, or a PDF it can't read: the agent reads the PDF
+        return ""
+    if not any(page.strip() for page in pages):
+        return ""
+    target.write_text("".join(f"=== page {n} ===\n{page.strip()}\n\n" for n, page in enumerate(pages, 1)),
+                      encoding="utf-8")
+    return target.name
 
 
 def _parse_draft(text: str) -> tuple[Spec, Plan]:

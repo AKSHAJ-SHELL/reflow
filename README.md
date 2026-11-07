@@ -65,7 +65,7 @@ mkdir -p ~/boards/accel && cd ~/boards/accel && reflow tui
 It walks you through it, with an agent (Claude Code, on your login) on the right that you can ask anything:
 
 1. Type what you want and the chip's exact part number (reflow never picks one for you).
-2. Upload the chip's datasheet PDF (drag it into the window). The agent reads only that PDF and files in this folder.
+2. Drag the chip's datasheet PDF into the window; it uploads at once. reflow makes a page-by-page text copy so the agent can search all of it and cite pages. The agent reads only that datasheet and files in this folder.
 3. Draft the plan, answer its questions, accept it.
 4. Write your verifier, `rules.toml`: one rule for each thing the datasheet asks for. reflow gives you a template and checks it. Ask the agent if a section confuses you.
 5. Confirm, and the agent designs the board (up to 3 attempts).

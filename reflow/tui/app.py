@@ -42,7 +42,7 @@ from reflow.config import ConfigError
 from reflow.harness.feedback import fill, load_prompt
 from reflow.llm import ModelError
 from reflow.tui.agent import ClaudeChat
-from reflow.tui.project import Draft, Project, ProjectError
+from reflow.tui.project import Draft, Project, ProjectError, dropped_path
 
 TITLES = {
     "request": "1 · What do you want to build?",
@@ -55,8 +55,8 @@ TITLES = {
 GUIDE = {
     "request": "Tell me what you want to build, and type the exact part number of the main chip. "
                "I never pick a part number for you.",
-    "datasheet": "Upload the chip's datasheet PDF: drag it into this window (that pastes its path) or type "
-                 "the path, then press Upload. I'll only use this datasheet.",
+    "datasheet": "Drag the chip's datasheet PDF into this window, or type its path and press Upload. "
+                 "I'll make a text copy so the agent can search it, and I'll only use this datasheet.",
     "plan": "Press Draft the plan. Answer any questions I ask, then accept the plan. "
             "Ask me about the datasheet any time.",
     "rules": "Now write your verifier: rules.toml, one [[rule]] for each thing the datasheet asks for. "
@@ -226,9 +226,37 @@ class ReflowApp(App):
         self.show("datasheet")
 
     def _on_upload(self) -> None:
-        path = self.project.add_datasheet(self.query_one("#datasheet-path", Input).value)
-        self.say("reflow", f"Got it: {path.name} ({path.stat().st_size // 1024} KB), copied into the project.")
+        self._upload(self.query_one("#datasheet-path", Input).value)
+
+    def _upload(self, text: str) -> None:
+        path = self.project.add_datasheet(text)
+        copy = self.project.state.datasheet_text
+        if copy:
+            pages = (self.project.root / copy).read_text(encoding="utf-8").count("=== page ")
+            note = f"Text copy: {copy} ({pages} pages), so the agent can search all of it and cite pages."
+        else:
+            note = "It has no text layer (a scan?), so the agent will read the PDF's pages directly."
+        self.say("reflow", f"Got it: {path.name} ({path.stat().st_size // 1024} KB), copied into the project. {note}")
+        self.query_one("#datasheet-path", Input).value = ""
         self.show("plan")
+
+    def _dropped_pdf(self, text: str) -> bool:
+        """A PDF dragged in at the datasheet step uploads at once; True when it did."""
+        path = dropped_path(text) if self.project.stage == "datasheet" else None
+        if path is None or path.suffix.lower() != ".pdf":
+            return False
+        try:
+            self._upload(str(path))
+        except ProjectError as exc:
+            self.error(str(exc))
+        return True
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id in ("datasheet-path", "chat-input") and self._dropped_pdf(event.value):
+            event.input.value = ""
+
+    def on_paste(self, event) -> None:
+        self._dropped_pdf(event.text)             # dropped with no box focused
 
     def _on_draft(self) -> None:
         self._plan(answers=None)
@@ -474,15 +502,17 @@ class ReflowApp(App):
         self.query_one("#rules-hint", Static).update(Text(hint))
 
     def _chat_session(self) -> ClaudeChat:
+        state = self.project.state
+        system = fill(load_prompt("{datasheet}"), {
+            "board_request": state.request,
+            "datasheet": f"./{state.datasheet}" if state.datasheet else "(none uploaded yet)",
+            "datasheet_text": f"./{state.datasheet_text}" if state.datasheet_text else "(none: read the PDF)",
+            "part_numbers": ", ".join(state.part_numbers) or "(none yet)",
+        })
         if self._chat is None:
-            state = self.project.state
-            system = fill(load_prompt("{datasheet}"), {
-                "board_request": state.request,
-                "datasheet": f"./{state.datasheet}" if state.datasheet else "(none uploaded yet)",
-                "part_numbers": ", ".join(state.part_numbers) or "(none yet)",
-            })
             self._chat = ClaudeChat(self.project.root, system=system, model=os.environ.get("REFLOW_MODEL", ""),
                                     session_id=state.chat_session or None, started=state.chat_started)
+        self._chat.system = system                # current every message: the datasheet may arrive mid-chat
         return self._chat
 
     def _planner_model(self):

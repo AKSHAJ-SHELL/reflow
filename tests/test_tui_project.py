@@ -261,3 +261,63 @@ def test_back_goes_one_step_and_unconfirms_the_spec(tmp_path, monkeypatch):
     assert json.loads((tmp_path / "spec.json").read_text())["confirmed"] is False   # change rules, confirm again
     assert Project(tmp_path).stage == "rules"
     assert project.back() == "plan" and project.back() == "datasheet"
+
+
+def _pdf(path: Path, pages: list[str]) -> Path:
+    """A minimal real PDF, one line of Helvetica text per page, so text extraction has something to read."""
+    objs = ["<< /Type /Catalog /Pages 2 0 R >>", None, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+    kids = []
+    for text in pages:
+        stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET".encode()
+        objs.append(f"<< /Length {len(stream)} >>\nstream\n{stream.decode()}\nendstream")
+        objs.append(f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents {len(objs)} 0 R "
+                    "/Resources << /Font << /F1 3 0 R >> >> >>")
+        kids.append(f"{len(objs)} 0 R")
+    objs[1] = f"<< /Type /Pages /Kids [{' '.join(kids)}] /Count {len(pages)} >>"
+    out, offsets = b"%PDF-1.4\n", []
+    for n, body in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += f"{n} 0 obj\n{body}\nendobj\n".encode()
+    xref = len(out)
+    out += f"xref\n0 {len(objs) + 1}\n0000000000 65535 f \n".encode()
+    out += b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+    out += f"trailer\n<< /Size {len(objs) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    path.write_bytes(out)
+    return path
+
+
+def test_the_datasheet_gets_a_text_copy_with_page_markers(tmp_path):
+    pytest.importorskip("pypdf")
+    project = _started(tmp_path / "board")
+    pdf = _pdf(tmp_path / "INA226 datasheet.pdf", ["Bypass VS with 0.1 uF", "A0 and A1 set the address"])
+    project.add_datasheet(pdf)
+    text = (tmp_path / "board" / "INA226 datasheet.txt").read_text()
+    assert "=== page 1 ===" in text and "=== page 2 ===" in text
+    assert text.index("Bypass VS") < text.index("=== page 2 ===") < text.index("A0 and A1")
+    assert Project(tmp_path / "board").state.datasheet_text == "INA226 datasheet.txt"
+
+
+def test_a_pdf_with_no_text_has_no_text_copy(tmp_path):
+    pytest.importorskip("pypdf")
+    project = _started(tmp_path / "board")
+    project.add_datasheet(_pdf(tmp_path / "scan.pdf", [""]))
+    assert not (tmp_path / "board" / "scan.txt").exists()
+    assert project.state.datasheet_text == ""     # a scanned PDF: the agent reads the PDF itself
+
+
+@pytest.mark.parametrize("dropped", [
+    "'{p}'", '"{p}"', "{e}", "file://{u}", "  {p}  \n",
+])
+def test_a_dragged_path_is_understood(tmp_path, dropped):
+    from urllib.parse import quote
+
+    from reflow.tui.project import dropped_path
+
+    folder = tmp_path / "My Datasheets"
+    folder.mkdir()
+    pdf = folder / "INA226 (rev B).pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    escaped = str(pdf).replace(" ", "\\ ").replace("(", "\\(").replace(")", "\\)")   # how Terminal pastes it
+    text = dropped.format(p=pdf, e=escaped, u=quote(str(pdf)))
+    assert dropped_path(text) == pdf
+    assert dropped_path("just some words") is None

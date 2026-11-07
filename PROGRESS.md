@@ -1230,3 +1230,15 @@ Did: from the human's INA226 screenshot, three fixes.
 - **The plan draft failed** and its only sign was a 10 s toast, so it looked stuck on "Drafting the plan…". Every error now also goes into the chat as "problem: …" (test added). The cause, inferred and not confirmed: only the shunt (25121WF100MT4E) was typed as a part number, so the planner's "INA226" was refused. The refusal now says to go Back and add it.
 - **Chat lines were cut off:** RichLog's default `min_width` of 78 is wider than the pane. It's now 20 for every log.
 - **The agent's Markdown showed raw `**`:** replies now render as Markdown, with links not clickable. Rich markup like `[b]` stays literal (the existing test).
+
+## 2026-11-06 · agent (Claude) · T-01: drag the datasheet in, and the agent gets a text copy
+Did: the human asked that dragging the datasheet in should be enough, and should give the agent something it can read.
+- **Dropping a PDF path** at the datasheet step uploads it at once, with no Upload press. That works in the path box, in the chat box, or with nothing focused (a Paste event). `dropped_path` understands Terminal's backslash-escaped paths, quoted paths and file:// URLs.
+- **On upload,** pypdf writes `<name>.txt` next to the PDF, each page headed "=== page N ===". The agent's prompt says to search it first and cite those markers, then open the PDF for tables and figures. A PDF with no text (a scan) gets no copy and a message saying the agent reads the PDF itself. The agent's system prompt is now rebuilt for every message, so a datasheet uploaded mid-chat is known.
+- **New dependency:** pypdf 6.21.1 (BSD-3, no required dependencies, released 2026-10-17; 7.0.0 came out today and is too new), in the `tui` extra.
+- **Checked with the real INA226 datasheet** (TI, 41 pages):
+  - the text copy was made in 1.0 s, at 85 KB;
+  - the shunt range line comes through clean (–81.9175 to 81.92 mV);
+  - the real agent answered "0.1 µF on VS", citing §8.3, page 31.
+  - The page markers are the PDF's page numbers, which can differ from the numbers printed on the page.
+- Failing tests came first (7 in test_tui_project, 1 in test_tui_app). They use a minimal PDF the test writes itself.

@@ -173,3 +173,35 @@ def test_back_returns_to_the_previous_step(tmp_path):
             assert steps.current == "request"
 
     asyncio.run(walk())
+
+
+def test_dropping_a_pdf_uploads_it_at_once(tmp_path):
+    pytest.importorskip("pypdf")
+    from textual import events
+    from test_tui_project import _pdf
+
+    folder = tmp_path / "My Datasheets"
+    folder.mkdir()
+    pdf = _pdf(folder / "INA226 (rev B).pdf", ["Bypass VS with 0.1 uF", "A0 and A1 set the address"])
+    dragged = str(pdf).replace(" ", "\\ ").replace("(", "\\(").replace(")", "\\)")   # as Terminal pastes it
+
+    for how in ("box", "nowhere"):
+        project = tmp_path / how
+        project.mkdir()
+        app = ReflowApp(project, chat=FakeChat(), planner=FakePlanner())
+        app.project.start("INA226 power monitor", ["INA226AIDGSR"])
+
+        async def walk():
+            async with app.run_test(size=(160, 60)) as pilot:
+                if how == "box":
+                    app.query_one("#datasheet-path", Input).value = dragged          # no Upload press
+                else:
+                    app.screen.set_focus(None)
+                    app.post_message(events.Paste(dragged))
+                await pilot.pause()
+                assert app.query_one("#steps", ContentSwitcher).current == "plan"
+                log = app.query_one("#chat-log", RichLog)
+                assert any("2 pages" in line.text for line in log.lines)
+
+        asyncio.run(walk())
+        assert (project / "INA226 (rev B).txt").read_text().startswith("=== page 1 ===")
