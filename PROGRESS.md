@@ -1204,3 +1204,16 @@ Did: the human asked for reflow to work the way a user would meet it. In a proje
 
 ## 2026-11-06 · agent (Claude) · T-01 fix: only the plan's chips get a `[[part]]`
 Did: found before the human's INA226 test. The rules template gave every typed part number a `[[part]]` as U1, U2…, so a typed shunt resistor became "U2". Codegen is told to give that reference to the part, and the binder then fails a "chip" with no pin map. The template now writes `[[part]]` only for plan parts of category ic or regulator, by their typed part numbers. A failing test came first; the TUI and prompt tests pass (29).
+
+## 2026-11-06 · agent (Claude) · README Limits brought up to date
+Did: at the human's request, rewrote README's Limits section (the human had already renamed the heading "Limits"; kept as they had it) into three groups: what it can design, what the checks miss, where it runs. Updated:
+- **Removed:** "you write the spec and plan" (`reflow tui` now drafts them).
+- **Added:**
+  - the TUI is untried by a person;
+  - `rules.toml` rules guide the design but don't fail it (R-10);
+  - I²C checks find the bus by pin name (LIS3DH `SPC`/`SDI` skips them silently);
+  - no SPI checks;
+  - no current or Kelvin-connection checks;
+  - routing can exceed a length limit;
+  - model code runs on the user's machine (links REVIEWING §4).
+- **Status table:** the `reflow design` row now says the spec and plan are ones you confirm. All doc links check.
