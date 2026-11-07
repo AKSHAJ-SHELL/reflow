@@ -28,7 +28,8 @@ The flow, in the order the TUI shows it:
    open questions go to the user; their answers go back to the planner and
    stay in `Spec.open_questions`. `Spec.request` stays the user's words.
 4. rules.toml is the user's verifier. reflow writes only the `[[part]]` table
-   (the typed part number and the KiCad symbol the user picked) and commented
+   (the plan's chips, U1, U2..., by their typed part numbers, and the KiCad
+   symbol the user picked for U1; a typed shunt resistor gets none) and commented
    examples; it never overwrites the file. `check_rules` runs the same checks
    as `reflow rules check`, and a file with no `[[rule]]` is an error.
 5. `confirm` is the only place `Spec.confirmed` becomes true, and only with a
@@ -194,7 +195,7 @@ class Project:
         if self.rules_path.exists():
             raise ProjectError("rules.toml exists already; reflow never overwrites your rules")
         parts = []
-        for n, mpn in enumerate(self.state.part_numbers, 1):
+        for n, mpn in enumerate(self._chips(), 1):
             parts += ["[[part]]", f'ref    = "U{n}"', f'mpn    = "{mpn}"']
             if n == 1 and symbol.strip():
                 parts.append(f'symbol = "{symbol.strip()}"')
@@ -217,6 +218,13 @@ class Project:
         ])
         self.rules_path.write_text(text, encoding="utf-8")
         return self.rules_path
+
+    def _chips(self) -> list[str]:
+        """The typed part numbers the plan uses for a chip (ic or regulator). A typed resistor isn't a U."""
+        if not self.plan_path.is_file():
+            return self.state.part_numbers[:1]
+        plan = from_dict(Plan, json.loads(self.plan_path.read_text(encoding="utf-8")))
+        return list(dict.fromkeys(p.mpn for p in plan.parts if p.mpn and p.category in ("ic", "regulator")))
 
     def check_rules(self) -> RulesCheck:
         if not self.rules_path.is_file():

@@ -195,3 +195,20 @@ def test_a_fix_the_user_types_becomes_a_constraint_for_the_next_run(tmp_path, mo
     assert Project(tmp_path).state.fixes == [{"after": first.name, "text": "Move C1 so one pin is on V3_3 and the other on GND."}]
     with pytest.raises(ProjectError, match="empty"):
         project.add_fix(first, "   ")
+
+
+def test_only_the_plans_chips_get_a_part_entry(tmp_path):
+    """A typed shunt resistor is a named part, but not a U: a [[part]] would make codegen call it U2."""
+    project = Project(tmp_path)
+    project.start("INA226 power monitor with a 10 mOhm shunt", ["INA226AIDGSR", "WSL2512R0100FEA"])
+    spec = dict(SPEC, named_parts=["INA226AIDGSR", "WSL2512R0100FEA"], open_questions=[])
+    plan = {"blocks": [{"name": "monitor", "purpose": "INA226 and shunt", "part_ids": ["p1", "p2"]}],
+            "parts": [{"id": "p1", "role": "power monitor", "category": "ic", "value": "", "package": "",
+                       "tolerance": "", "voltage": "", "mpn": "INA226AIDGSR", "notes": ""},
+                      {"id": "p2", "role": "current shunt", "category": "resistor", "value": "10m", "package": "2512",
+                       "tolerance": "", "voltage": "", "mpn": "WSL2512R0100FEA", "notes": ""}],
+            "nets": ["VIN", "VOUT", "GND"]}
+    project.accept_plan(project.draft_plan(FakePlanner(spec=spec, plan=plan)))
+    text = project.write_rules_template("Sensor_Energy:INA226").read_text()
+    assert text.count("[[part]]") == 1
+    assert 'mpn    = "INA226AIDGSR"' in text and "WSL2512R0100FEA" not in text.split("# Example")[0]

@@ -1201,3 +1201,6 @@ Did: the human asked for reflow to work the way a user would meet it. In a proje
   - rules.toml rules still don't fail a run (R-10, HUMAN).
 - **`pytest -q`:** 845 passed and 1 failed (the docstring above), fixed; its file and the TUI tests then passed (33). The full suite wasn't rerun after that one-line docstring change.
 - CI installs `.[test,learn,tui]`; CODEOWNERS adds `reflow/tui/agent.py`; REVIEWING §2–3, README, SETUP and the prompts index are updated.
+
+## 2026-11-06 · agent (Claude) · T-01 fix: only the plan's chips get a `[[part]]`
+Did: found before the human's INA226 test. The rules template gave every typed part number a `[[part]]` as U1, U2…, so a typed shunt resistor became "U2". Codegen is told to give that reference to the part, and the binder then fails a "chip" with no pin map. The template now writes `[[part]]` only for plan parts of category ic or regulator, by their typed part numbers. A failing test came first; the TUI and prompt tests pass (29).
