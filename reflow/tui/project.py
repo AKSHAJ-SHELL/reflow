@@ -35,7 +35,9 @@ The flow, in the order the TUI shows it:
    An empty upload keeps the datasheet already uploaded (after going Back).
    A path dragged into the terminal arrives quoted, backslash-escaped or as a
    file:// URL; `dropped_path` turns each into the file.
-3. The planner prompt (the one with the `{request}` placeholder) drafts the spec and plan. Its
+3. The planner prompt (the one with the `{request}` placeholder) drafts the spec and plan from the
+   request plus the typed part numbers, which it's told to copy exactly (a
+   request that says "INA226" otherwise gets mpn "INA226", which is refused). Its
    open questions go to the user; their answers go back to the planner and
    stay in `Spec.open_questions`. `Spec.request` stays the user's words.
 4. rules.toml is the user's verifier. reflow writes only the `[[part]]` table
@@ -210,7 +212,8 @@ class Project:
         answered = [dict(q, answer=(answers or {}).get(q["id"], q.get("answer", "")).strip())
                     for q in self.state.questions]
         answered = [q for q in answered if q["answer"]]
-        request = self.state.request
+        request = (self.state.request + "\n\nPart numbers the user typed (copy these exactly into named_parts and "
+                   "a part's mpn; no other part numbers): " + ", ".join(self.state.part_numbers))
         if answered:
             request += "\n\nThe designer's answers to your open questions:\n" + "\n".join(
                 f"- {q['question']} {q['answer']}" for q in answered)

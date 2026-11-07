@@ -334,3 +334,15 @@ def test_an_empty_upload_keeps_the_datasheet_or_says_what_to_do(tmp_path):
     assert project.stage == "datasheet"
     assert project.add_datasheet("   ") == tmp_path / "d.pdf"   # back here after uploading: keep it
     assert project.stage == "plan"
+
+
+def test_the_planner_is_given_the_typed_part_numbers_to_copy(tmp_path):
+    """A request that says "INA226" made the planner write mpn "INA226"; it must see "INA226AIDGSR"."""
+    project = Project(tmp_path)
+    project.start("INA226 power monitor with a shunt", ["INA226AIDGSR", "25121WF100MT4E"])
+    plan = json.loads(json.dumps(PLAN))
+    plan["parts"][0]["mpn"] = "INA226AIDGSR"
+    planner = FakePlanner(plan=plan)
+    project.draft_plan(planner)
+    assert "INA226AIDGSR" in planner.prompts[0] and "25121WF100MT4E" in planner.prompts[0]
+    assert "exactly" in planner.prompts[0]

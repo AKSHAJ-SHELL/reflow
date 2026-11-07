@@ -1258,3 +1258,12 @@ Did: the human wants their `reflow tui` board project inside the repo, in `board
 
   `spec.json`, `plan.json` and `rules.toml` still show as files to commit, and `runs/` was already ignored everywhere. Checked with a scratch folder, which showed only rules.toml; `tests/test_repo_hygiene.py` passes.
 - **Found:** the repo moved from `Desktop/reflow` to `Desktop/reflow`, and the editable install still pointed at the old path, so `reflow` would no longer start. It was reinstalled (`pip install -e ".[test,learn,tui]"`) and now imports from `Desktop/reflow`.
+
+## 2026-11-06 · agent (Claude) · T-01: the planner is given the part numbers the user typed
+Did: in the human's INA226 run, the plan was refused with "p1: mpn 'INA226' is not in Spec.named_parts". The planner saw only the request sentence ("INA226 power monitor…"), never the typed `INA226AIDGSR`, so it copied the request's text. `draft_plan` now appends the typed part numbers to what the planner reads, with "copy these exactly… no other part numbers". The rule-5 refusal is unchanged.
+- **Checked with the real planner** (claude-code, 28 s) on the human's exact request:
+  - named_parts was `INA226AIDGSR, 25121WF100MT4E`;
+  - p1 ic `INA226AIDGSR`, p3 shunt `25121WF100MT4E`, 9 parts;
+  - nets +5V_IN, +5V_OUT, +3V3, GND, SDA, SCL, ALERT;
+  - 5 open questions (current and doubled header pins, shunt value, pull-ups, address, I2C header pitch).
+- A failing test came first; the TUI and prompt tests pass (44).
