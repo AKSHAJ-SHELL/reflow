@@ -1294,3 +1294,8 @@ Did: the human asked to remove a club board and everything naming a commercial t
 - **TASKS.md:** Z-01, Z-02, H-05, H-06, M-01, M-02, K-01, K-02, T-01 updated after checking the code. **Blocked list** annotated.
 - **Dead-code scan (vulture, ruff; nothing removed):** no unreferenced modules. Unused: `RouteResult` import in `reflow/cli.py:536`, 11 imports and 1 local in tests. `format_compile_errors` is used only by tests. `route.route()` is a stub for X-02. The FastAPI and Textual "unused" hits are false positives.
 Tests: `pytest -q` → 856 passed.
+
+## 2026-11-08 · agent (Claude) · git history rewritten, at the human's instruction
+Did: removed the two real-board fixtures, the harness-plan PDF and the project's old name from every commit on every branch, using git-filter-repo.
+- **Every commit hash has changed.** Hashes cited in older entries here, in REVIEW.md and in DECISIONS.md are from before the rewrite and no longer resolve.
+- GitHub's read-only `refs/pull/1/head` can't be force-pushed, so it may still point at old commits.
