@@ -1,0 +1,99 @@
+# rules.toml: your verifier for this board. You write the rules; reflow checks them.
+# One [[rule]] for each thing the datasheet asks for. `why` is your own sentence, `source` its page.
+# Stuck? Ask the agent in the TUI to walk you through the datasheet.
+
+[[part]]
+ref    = "U1"
+mpn    = "INA226AIDGSR"
+symbol = "Sensor_Energy:INA226"
+
+# Example (remove the # signs to use it):
+# [[rule]]
+# on     = "U1.VDD"        # part reference + pin name from the datasheet's pin table
+# need   = "cap"           # cap | pullup | pulldown | tie | open | connected
+# to     = "GND"           # the net on the other side (cap, pullup, pulldown, tie)
+# value  = "100nF..1uF"    # optional: a value or range the datasheet gives
+# source = "<part> datasheet <revision>, <section>, p.<page>"
+# why    = "<your own one-sentence reason>"
+
+# rules.toml: my verifier for the INA226 power monitor (Orange Pi 5 Plus 5V rail).
+# Source: TI INA226 datasheet SBOS547C. Net names match the plan.
+
+[[part]]
+ref    = "U1"
+mpn    = "INA226AIDGSR"
+symbol = "Sensor_Energy:INA226"
+
+[[rule]]
+on     = "U1.VS"
+need   = "cap"
+to     = "GND"
+value  = "100nF"
+source = "INA226 datasheet SBOS547C, 8.3 Power Supply Recommendations, p.31"
+why    = "The supply pin needs a 0.1 uF bypass cap to GND, placed right at the pins, for stability."
+
+[[rule]]
+on     = "U1.SDA"
+need   = "pullup"
+to     = "+3V3"
+value  = "4.7k"
+source = "INA226 datasheet SBOS547C, Table 4-1 Pin Functions, p.3"
+why    = "SDA is open-drain: the chip only pulls it low, so a resistor must pull it up to 3.3V."
+
+[[rule]]
+on     = "U1.SCL"
+need   = "pullup"
+to     = "+3V3"
+value  = "4.7k"
+source = "INA226 datasheet SBOS547C, 6.5.5 Serial Interface, p.20"
+why    = "The I2C bus idles high through pull-up resistors; this board provides them."
+
+[[rule]]
+on     = "U1.Alert"
+need   = "pullup"
+to     = "+3V3"
+value  = "10k"
+source = "INA226 datasheet SBOS547C, 7.2.2 Detailed Design Procedure, p.30"
+why    = "Alert is open-drain and must be pulled up to the VS voltage, which is 3.3V here."
+
+[[rule]]
+on     = "U1.A0"
+need   = "tie"
+to     = "GND"
+source = "INA226 datasheet SBOS547C, Table 6-2 Address Pins and Target Addresses, p.18"
+why    = "A0 and A1 both at GND give address 0x40, the address I chose."
+
+[[rule]]
+on     = "U1.A1"
+need   = "tie"
+to     = "GND"
+source = "INA226 datasheet SBOS547C, Table 6-2 Address Pins and Target Addresses, p.18"
+why    = "See A0: both at GND gives 0x40."
+
+[[rule]]
+on     = "U1.Vin+"
+need   = "tie"
+to     = "+5V_IN"
+source = "INA226 datasheet SBOS547C, 8.4.1 Layout Guidelines, p.31"
+why    = "IN+ senses the supply side of the shunt, Kelvin-connected to the shunt pad."
+
+[[rule]]
+on     = "U1.Vin-"
+need   = "tie"
+to     = "+5V_OUT"
+source = "INA226 datasheet SBOS547C, 8.4.1 Layout Guidelines, p.31"
+why    = "IN- senses the load side of the shunt, Kelvin-connected to the shunt pad."
+
+[[rule]]
+on     = "U1.Vbus"
+need   = "tie"
+to     = "+5V_OUT"
+source = "INA226 datasheet SBOS547C, Figure 8-1 Layout Example, p.31"
+why    = "VBUS measures the bus voltage; I want it on the output side of the shunt."
+
+[[rule]]
+on     = "U1.GND"
+need   = "tie"
+to     = "GND"
+source = "INA226 datasheet SBOS547C, Table 4-1 Pin Functions, p.3"
+why    = "Ground pin goes to the board's GND net, shared with both headers."

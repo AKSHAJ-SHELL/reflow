@@ -49,11 +49,11 @@ Verify connectivity from the netlist, never from the picture (mine or an AI's).
 - bad_series_cap: KiCad ERC → [N] violations, none about C1/U1.8
 - reflow decoupling.series → caught, with fix hint
 - sensor_good / blinky_good → no false positives
-## 2026-10-17 — Real-board gate: club MCP9808 → Pi Pico board
-- Cloned my original board (github.com/AKSHAJ-SHELL/mcp9808-breakout) into scratch/club
+## 2026-10-17 — Real-board gate: MCP9808 → Pi Pico board
+- Cloned my original board into scratch/
 - `reflow check` on the board as committed (series cap already fixed): **no issues** → no false positives on a real 13-component board
-- Fixtures added: `real_good` (real board, clean) + `real_series_cap` (same board, original September series-cap mistake put back)
-- `reflow check fixtures/real_series_cap` → **decoupling.series** caught, with why + fix
+- Fixtures added: the real board, clean + the same board with the original September series-cap mistake put back (both removed 2026-11-08)
+- `reflow check` on the bad copy → **decoupling.series** caught, with why + fix
 - pytest: 33 passed (7 fixtures × 4 + 5 CLI tests)
 
 **Correction to my launch claim:** on the real board, KiCad ERC is NOT silent.

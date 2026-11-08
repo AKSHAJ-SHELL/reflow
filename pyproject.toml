@@ -5,13 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "reflow-pcb"
 version = "0.1.0"
-description = "Open-source AI PCB verifier"
+description = "AI PCB design agent with a hand-written verifier"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
 # Learn mode's local web server (DECISIONS L-2). `reflow check` and `reflow design` need none of it.
 learn = ["fastapi==0.161.1", "uvicorn==0.54.0", "fsrs==6.3.2"]
+# The terminal UI, `reflow tui` (T-01). Textual is MIT; pypdf (BSD-3) makes the datasheet's text copy.
+tui = ["textual==8.2.8", "pypdf==6.21.1"]
 test = ["pytest>=8", "httpx==0.28.1"]
 
 [project.scripts]

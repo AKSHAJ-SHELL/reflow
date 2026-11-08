@@ -11,7 +11,7 @@ Checked 2026-10-31 on macOS 26 (arm64). The README's Quickstart is the short ver
 | Node | 26 (any recent LTS should do) | `reflow design`: installs tscircuit |
 | Bun | 1.4 | `reflow design`: `tsci` runs on Bun |
 | tscircuit (`tsci`) | 0.0.2768 | `reflow design`: compiles the AI's board code to circuit.json and `.kicad_pcb`, and routes it |
-| Claude Code | 2.1 | optional: `REFLOW_PROVIDER=claude-code`, model calls on your Claude Code login instead of an API key |
+| Claude Code | 2.1 | `reflow tui` needs it. Optional for `reflow design`: `REFLOW_PROVIDER=claude-code` uses your Claude Code login instead of an API key |
 | ngspice | 47 | optional: learn mode's simulations. Without it, reflow uses the ngspice library bundled with KiCad |
 
 `reflow check` needs only KiCad and Python. It has no Python dependencies.
@@ -25,7 +25,7 @@ git clone https://github.com/AKSHAJ-SHELL/reflow && cd reflow
 uv venv --python 3.14 .venv
 source .venv/bin/activate
 uv pip install -e .
-reflow check fixtures/real_good            # expect: ✓ No issues found
+reflow check fixtures/sensor_good           # expect: ✓ No issues found
 ```
 
 reflow finds `kicad-cli` inside `/Applications/KiCad/KiCad.app`. If KiCad is somewhere else, set:
@@ -42,7 +42,7 @@ npm ci --prefix tools/tscircuit    # tscircuit 0.0.2768 with every dependency lo
 export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # add to ~/.zshrc, or set TSCI to that tsci
 tsci --version                     # 0.0.2768
 reflow parts update                # JLCPCB parts snapshot from jlcparts, about 1.5 GB, into ~/.cache/reflow/jlcparts/
-uv pip install -e '.[learn]'       # learn mode's local web server (fastapi, uvicorn, fsrs)
+uv pip install -e '.[learn,tui]'   # learn mode's local web server (fastapi, uvicorn, fsrs), and the TUI (textual, pypdf)
 ```
 
 Why a lockfile: `npm i -g tscircuit@0.0.2768` pins tscircuit but not its dependencies. On 2026-10-31 a fresh install pulled a newer `circuit-json` and `tsci` failed to start (`Export named 'drawing_dimension_line' not found`). `tools/tscircuit/package-lock.json` was made from a working install, so `npm ci` gets exactly that tree.
@@ -97,7 +97,7 @@ Environment only:
 ## Running the tests
 
 ```bash
-uv pip install -e '.[test,learn]'
+uv pip install -e '.[test,learn,tui]'
 pytest -q                          # about 7 minutes; needs KiCad and tsci
 ```
 

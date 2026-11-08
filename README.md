@@ -1,113 +1,221 @@
 # reflow
 
-**An open-source AI PCB designer that won't let you ship a board you don't understand.**
+**An early AI PCB design agent with a verifier that checks its work.**
 
-The hard part of AI-designed boards isn't generating them. It's catching the ones that look fine and are dead. reflow's core is a verifier: hand-written rules for real design mistakes, run on every board, with a plain-English *why* and *fix* for each. The AI designs, the verifier checks, and you sign off before any fab files are written.
+You describe a small board. An AI drafts it. A verifier written by a person, not by the AI, checks the draft and explains every mistake in plain English. The AI never picks a part number.
 
-> On the author's real robotics board, a decoupling cap sat in series with the sensor's power pin. KiCad's ERC reported `power_pin_not_driven`: the symptom, with no cause and no fix. `reflow check` says: *"C1 sits in series between +3.3V and U1.8… Connect U1.8 directly to +3.3V, then rewire C1 so one pin is on +3.3V and the other is on GND."*
+> **This is an alpha.** It handles simple, low-speed boards, and it has real gaps. Read [Limits](#limits) and [Risks](#risks) before trusting anything it makes.
 
-## Status (2026-10-31)
+## This project grows as I learn
 
-| Component | Status |
-|---|---|
-| `reflow check`: verifier CLI for any KiCad schematic (human + JSON output, CI exit codes) | ✅ working |
-| Rules: `decoupling.series`, `decoupling.missing`, `i2c.missing_pullup`, `i2c.duplicate_pullup`, `address.floating`, plus pin-map checks on AI boards (`pinout.*`) | ✅ working |
-| `reflow design`: model → tscircuit code → compile → verify → fix loop (≤ 3 attempts) | ✅ working, from a spec and plan you write (see Limits) |
-| Part resolver: real parts from a local JLCPCB catalog snapshot; the AI never picks part numbers | ✅ working |
-| Routing check + fab outputs (`reflow export`): tscircuit's routing checked with KiCad DRC, then gerbers, drill, placement, BOM, and a KiCad schematic | ✅ working |
-| Learn mode + sign-off (`reflow learn`): spot the AI's bug in a local web app before you can export | ✅ working |
-| Run report (`reflow report`): every attempt, error, violation and the sign-off | ✅ working |
-| Request → spec → plan from one sentence | 🚧 not built: you write `spec.json` and `plan.json` |
+I'm learning electronics while I build this, and reflow only knows what I understand well enough to write a check for. The more I learn, the more the base of reflow will reflect it.
 
-Eval (2026-10-28, Sonnet via Claude Code, 5 boards × 3 runs): 12 of 15 runs gave a verifier-clean board on the first attempt, with 0 part numbers outside the resolver. The AMS1117 regulator failed all 3 runs on a pin-map question that's still open. The expected answers for these boards haven't been checked by a person yet, so treat this as a draft result. Details: [evals/README.md](evals/README.md).
+| Stage | What reflow can check | State |
+|---|---|---|
+| Low-speed boards: I²C sensors, EEPROMs, LEDs | connections, datasheet pin maps, decoupling and pull-ups | **built, and limited** |
+| Power and analog: current limits, trace width, heat | | planned |
+| High-speed and RF: impedance, return paths, length matching | | planned |
+| FPGA boards: power sequencing, many rails, BGA | | planned |
+| Chip design (Verilog) | whether the verifier-first idea carries over at all | an idea, not decided |
 
-## Quickstart: check a board (5 minutes, macOS)
+Anything marked planned doesn't exist yet. If you know more than I do, corrections are the most useful thing you can send.
+
+## What works today
+
+| Part | What it does | State |
+|---|---|---|
+| `reflow check` | Checks any KiCad schematic for 5 kinds of mistake | works |
+| `reflow design` | Model → board code → compile → verify → fix, up to 3 attempts | works on simple boards |
+| Part resolver | Finds real parts in a local copy of the JLCPCB catalog | works; some of it is awaiting my review |
+| `reflow tui` | The guided way to design a board, step by step | new; one full run so far |
+| `reflow learn` | Find the AI's bug in a local web app, run two circuit simulations, sign off | works; simulations awaiting my review |
+| `reflow export` | Runs KiCad DRC, then writes gerbers, drill, placement and BOM | works; often refuses (see Limits) |
+| `reflow report` | Writes up every attempt, error and sign-off | works |
+
+**What has actually been tested:**
+- **Eval, 2026-10-28:** 5 simple boards × 3 runs, on one model (Sonnet, through Claude Code). 12 of 15 runs gave a verifier-clean board on the first attempt, with 0 part numbers from outside the resolver. The AMS1117 regulator failed all 3. I wrote these boards and the agent drafted their expected results, which nobody has fully checked, so the eval's own go/no-go still says `undecided`. It's a progress check, not a benchmark. The results: [evals/results/20261028T161716Z.json](evals/results/20261028T161716Z.json).
+- **One real run through the TUI, 2026-11-06:** an INA226 power monitor ([boards/opi-power-demo](boards/opi-power-demo)). It went from a prompt to a verifier-clean schematic on the first attempt, with 0 KiCad ERC violations, and an electrical mentor looked over the schematic informally. It hasn't been routed, exported or built, and its `rules.toml` wasn't enforced (see Limits).
+- **No board designed by reflow has been fabricated and tested yet.**
+
+## Try it: check a schematic (5 minutes, macOS)
+
+You need [Homebrew](https://brew.sh). No AI or API key is involved in this part.
 
 ```bash
-brew install --cask kicad                       # KiCad 10
-git clone https://github.com/AKSHAJ-SHELL/reflow && cd reflow
-uv venv --python 3.14 .venv && source .venv/bin/activate
+brew install --cask kicad
+brew install uv
+git clone https://github.com/AKSHAJ-SHELL/reflow
+cd reflow
+uv venv --python 3.14 .venv
+source .venv/bin/activate
 uv pip install -e .
-
-reflow check fixtures/real_series_cap        # a real board with a real bug
-reflow check fixtures/real_good              # the same board, fixed
-reflow check path/to/your/board.kicad_sch      # yours
 ```
 
-Exit codes: `0` clean · `1` errors (or warnings with `--strict`) · `2` tool/input problem. Add `--json` for CI. reflow finds `kicad-cli` in the KiCad app; set `KICAD_CLI` if yours is somewhere else. `reflow check` has no Python dependencies; plain `pip install -e .` on Python 3.11+ works too.
+Run it on a board with a planted bug, then on a good one:
+
+```bash
+reflow check fixtures/bad_series_cap
+```
+
+```bash
+reflow check fixtures/sensor_good
+```
+
+The first one reports:
+
+```
+✗ ERROR  decoupling.series   C1, U1
+  C1 sits in series between +3.3V and U1.8; U1 only gets power through a
+  capacitor, which blocks DC.
+  why:  A capacitor blocks DC, so the chip never gets steady power and won't
+        turn on. Decoupling caps go in parallel, power to ground, to absorb fast
+        current spikes at the chip.
+  fix:  Connect U1.8 directly to +3.3V, then rewire C1 so one pin is on +3.3V
+        and the other is on GND.
+```
+
+Then point it at your own board:
+
+```bash
+reflow check path/to/your/board.kicad_sch
+```
 
 ## Design a board
 
-Extra one-time setup (every tool, version and setting: [SETUP.md](SETUP.md)):
+**One-time setup.** Run these from the `reflow` folder (every tool and setting is in [SETUP.md](SETUP.md)):
 
 ```bash
-brew install node oven-sh/bun/bun   # tsci runs on Bun
-npm ci --prefix tools/tscircuit    # tsci, which compiles the AI's board code, at the locked version
-export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"   # or set TSCI to that tsci
-reflow parts update                # downloads the JLCPCB parts snapshot (about 1.5 GB)
-uv pip install -e '.[learn]'       # learn mode's local web server
+brew install node oven-sh/bun/bun
+npm ci --prefix tools/tscircuit
+export PATH="$PWD/tools/tscircuit/node_modules/.bin:$PATH"
+uv pip install -e '.[learn,tui]'
+reflow parts update    # downloads the JLCPCB parts catalog, about 1.5 GB
 ```
 
-Pick a model. With [Claude Code](https://claude.com/claude-code) installed and logged in, no API key is needed:
+The `export PATH` line lasts for one terminal session. Add it to `~/.zshrc`, with the full path, to keep it.
+
+You also need [Claude Code](https://claude.com/claude-code), installed and logged in. reflow uses your login, so no API key is needed.
+
+**Then make a folder for your board and open reflow there:**
 
 ```bash
-export REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet
+mkdir -p ~/boards/my-board && cd ~/boards/my-board && reflow tui
 ```
 
-Or use an API: set `REFLOW_PROVIDER` to `anthropic`, `openai` or `openai-compatible`, `REFLOW_MODEL` to a model id, `REFLOW_BASE_URL` if needed, and put the key in `REFLOW_API_KEY` (never in `reflow.toml`).
+The screen walks you through it, with an AI helper on the right you can ask anything:
 
-Then design, learn, sign off and export. The five boards in `evals/` each have a ready `spec.json` and `plan.json`:
+1. **Say what you want,** and type the exact part number of the main chip. reflow never picks one for you.
+2. **Drag in the chip's datasheet PDF.** The helper can then search it and cite pages.
+3. **Draft the plan** and answer its questions. Press **Re-plan with my answers** until it's right, then **Accept plan**.
+4. **Write your `rules.toml`:** one rule for each thing the datasheet asks for. reflow gives you a template and checks it. Ask the helper if a section confuses you.
+5. **Run the design.** The AI gets up to 3 attempts.
+6. **Run `reflow check`.** If it fails, open it in KiCad and learn mode, work out what went wrong, type the fix and run it again.
+
+**← Back** (or Ctrl+B) goes back a step, and Ctrl+Q quits. Everything is saved in the folder, so you can close it and pick up later.
+
+## All commands
+
+| Command | What it does |
+|---|---|
+| `reflow check PATH` | Check a `.kicad_sch`, a `.kicad_pro` or a project folder. Add `--json` for JSON, or `--strict` to fail on warnings. |
+| `reflow tui [FOLDER]` | Design a board step by step. Needs `[tui]` and Claude Code. |
+| `reflow design --spec S --plan P --run-dir D` | Design without the TUI, from a spec and plan you wrote. |
+| `reflow learn RUN` | Open a finished run in your browser: find the bug, simulate, sign off. Needs `[learn]`. |
+| `reflow export RUN` | Run DRC and write fab files to `RUN/out`. |
+| `reflow report RUN` | Write `report.md` and `report.json` for a run. |
+| `reflow rules check FILE` | Check a `rules.toml` against its parts' pins. |
+| `reflow parts update` | Download or refresh the JLCPCB parts catalog. |
+| `reflow eval` | Run the eval boards. Add `--only NAME` for one, or `--repeat N`. |
+
+`reflow check` exits `0` when clean, `1` on errors, and `2` for a tool or input problem. Add `--help` to any command for the details.
+
+**Without the TUI**, each folder in `evals/` has a ready spec and plan:
 
 ```bash
 reflow design --spec evals/mcp9808_breakout/spec.json --plan evals/mcp9808_breakout/plan.json --run-dir runs/mcp9808
-reflow learn runs/mcp9808          # find the AI's bug, then sign off
-reflow export runs/mcp9808         # DRC, then gerbers, drill, placement, BOM, schematic into runs/mcp9808/out
-reflow report runs/mcp9808         # report.md: every attempt, what failed and why
 ```
 
-`reflow export` refuses, and lists every reason, unless the board passed the verifier, every net is routed with 0 DRC errors and within its length limit, every part number came from the resolver, and you signed off. The routing comes from tscircuit's autorouter, and it sometimes routes a decoupling cap's trace longer than the plan allows. reflow then calls the routing partial and refuses; run `reflow design` again with a new `--run-dir`.
+```bash
+reflow learn runs/mcp9808
+```
+
+```bash
+reflow export runs/mcp9808
+```
+
+To use an API instead of Claude Code, see [SETUP.md](SETUP.md#3-a-model).
+
+## Limits
+
+**What it can design**
+- **Simple, low-speed, 2-layer boards only:** I²C sensors, EEPROMs, LEDs, a regulator, about 20 parts.
+- **Microcontrollers, USB, DDR, Ethernet and RF are out.** There's no high-speed check of any kind.
+- **Regulators are shaky.** The AMS1117 failed every eval run on a pin-map question that's still open.
+
+**What the checks miss**
+- **"Passed" is a narrow claim.** It means the board compiled and has no violations of the few rules below. It doesn't mean the board works.
+- **Only 5 kinds of schematic mistake are caught** (`decoupling.series`, `decoupling.missing`, `i2c.missing_pullup`, `i2c.duplicate_pullup`, `address.floating`), plus pin-map errors on AI boards and one draft rule (`i2c.pullup_rail`). It doesn't replace KiCad's ERC and DRC; run both.
+- **Your `rules.toml` doesn't fail a board yet.** The AI is told your rules, but nothing checks the board against them. A board can say `passed` while breaking one (task R-10).
+- **I²C checks find the bus by pin name.** A chip that names its pins differently, like the LIS3DH's `SPC`/`SDI`, skips those checks without telling you.
+- **No SPI or UART checks.**
+- **No current, heat or analog layout checks.** Trace width and Kelvin connections aren't checked. Check them in KiCad.
+- **Only two simulations exist** (decoupling and I²C rise time). They use assumed values, shown next to each graph.
+
+**Parts**
+- **JLCPCB catalog only.** You can't use another vendor's library yet.
+- **The catalog is a snapshot,** so stock and prices can be out of date.
+
+**Routing and platform**
+- **Routing is tscircuit's autorouter.** It sometimes breaks a length limit or can't finish, and then `reflow export` refuses. That's deliberate.
+- **KiCad 10, single-sheet schematics.** The full flow has only been run on macOS.
+
+## Risks
+
+- **Don't order a board on reflow's word.** Review the schematic and layout yourself against the datasheets. A wrong board costs money and can damage whatever it's plugged into.
+- **The AI's code runs on your computer** with your permissions. Its board code is compiled locally as tscircuit TSX, and it isn't sandboxed yet. If you use an API key, that code could reach it (task CI-06). Don't run reflow on a machine holding secrets you can't afford to lose. Details: [docs/REVIEWING.md](docs/REVIEWING.md#4-known-risks-in-the-code-today).
+- **Your data goes to the model provider.** Your request, plan and answers, and the parts of your datasheet the helper reads, are sent to Claude or whichever API you set. Don't use it on confidential designs.
+- **The local learn server has a known gap.** It only listens on your own machine, but it doesn't check the Host header yet, so a malicious website could try to reach it while it's running (task CI-07). Close it when you're done.
+- **AI usage counts against your account.** Runs use your Claude Code plan or your API credits.
+- **Some code hasn't had a full human review.** I hand-wrote the core rules and design loop, and AI agents wrote much of the plumbing. Items marked *awaiting human review* in [TASKS.md](TASKS.md) are agent-written and not yet signed off: the resolver's category logic, pin binding, the simulation testbenches and `i2c.pullup_rail`.
+- **Expect breaking changes.** File formats and commands can change between versions.
 
 ## How it works
 
 ```
-spec + plan (you) ─▶ part resolver (catalog)
-        ─▶ codegen (LLM → tscircuit) ─▶ compile (tsci → KiCad)
-        ─▶ VERIFIER (rules) ──fail, ≤3 tries──▶ back to codegen
-                │ pass
-                ▼
-        learn mode + sign-off (you) ─▶ route check + DRC ─▶ gerbers · BOM · schematic · report
+your request + datasheet ─▶ plan (you confirm) ─▶ part resolver (JLCPCB catalog)
+        ─▶ AI writes board code ─▶ compile ─▶ VERIFIER ──fail, up to 3 tries──▶ back to the AI
+                                                  │ pass
+                                                  ▼
+                 you review and sign off ─▶ route check + DRC ─▶ gerbers · BOM · schematic · report
 ```
 
-Details: [docs/02-architecture.md](docs/02-architecture.md).
+More detail: [docs/02-architecture.md](docs/02-architecture.md).
 
 ## Folder guide
 
 | Path | What's there |
 |---|---|
-| `reflow/` | The package: CLI, compile, verifier, routing check, export, schematic, report |
-| `reflow/rules/` | Verifier rules, one file per family (hand-written) |
+| `reflow/` | The package: CLI, compile, verifier, routing check, export, TUI |
+| `reflow/rules/` | The verifier's rules, one file per family |
 | `reflow/harness/` | The design loop: attempts, feedback to the model, when to stop |
-| `reflow/parts/` | Parts snapshot, catalog queries, resolver, KiCad pin maps |
-| `reflow/learn/` | Learn mode's server; `web/` is its source |
+| `reflow/parts/` | Parts catalog, resolver, KiCad pin maps |
+| `reflow/learn/` | Learn mode's server (`web/` is its source) |
 | `prompts/` | The model prompts, as files |
-| `evals/` | Five boards the design loop is measured on |
-| `fixtures/` | KiCad boards with known answers (`expected.toml`); one planted bug per bad board |
+| `boards/` | Sample board projects, including the INA226 demo |
+| `evals/` | The boards the design loop is measured on |
+| `fixtures/` | KiCad boards with known answers; one planted bug per bad board |
 | `tests/` | Tests for every stage |
-| `docs/` | Design docs, read in order 00 → 08; `docs/examples/` has a JSON example for every contract |
-| `tools/` | `new_fixture.sh`, `nets.py`, DSN/SES bridges |
-| `TASKS.md` | Task board with owners |
+| `docs/` | Design docs, read in order 00 → 08 |
+| `TASKS.md`, `PROGRESS.md` | What's planned, and a log of what happened, including failures |
 
 ## Contributing
 
-- **Send a board that died.** Open an issue with the KiCad files and what went wrong; it becomes a fixture and maybe a rule.
-- Rules and fixtures are hand-written and reviewed carefully; plumbing PRs (CLI, exporters, API clients) are welcome. See [AGENTS.md](AGENTS.md) for the rules every contributor (human or AI) follows.
-- Every new rule needs a known-good and a known-bad fixture. Never weaken a test to make it pass.
+- **Send a board that died.** Open an issue with the KiCad files and what went wrong. It could become a fixture and maybe a rule.
+- **Tell me what's wrong.** Mistakes in the rules or in this README are the most useful reports.
+- Plumbing PRs (CLI, exporters, API clients) are welcome. [AGENTS.md](AGENTS.md) has the rules every contributor, human or AI, follows. Never weaken a test to make it pass.
 
-## Limits (honest)
+## License
 
-- **You write the spec and plan.** Turning one sentence into a confirmed spec and a parts plan isn't built yet.
-- **Simple, low-speed, 2-layer boards:** I²C sensors, EEPROMs, LEDs, a regulator. There's no high-speed check yet, so don't use it for USB, DDR, Ethernet or RF.
-- **Few rules.** The verifier catches 5 kinds of schematic mistake plus pin-map errors. It's not a replacement for KiCad ERC/DRC; run both.
-- **The board code comes from tscircuit.** reflow draws its own KiCad schematic at export (0 ERC errors and warnings on the boards it can draw) and doesn't ship tscircuit's, which loses connections.
-- KiCad 10, single-sheet schematics. Tested on macOS only.
-- reflow is an independent open-source project, not affiliated with any commercial PCB tool.
+**reflow doesn't have a license yet,** so for now no one else has permission to reuse the code. I plan to open-source it and will add a `LICENSE` file when I've chosen one.
+
+reflow is an independent project, not affiliated with any commercial PCB tool.

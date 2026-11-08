@@ -31,6 +31,12 @@ kicad/
 # reflow run folders
 runs/
 
+# Board projects made with `reflow tui` in boards/: the datasheet is the vendor's (never committed),
+# its text copy too, and .reflow/ is the TUI's own progress. spec.json, plan.json, rules.toml stay.
+boards/*/*.pdf
+boards/*/*.txt
+boards/*/.reflow/
+
 # Test inputs the patterns above would otherwise hide (tests/test_repo_hygiene.py)
 !tests/data/pinmaps/kicad/
 !tests/data/snapshot/cache.zip

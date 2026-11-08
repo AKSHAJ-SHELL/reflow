@@ -42,6 +42,8 @@ spec.json + plan.json (the user)
   → export:   reflow/export.py     route check (route.py) + DRC + our schematic (schematic.py) → fab files
   → report:   reflow/report.py
 reflow check: KiCad schematic → reflow/netlist.py → reflow/rules/   (no model involved)
+reflow tui:   reflow/tui/  the front door: request → datasheet → plan → the user's rules.toml → design → check → fix
+      agent:    reflow/tui/agent.py   a Claude Code session that may only Read inside the project folder
 ```
 
 Who writes what (`docs/agents/05-hand-vs-agent-code.md`):
@@ -67,6 +69,7 @@ text reaches a model or a coding agent in these places:
 | `rules.toml` quotes and `why` text, `tests/data/` | the model or the student's agent | the same, hidden inside a datasheet quote |
 | part descriptions in the parts snapshot | the model, through resolved parts | the snapshot comes from jlcparts, not from a PR, but treat its text as untrusted |
 | model replies | `codefence.py` → `compile.py` → tsci | the reply is code, and it runs (see 4) |
+| the user's datasheet PDF and project files | the TUI agent (`reflow/tui/agent.py`), Read only, inside the project folder | a PDF with hidden text that tells the agent to say something false; it can't write, run anything, or read outside the folder |
 
 What to look for:
 - **Instructions in data.** A spec, quote or test file that addresses a model ("you", "assistant",

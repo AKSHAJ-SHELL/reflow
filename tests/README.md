@@ -8,7 +8,7 @@
 | `test_catalog.py` | `parse_value`, `CatalogPart` defaults, and that the jlcsearch client and cache are gone | no |
 | `test_contracts.py` | Frozen schemas, strict example parsing, stub honesty | no |
 | `test_circuit_netlist.py` | `circuit.json` → `Netlist` on recorded boards (`data/circuit_json/`), the rules on that netlist, and malformed input | no |
-| `test_pcb_nets.py` | `.kicad_pcb` pad nets: tscircuit export vs its `circuit.json`, the club KiCad board vs its schematic, syntax and error cases | club case only (skips if missing) |
+| `test_pcb_nets.py` | `.kicad_pcb` pad nets: tscircuit export vs its `circuit.json`, syntax and error cases | no |
 | `test_pinmap.py` | Pin maps from ST pin data and KiCad symbols (`data/pinmaps/`, licences beside them): MCP9808 vs its datasheet, STM32F103C8 across sources, disagreement reporting | installed-library case only (skips if missing) |
 | `test_verifier.py` | The design verifier on recorded `circuit.json` boards: report shape, required `bind`, refuses `.kicad_sch` | no |
 | `test_design_wiring.py` | `reflow design` from config: scripted model, real tsci and verifier, fake catalog; config and catalog errors | tsci for the end-to-end cases (skips if missing) |

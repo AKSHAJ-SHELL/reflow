@@ -196,7 +196,7 @@ I can't verify those chat acceptances. **Before you own this code, please confir
 | L2 | `parts/cache.py` | The cache never expires (stale stock). The default location is the system temp dir, so it is effectively random per machine. |
 | L3 | `feedback.py:124-130` | The placeholder-based prompt lookup raises at runtime if a second file ever contains the same placeholder. |
 | L4 | `feedback.py:141-148` | `fill()` silently leaves unknown `{placeholders}`. A typo in a template renders literally instead of failing loudly. |
-| L5 | `TASKS.md` | Statuses are stale. M-01, M-02, K-01, K-02, P-01, P-03 and H-05 still say `todo` but have landed. Z-01 and Z-02 look done (pyproject name is `reflow-pcb`, `scratch/` untracked, no `reflow` imports). PROGRESS.md cites `docs/harness-validation-report.md`, which does not exist. |
+| L5 | `TASKS.md` | Statuses are stale. M-01, M-02, K-01, K-02, P-01, P-03 and H-05 still say `todo` but have landed. Z-01 and Z-02 look done (pyproject name is `reflow-pcb`, `scratch/` untracked, no imports under the old name). PROGRESS.md cites `docs/harness-validation-report.md`, which does not exist. |
 
 What's solid: atomic run-folder writes with crash tests, strict contract parsing everywhere model JSON enters, `why` exclusion tested with sentinels, hard call bounds, no SDK or agent framework, a careful `tsci` stderr parser with recorded samples, the "zero exit without files is not ok" check in `compile.py`, and redirects and proxies disabled on the API call.
 

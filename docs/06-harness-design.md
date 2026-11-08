@@ -111,4 +111,4 @@ The option lists below are the questions as they stood before that acceptance.
 - **Model I/O:** one `complete(system, prompt)` protocol with 2–3 small adapters (Anthropic SDK, OpenAI SDK, OpenAI-compatible base URL for local models). LiteLLM as an optional fallback adapter, not a core dependency.
 - **Schemas:** stdlib dataclasses (`reflow/contracts.py`) now; Pydantic v2 only if JSON-schema generation for native structured outputs becomes necessary.
 - **No agent framework** in v1 (LangGraph, PydanticAI, OpenAI Agents SDK, Claude Agent SDK, smolagents all evaluated; each adds abstraction over a ≤ 3-iteration loop).
-- **MCP:** out of v1. another tool's public MCP server and the KiCad MCP servers are spec references only.
+- **MCP:** out of v1. KiCad MCP servers are spec references only.

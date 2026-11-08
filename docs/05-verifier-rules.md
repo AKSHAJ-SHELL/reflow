@@ -22,7 +22,7 @@ Every rule follows the same shape:
 
 | Rule ID | Catches | Reads | Bad fixture | Status |
 |---|---|---|---|---|
-| `decoupling.series` | Cap in series with an IC supply pin: the chip never powers on | netlist | `bad_series_cap`, `real_series_cap` | built |
+| `decoupling.series` | Cap in series with an IC supply pin: the chip never powers on | netlist | `bad_series_cap` | built |
 | `decoupling.missing` | IC power pin with no cap to ground | netlist | none yet | built, needs fixture |
 | `i2c.missing_pullup` | SDA/SCL with no pull-up | netlist | `bad_no_pullups` | built |
 | `i2c.duplicate_pullup` | More than one pull-up on a line (warning) | netlist | none yet | built, needs fixture |
@@ -37,7 +37,7 @@ Every rule follows the same shape:
 
 ## Good fixtures (false-positive guards)
 
-`blinky_good`, `sensor_good`, `real_good` must stay at **zero violations** for every rule, forever.
+`blinky_good`, `sensor_good` must stay at **zero violations** for every rule, forever.
 
 ## Adding a rule (process)
 

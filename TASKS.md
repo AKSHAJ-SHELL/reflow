@@ -9,8 +9,9 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| Z-01 | Finish the rename | working tree | committed imports; `reflow/netlist.py` deleted; pyproject `name = "reflow-pcb"` | `grep -rn reflow --include=*.py .` empty; `pytest -q` green; `reflow check fixtures/sensor_good` exit 0 | — | HUMAN | todo |
-| Z-02 | Untrack `scratch/` | git index | `git rm -r --cached scratch` committed | `git ls-files scratch` empty | Z-01 | HUMAN | todo |
+| Z-01 | Finish the rename | working tree | committed imports; old package folder deleted; pyproject `name = "reflow-pcb"` | old package name gone from all `.py` files; `pytest -q` green; `reflow check fixtures/sensor_good` exit 0 | — | HUMAN | done (checked 11-08: package and pyproject renamed, old name gone) |
+| Z-02 | Untrack `scratch/` | git index | `git rm -r --cached scratch` committed | `git ls-files scratch` empty | Z-01 | HUMAN | done (checked 11-08: nothing under `scratch/` is tracked) |
+| Z-03 | Choose a license and add `LICENSE` | README says none yet | `LICENSE`, pyproject `license` | file present; README's License section updated | — | HUMAN | todo (needed before the repo goes public) |
 | D-01 | Launch post for `reflow check` | 01-current-state real-board result | README hook + screenshot + post | Stranger can install and run `reflow check` from README in ≤ 5 min | Z-01 | HUMAN | todo (Sun 10-18) |
 
 ## Verifier (rules are HUMAN)
@@ -59,8 +60,8 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | H-02 | Context builder + Violation→`RetryFeedback` conversion | `VerifyReport`, `CompileResult` | `RetryFeedback` + rendered prompt text | output parses as `RetryFeedback`; contains no `why`; prompt within token budget | H-01 | HUMAN | done (10-19) |
 | H-03 | Core loop | everything above | `RunResult` | fake model + fake compiler: passes on attempt 2 → status passed, best_attempt 2 | H-02, M-01, K-01 | HUMAN | done (10-19) |
 | H-04 | Retry termination + best-attempt selection | attempt records | `RunResult.status`, `best_attempt` | table test of the Q3/Q5 scenarios | H-03 | HUMAN | done (10-19) |
-| H-05 | Run folder I/O (+ resume if Q4=a) | `RunResult`, artifacts | `runs/<id>/...` per 02-architecture | kill mid-run → files from completed steps exist and parse | H-01 | AGENT | todo |
-| H-06 | Spec checkpoint + planner call (CLI side) | request | confirmed `Spec`, `Plan` | `Plan` parses strictly; `mpn` only from `named_parts` | M-01, H-08 | AGENT | todo |
+| H-05 | Run folder I/O (+ resume if Q4=a) | `RunResult`, artifacts | `runs/<id>/...` per 02-architecture | kill mid-run → files from completed steps exist and parse | H-01 | AGENT | done (checked 11-08: `reflow/harness/runs.py`, `tests/test_runs.py`) |
+| H-06 | Spec checkpoint + planner call (CLI side) | request | confirmed `Spec`, `Plan` | `Plan` parses strictly; `mpn` only from `named_parts` | M-01, H-08 | AGENT | done in the TUI (T-01: `draft_plan`, `accept_plan`); no separate CLI command |
 | H-07 | `reflow design "<request>"` command | harness | CLI entry | `reflow design --help`; fake-model end-to-end test | H-03 | AGENT | done (10-19) |
 | H-09 | Wire `reflow design` to config, `compile_board`, catalog + resolver, design verifier | config, H-03, V-16 | runnable command | scripted model + real tsci: no-pull-up board fails then passes from config; missing key / bad config / catalog failure exit 2 | H-07, V-16 | AGENT | done (10-21) |
 | H-08 | Prompts: planner, codegen, fix | contracts, tscircuit docs | `prompts/*.md` | human approved; no hardcoded model ids | — | AGENT→HUMAN | doing (awaiting human review) |
@@ -70,12 +71,12 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| M-01 | Model adapters behind `complete(system, prompt)` | config | `reflow/llm.py` | mock-server/unit tests per adapter; errors raise `ModelError` | D-1 | AGENT | todo |
-| M-02 | Config loader (`reflow.toml` + env) | — | config dict | no secrets in repo; missing key → clear error | — | AGENT | todo |
+| M-01 | Model adapters behind `complete(system, prompt)` | config | `reflow/llm.py` | mock-server/unit tests per adapter; errors raise `ModelError` | D-1 | AGENT | done (checked 11-08: `reflow/llm.py`, `tests/test_llm.py`) |
+| M-02 | Config loader (`reflow.toml` + env) | — | config dict | no secrets in repo; missing key → clear error | — | AGENT | done (checked 11-08: `reflow/config.py`, `tests/test_config.py`) |
 | M-03 | Reply budget: `max_tokens` in config, and a cut-off reply raises a clear error | config | `max_tokens` key; ModelError on `stop_reason`/`finish_reason` cut-off | config and env set the budget; a cut-off reply says so | M-01, M-02 | AGENT | done (10-21) |
 | M-04 | `REFLOW_PROVIDER=claude-code`: model calls through `claude -p` on the user's Claude Code login (no API key) | config | `reflow/claude_code.py` | print mode, tools off (`--tools ""`), empty temp folder, prompt on stdin, `--no-session-persistence`, no ANTHROPIC_API_KEY passed; no REFLOW_API_KEY needed; errors and timeouts raise ModelError | M-01, M-02 | AGENT | done (10-24) |
-| K-01 | `compile_board()` via `tsci` | TSX string | `CompileResult` | blinky TSX compiles; a syntax error returns ok=False with ≥1 `CompileError` | — | AGENT | todo |
-| K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | todo (10-22: circuit.json `source_*_error` elements are now compile errors, since tsci exits 0 on them) |
+| K-01 | `compile_board()` via `tsci` | TSX string | `CompileResult` | blinky TSX compiles; a syntax error returns ok=False with ≥1 `CompileError` | — | AGENT | done (checked 11-08: `reflow/compile.py`, `tests/test_compile.py`) |
+| K-02 | Compile-error parser + trimming | tsci stderr | `CompileError[]`, ≤40-line tail | round-trip on 5 recorded stderr samples | K-01 | AGENT | done (checked 11-08: parser and stderr samples in `tests/test_compile.py`; circuit.json `source_*_error` elements count as compile errors) |
 
 ## Parts
 
@@ -88,6 +89,13 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | P-05 | Catalog client on the local snapshot, category-aware queries; candidates carry `category` (C2 catalog half) | `PartRequest` | `CatalogPart[]` | MCP9808 plan resolves its 4.7k/100nF/header/IC requests from a snapshot fixture | P-04 | AGENT | done (10-21); header + IC resolve once P-02b lands |
 | P-02b | Resolver: reject a candidate of the wrong category (`CatalogPart.category`); typed family → orderable MPN by prefix + package, Unresolved with a question if ambiguous; for a connector, `package` is the pitch (D-6a a), not the row's package text; use `CatalogPart.fetched_at` for `ResolvedPart.fetched_at` (C2 resolver half) | candidates | `ResolvedParts` | `tests/test_parts_integration.py` C2 cases | P-05 | AGENT→HUMAN (O-1: human reviews the diff) | doing (awaiting human review) |
 | P-06 | Retire the jlcsearch client and its tests | — | — | suite green without jlcsearch | P-05 | AGENT (removal approved by the human) | done (10-21) |
+| P-07 | Parts from a library the user downloads (SparkFun first): index it, search it for chosen categories, BOM marks self-sourced parts | docs/proposals/P-07-library-parts-source.md | library `CatalogPart` rows; P-07a–d | fixture library resolves the MCP9808 plan's 4.7k and 100nF; a 0402 request is Unresolved listing the 0603; nothing downloaded | P-07 accepted (questions A–E) | AGENT, resolver part HUMAN | proposed (11-06) |
+
+## Front door (TUI)
+
+| ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
+|---|---|---|---|---|---|---|---|
+| T-01 | `reflow tui`: the front door. In a project folder: prompt → upload the datasheet → ask the agent for help → answer the plan questions → you write rules.toml (checked) → design loop → `reflow check` → if it fails, KiCad + learn, then tell the agent the fix → re-run | user's request, datasheet PDF, their rules.toml | spec.json, plan.json, runs/ | tests/test_tui_*.py: the flow with a fake claude; named parts only from what the user typed; no design without a confirmed spec and a rules.toml with 0 errors; the agent only reads (Read tool) | M-04, V-21, L-10 | AGENT (prompt text AGENT→HUMAN) | done (11-06: first real run by the human, INA226 board, verifier-clean schematic on attempt 1; prompt text still awaiting human review) |
 
 ## Learn mode
 
@@ -102,6 +110,8 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | L-12 | Learn v2 phase 3 (L-2a): ngspice testbenches for decoupling and I2C pull-ups, schematic level and PCB level | board values, layout | `SimResult` | each testbench: hand-calculated value, known-good and known-bad tests; assumptions shown; no testbench → "can't simulate this yet" | L-11 | AGENT→HUMAN (O-1c) | doing (10-22: built, each testbench within 1.2% of its hand calculation; awaiting human review) |
 | L-14 | Fix-it tools (L-2a): edit the AI's failed draft (add R/C, change value, connect, disconnect, delete), recompile with tsci and re-verify, then simulate | draft TSX | `FixResult` | each edit gives the expected TSX; a correct fix of a real failed draft verifies clean; the AI's fix is hidden until the user tries | L-10, L-12 | AGENT | done (10-22; the real draft fixed in a browser verifies clean; set_trace_limit added) |
 | L-13 | Learn v2 phase 4: click-to-explore and make-the-call | plan, spec, rule catalog | explanations, value choices | every explanation comes from the run's plan/spec/rules; value choices answered by a validated testbench | L-12 | AGENT | todo |
+| L-20 | Think-with-me mode: system design (explain why a rule fired, ask before fixing, apply nothing without approval, log reasoning to the vault) | rules, Violation, learn engine, fix-it, vault | `docs/think-with-me-design.md` | human accepts it (DECISIONS entry for its contracts) and answers D1, D2, D5 before block 1 | L-01, L-11, L-14 | HUMAN (design written by the agent at the human's request) | proposed (11-05: design written; 14 open decisions; nothing built) |
+| L-21 | Automatic simulation report: after each design run, run every validated testbench that applies to the board and write a browser page of graphs (whole board, then per part), assumptions shown with each plot, "can't simulate this yet" otherwise; new testbenches one at a time (shunt first) | run dir, L-12 testbenches | report page in the run dir | — | L-12 | HUMAN (the human builds it) | tabled (11-06) |
 
 ## Routing + output (AGENT)
 

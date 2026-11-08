@@ -1,0 +1,141 @@
+{
+  "blocks": [
+    {
+      "name": "monitor",
+      "purpose": "INA226 current/power monitor with address straps to GND and VS decoupling",
+      "part_ids": [
+        "p1",
+        "p2"
+      ]
+    },
+    {
+      "name": "power path",
+      "purpose": "5V input and output headers with high-side series shunt",
+      "part_ids": [
+        "p3",
+        "p7",
+        "p8"
+      ]
+    },
+    {
+      "name": "interface",
+      "purpose": "I2C header to the MCU with SDA, SCL, and ALERT pull-ups to 3V3",
+      "part_ids": [
+        "p4",
+        "p5",
+        "p6",
+        "p9"
+      ]
+    }
+  ],
+  "parts": [
+    {
+      "id": "p1",
+      "role": "current/power monitor",
+      "category": "ic",
+      "value": "",
+      "package": "",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "INA226AIDGSR",
+      "notes": "VS from +3V3; A0 and A1 to GND for address 0x40; IN+ to +5V_IN side and IN- to +5V_OUT side of shunt via Kelvin traces; VBUS to +5V_OUT"
+    },
+    {
+      "id": "p2",
+      "role": "decoupling cap for U1 VS",
+      "category": "capacitor",
+      "value": "100nF",
+      "package": "0603",
+      "tolerance": "",
+      "voltage": "10V",
+      "mpn": "",
+      "notes": "place close to VS pin"
+    },
+    {
+      "id": "p3",
+      "role": "current sense shunt in series on 5V rail",
+      "category": "resistor",
+      "value": "10m",
+      "package": "2512",
+      "tolerance": "1%",
+      "voltage": "",
+      "mpn": "25121WF100MT4E",
+      "notes": "1 W rating; carries up to 4 A; wide copper pours; Kelvin sense connections to INA226 IN+ and IN-"
+    },
+    {
+      "id": "p4",
+      "role": "SDA pull-up to 3V3",
+      "category": "resistor",
+      "value": "4.7k",
+      "package": "0603",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p5",
+      "role": "SCL pull-up to 3V3",
+      "category": "resistor",
+      "value": "4.7k",
+      "package": "0603",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": ""
+    },
+    {
+      "id": "p6",
+      "role": "ALERT pull-up to 3V3",
+      "category": "resistor",
+      "value": "10k",
+      "package": "0603",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "ALERT is open-drain"
+    },
+    {
+      "id": "p7",
+      "role": "5V input header",
+      "category": "connector",
+      "value": "1x4",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header; pins: 5V_IN, 5V_IN, GND, GND"
+    },
+    {
+      "id": "p8",
+      "role": "5V output header",
+      "category": "connector",
+      "value": "1x4",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header; pins: 5V_OUT, 5V_OUT, GND, GND"
+    },
+    {
+      "id": "p9",
+      "role": "I2C header to MCU",
+      "category": "connector",
+      "value": "1x5",
+      "package": "2.54mm",
+      "tolerance": "",
+      "voltage": "",
+      "mpn": "",
+      "notes": "straight pin header; pins: 3V3, GND, SDA, SCL, ALERT"
+    }
+  ],
+  "nets": [
+    "+5V_IN",
+    "+5V_OUT",
+    "GND",
+    "+3V3",
+    "SDA",
+    "SCL",
+    "ALERT"
+  ]
+}

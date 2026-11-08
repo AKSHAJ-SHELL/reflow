@@ -14,15 +14,15 @@ Next: ...
 
 (Agents: add blockers here with date + task ID; the human clears them.)
 
-- 2026-10-20 · verifier input (docs/04 §5) · tscircuit's `.kicad_sch` export has wrong connectivity (traced pins split across nets or `unconnected`, rails become fake `V`/`GND` components, all pins `passive`). The verifier gives both false positives and false negatives on I2C boards; `.kicad_pcb` and `circuit.json` are correct. Choosing a new verifier input is a contract change and HUMAN. Evidence: `tests/test_integration.py`, REVIEW.md §9.
-- 2026-10-20 · P-02 (HUMAN) + P-01 · resolver picks a part of the wrong kind (I2C header → LED C2286) and a named IC is never searched by its MPN. Catalog query half is AGENT (P-01); the resolver category check is HUMAN. Evidence: `tests/test_parts_integration.py`.
-- 2026-10-22 · i2c rule (HUMAN, reflow/rules/i2c.py) · a pull-up to a rail the chip isn't powered from passes `i2c.missing_pullup`, so a real eval board (Lightning, run 20261022T192231Z attempt 2) was verifier-clean with SDA/SCL pulled up to a dead V3_3. Failing test: `tests/test_i2c_pullup_rail.py::test_pullups_to_an_unpowered_rail_fail_verify`. The human is writing the rule.
-- 2026-10-20 · D-6 / P-03 · jlcsearch stock data and free-text search are broken upstream. Proposed: jlcparts SQLite snapshot (~205 MB). Needs a DECISIONS.md amendment and the human's OK to download.
+- ~~RESOLVED 11-08: V-1 accepted; the verifier reads circuit.json and reflow draws its own schematic (O-04).~~ 2026-10-20 · verifier input (docs/04 §5) · tscircuit's `.kicad_sch` export has wrong connectivity (traced pins split across nets or `unconnected`, rails become fake `V`/`GND` components, all pins `passive`). The verifier gives both false positives and false negatives on I2C boards; `.kicad_pcb` and `circuit.json` are correct. Choosing a new verifier input is a contract change and HUMAN. Evidence: `tests/test_integration.py`, REVIEW.md §9.
+- BUILT, awaiting human review (P-02b; as of 11-08). 2026-10-20 · P-02 (HUMAN) + P-01 · resolver picks a part of the wrong kind (I2C header → LED C2286) and a named IC is never searched by its MPN. Catalog query half is AGENT (P-01); the resolver category check is HUMAN. Evidence: `tests/test_parts_integration.py`.
+- DRAFT rule in place (`i2c.pullup_rail`), awaiting human review (as of 11-08). 2026-10-22 · i2c rule (HUMAN, reflow/rules/i2c.py) · a pull-up to a rail the chip isn't powered from passes `i2c.missing_pullup`, so a real eval board (Lightning, run 20261022T192231Z attempt 2) was verifier-clean with SDA/SCL pulled up to a dead V3_3. Failing test: `tests/test_i2c_pullup_rail.py::test_pullups_to_an_unpowered_rail_fail_verify`. The human is writing the rule.
+- ~~RESOLVED 11-08: D-6a accepted; the jlcparts snapshot replaced jlcsearch.~~ 2026-10-20 · D-6 / P-03 · jlcsearch stock data and free-text search are broken upstream. Proposed: jlcparts SQLite snapshot (~205 MB). Needs a DECISIONS.md amendment and the human's OK to download.
 
 ---
 
 ## 2026-10-07 → 2026-10-17 · human · (history, summarized from NOTES.md and git log)
-Did: toolchain round trip (KiCad → DSN → freerouting → SES → KiCad); switched substrate atopile → tscircuit; netlist loader + generic fixture tests; rules decoupling.series, i2c.missing_pullup/duplicate_pullup, address.floating; `reflow check` CLI; real club board fixtures (clean + original series-cap bug); renamed reflow → reflow.
+Did: toolchain round trip (KiCad → DSN → freerouting → SES → KiCad); switched substrate atopile → tscircuit; netlist loader + generic fixture tests; rules decoupling.series, i2c.missing_pullup/duplicate_pullup, address.floating; `reflow check` CLI; real-board fixtures (clean + original series-cap bug; removed 2026-11-08); renamed the project to reflow.
 Tests: `pytest -q` → 33 passed (2026-10-17).
 Next: finish rename (Z-01), launch post for `reflow check` (D-01), harness decisions (H-00).
 
@@ -88,7 +88,7 @@ Next: how a short between named nets becomes a violation instead of an exception
 
 ## 2026-10-20 · agent (Claude) · V-14
 Did: added `reflow/pcb_nets.py`: `load_pcb_pad_nets(path) -> {(ref, pad): net}` from a `.kicad_pcb`, using `reflow.netlist.parse_sexpr` (imported, not edited). It reads both pad-net syntaxes (tscircuit `(net 3 "SDA")`, KiCad 10 `(net "SDA")`) and both reference syntaxes (`property "Reference"`, older `fp_text reference`). A pad with no net is "". Mounting holes and pad-less footprints are skipped, and a split pad on one net is one entry. Unreadable or non-board files, pads with no reference, duplicate references, and one pad on two nets raise `PcbNetsError`. Known limit: after parsing, a pad net written as a bare number is read as "no net", so a net literally named "3" in KiCad 10 syntax would be misread (not seen in any recorded board). Added `tests/test_pcb_nets.py` (17 tests) and the two PCB exports from the same tsci run as the recorded circuit.json (`tests/data/circuit_json/*.kicad_pcb`). The comparison itself (`verify.pcb_mismatch`) is V-13, HUMAN.
-Tests: failed first (module missing), then 17 passed, including the club KiCad 10 board vs its own schematic netlist via kicad-cli (fixture read only). Three in-process sabotages (read the net number instead of the name; drop the conflict check; drop the fp_text fallback) → red each time. `pytest -q` → 7 failed, 280 passed: the same 7 known failures, none new.
+Tests: failed first (module missing), then 17 passed, including a real KiCad 10 board vs its own schematic netlist via kicad-cli (fixture read only). Three in-process sabotages (read the net number instead of the name; drop the conflict check; drop the fp_text fallback) → red each time. `pytest -q` → 7 failed, 280 passed: the same 7 known failures, none new.
 Next: V-11 (pin-map importer) or V-16 (verifier adapter wiring V-10 + V-14). V-12 and V-13 stay HUMAN.
 
 ## 2026-10-20 · agent (Claude) · V-11
@@ -1096,14 +1096,14 @@ No code changed.
 
 ## 2026-10-31 · agent (Claude) · README brought up to date for v1 (D-01 prep)
 Did: the human asked for a clean-install test, then for the README to match v1.
-- **Clean install, from a fresh clone of `shashi` in an empty folder:** `uv venv` + `uv pip install -e .` and plain `pip` on Python 3.12 both work in seconds (`reflow check` has no dependencies). `reflow check` gives `decoupling.series` on real_series_cap (exit 1), clean on real_good (exit 0), exit 2 on a missing path, valid `--json`, and clean on our MCP9808 eval schematic copied elsewhere. Works without `KICAD_CLI` set.
+- **Clean install, from a fresh clone of `shashi` in an empty folder:** `uv venv` + `uv pip install -e .` and plain `pip` on Python 3.12 both work in seconds (`reflow check` has no dependencies). `reflow check` gives `decoupling.series` on the real-board bad fixture (exit 1), clean on the real-board good fixture (exit 0), exit 2 on a missing path, valid `--json`, and clean on our MCP9808 eval schematic copied elsewhere. Works without `KICAD_CLI` set.
 - **README rewritten:** status table dated 10-31 (design loop, resolver, export, learn, report all working; request → spec → plan not built), the 10-28 eval result marked as draft because expectations aren't checked, a "Design a board" section, folder guide, and honest limits (you write spec and plan; simple low-speed 2-layer boards; no high-speed check; few rules; tscircuit routing; macOS only).
 - **Every new README command run once:** `reflow design --spec/--plan evals/mcp9808_breakout/...` with `REFLOW_PROVIDER=claude-code REFLOW_MODEL=sonnet` (one-off, `.env` unchanged) → passed on attempt 1 in 19 s; `reflow report` wrote report.md; `reflow learn --no-browser` served the index (200); `reflow export` **refused**: routing partial (V3_3 C1.pin1–J1 at 6.05 mm, limit 5 mm, X-04) and not signed off. Our schematic: ERC 0 errors, 0 warnings. The README now says export can refuse this way and to re-run design.
-- **Found:** GitHub's main is at dde218a, 91 commits behind `shashi`; anyone cloning from the README today gets the 10-17 version. SETUP.md is stale too (atopile, reflow names); not changed.
+- **Found:** GitHub's main is at dde218a, 91 commits behind `shashi`; anyone cloning from the README today gets the 10-17 version. SETUP.md is stale too (atopile, the project's old name); not changed.
 - **Not run:** the full suite in the fresh clone (same code as the working copy). `pytest -q tests/test_repo_hygiene.py tests/test_cli.py` → 6 passed.
 
 ## 2026-10-31 · agent (Claude) · SETUP.md matches v1
-Did: SETUP.md still described the 10-07 toolchain (atopile, freerouting as the router, "reflow"). Rewrote it from what the code actually calls:
+Did: SETUP.md still described the 10-07 toolchain (atopile, freerouting as the router, the project's old name). Rewrote it from what the code actually calls:
 - **Tools:** KiCad 10.0.5, Python 3.11+, Node, tscircuit 0.0.2768 (pinned; the version tests/data was made with), Claude Code (optional, `claude-code` provider), ngspice 47 (optional; learn sim falls back to KiCad's bundled library). atopile is gone: nothing in reflow/ or tests/ uses it.
 - **Settings:** the reflow.toml caps and every env var reflow reads (grep of `REFLOW_*`, `KICAD_CLI`, `TSCI` in reflow/), with defaults from config.py, snapshot.py, claude_code.py and sim.py.
 - **Tests:** how to run them and the 2 deliberate failures.
@@ -1142,7 +1142,7 @@ Did: the human, maintaining reflow alone, asked for CI modelled on a hackathon p
 ## 2026-10-31 · agent (Claude) · R-12: `i2c.pullup_rail` drafted (O-1d), awaiting the human's review
 Did: the human said "I draft both" for the two deliberate failures; recorded as DECISIONS O-1d (an ownership exception for this one rule in `reflow/rules/i2c.py`).
 - **Rule:** for each I²C line, the supply nets of the ICs on it come from their `power_in` pins (`bus_supplies`). A pull-up whose far end isn't one of them is `i2c.pullup_rail` (error). The fix hint names the rail and each supply with its chips, since it goes back to the model.
-- **Stays quiet** when no IC on the line has a typed power pin (unbound boards: can't judge), and when a capacitor bridges the rail to a chip's supply (`cap_bridges`). The first draft fired on `bad_series_cap` and `real_series_cap` as well as `decoupling.series`; each bad fixture must give exactly its rule, and the series cap is the root cause.
+- **Stays quiet** when no IC on the line has a typed power pin (unbound boards: can't judge), and when a capacitor bridges the rail to a chip's supply (`cap_bridges`). The first draft fired on both series-cap fixtures as well as `decoupling.series`; each bad fixture must give exactly its rule, and the series cap is the root cause.
 - **Checked:**
   - `tests/test_i2c_pullup_rail.py` both pass: SDA and SCL errors, hint names V3_3 and Net-(C1-pin1); the corrected board stays clean;
   - test_netlist (every fixture's expected.toml), test_cli, test_verifier, test_pinbind, test_evals, test_rules_*, test_learn_engine: 126 passed;
@@ -1155,3 +1155,142 @@ Did: the human approved ("I draft both") retargeting `tests/test_integration.py:
 - Same pins, same nets: SDA (U1 pin 1, J1.3, R1.1) on one net and not unconnected; GND (U1 pin 4, U1 pin 3 = A0, C1.2) on one net; VDD (pin 8) not on GND. Pins are named by number, because the schematic keeps pin numbers and takes names from the symbol, and this made-up chip's labels for pins 3, 5, 6 and 7 differ from the MCP9808's. The removed `_tscircuit_kicad_sch` helper had no other user. The tscircuit bug stays recorded in REVIEW.md §9 and the O-04a proposal.
 - SETUP.md: no test fails on purpose any more. R-11 Part B row #3 points at O-1d.
 - **`pytest -q`: 828 passed, 0 failed (6m42s).** First fully green suite on this branch.
+
+## 2026-11-05 · agent (Claude) · L-20: think-with-me mode, system design (no code)
+Did: wrote `docs/think-with-me-design.md` at the human's request; design only, nothing built.
+- **The human's answers it's built on:** notes in reflow's existing vault; core Obsidian now, Dataview and Templater later; path wikilinks as vault.py writes them; the vault is synced with git.
+- **Design:**
+  - post-hoc, not in `loop.py`: it reads a run folder or `reflow check --json`;
+  - reuses learn mode's ordering, fix-it tools (copies only) and vault;
+  - a HUMAN-written explanation registry keyed by `rule_id`;
+  - every sentence labelled verified / cited / unverified;
+  - write-once `reasoning/` notes for a git vault;
+  - v0 is model-free.
+- **Needs from the human before any build:** a DECISIONS entry for the new contracts (`Explanation`, `ExplanationSegment`, `ThinkStep`, `ThinkSession`, new `VAULT_KINDS`), and answers to the open decisions (D1, D2 and D5 at least, of 14).
+- **Gap found:** built-in rules cite no datasheet or standard yet (R-11 undecided), so most explanations would show "No source cited for this rule yet" until D4 is settled.
+
+## 2026-11-06 · agent (Claude) · T-01: `reflow tui`, the front door
+Did: the human asked for reflow to work the way a user would meet it. In a project folder, `reflow tui` opens a terminal UI (Textual 8.2.8, MIT, released 2026-06-30, optional extra `[tui]`). Steps, in order:
+1. the request and the exact part number, which the user types;
+2. upload the datasheet PDF (it must start with `%PDF`; it's copied into the folder);
+3. the planner drafts the spec and plan, the user answers its open questions, then accepts;
+4. the user writes their own rules.toml from a `[[part]]`-only template, and the TUI checks it; a file with no `[[rule]]` is an error;
+5. Confirm, the only place `confirmed` becomes true, and only with 0 rule errors;
+6. `reflow design` runs as a child process on Claude Code, with live progress per attempt;
+7. `reflow check` on the board's schematic (KiCad ERC + reflow's rules);
+8. if it fails: Open in KiCad, Open learn mode, then the user types the fix. The fix is added to `Spec.constraints` ("Designer's fix after <run>: …"), and a fresh, linked run starts. `loop.py` is unchanged.
+- **The agent pane** (`reflow/tui/agent.py`, `prompts/tui-agent.md`, draft) is one multi-turn Claude Code session (`--session-id`, then `--resume`):
+  - tools are Read only, allowed only inside the project folder (`--allowedTools "Read(./**)" --permission-mode dontAsk`);
+  - no API key in its environment;
+  - replies are shown as plain text, never markup.
+- **Rule 5:** `Spec.named_parts` is always the user's typed part numbers (whatever the planner wrote is replaced), and a plan part with any other mpn is refused.
+- **Checked by hand with the real claude 2.1.319:**
+  - the agent read a PDF in the folder, and noticed it wasn't the MCP9808 datasheet;
+  - the second message continued the same session;
+  - with `Read(./**)` + `dontAsk`, a read of a file outside the folder came back as a permission denial;
+  - the real planner returned a valid spec and plan with 6 open questions.
+- **Found and fixed on the way:**
+  - my first draft of the agent prompt used the `{request}` placeholder, which `load_prompt` uses to find the planner, so two files matched and planning broke. New test: each prompt is found by its own placeholder;
+  - before scoping, plain `--allowedTools Read` let the agent read any file on the machine;
+  - a config error (e.g. no REFLOW_API_KEY with an API provider) in the plan step crashed the TUI. It's now a message, with a test;
+  - my docstring named `prompts/planner.md`, which `test_package_does_not_load_unapproved_prompts` forbids. The docstring was reworded; the test is unchanged.
+- `reflow/claude_code.py`: the `claude -p` JSON parsing moved into `parse_print_result`, shared with the TUI agent. Its tests are unchanged and pass.
+- **Not done or not verified:**
+  - a person hasn't driven the TUI on a new board yet;
+  - the design step's real run wasn't driven from the TUI here; its child process is the same `reflow design` command;
+  - rules.toml rules still don't fail a run (R-10, HUMAN).
+- **`pytest -q`:** 845 passed and 1 failed (the docstring above), fixed; its file and the TUI tests then passed (33). The full suite wasn't rerun after that one-line docstring change.
+- CI installs `.[test,learn,tui]`; CODEOWNERS adds `reflow/tui/agent.py`; REVIEWING §2–3, README, SETUP and the prompts index are updated.
+
+## 2026-11-06 · agent (Claude) · T-01 fix: only the plan's chips get a `[[part]]`
+Did: found before the human's INA226 test. The rules template gave every typed part number a `[[part]]` as U1, U2…, so a typed shunt resistor became "U2". Codegen is told to give that reference to the part, and the binder then fails a "chip" with no pin map. The template now writes `[[part]]` only for plan parts of category ic or regulator, by their typed part numbers. A failing test came first; the TUI and prompt tests pass (29).
+
+## 2026-11-06 · agent (Claude) · README Limits brought up to date
+Did: at the human's request, rewrote README's Limits section (the human had already renamed the heading "Limits"; kept as they had it) into three groups: what it can design, what the checks miss, where it runs. Updated:
+- **Removed:** "you write the spec and plan" (`reflow tui` now drafts them).
+- **Added:**
+  - the TUI is untried by a person;
+  - `rules.toml` rules guide the design but don't fail it (R-10);
+  - I²C checks find the bus by pin name (LIS3DH `SPC`/`SDI` skips them silently);
+  - no SPI checks;
+  - no current or Kelvin-connection checks;
+  - routing can exceed a length limit;
+  - model code runs on the user's machine (links REVIEWING §4).
+- **Status table:** the `reflow design` row now says the spec and plan are ones you confirm. All doc links check.
+
+## 2026-11-06 · agent (Claude) · T-01: Back, and part numbers checked on screen 1
+Did: in the human's INA226 test, the part field got "C49851, VSSOP-10" (the JLC number and the package) and the TUI moved on with no way back. Now:
+- **Back** (a button on every step after the first, and Ctrl+B) goes one step back. Going back from design to rules or earlier sets `Spec.confirmed` false, so a changed rule or plan needs a new confirm. Runs are kept. It's refused while a design is running.
+- **A JLC/LCSC number** (`C` + digits) is refused as a part number, with a message naming the manufacturer's part number instead.
+- **Before Next,** each typed number is looked up in the local catalog, and any without an in-stock row is named (a package such as "VSSOP-10", a typo). With no parts database it can't check and doesn't block.
+- Failing tests came first: 3 in test_tui_project, 1 in test_tui_app. The TUI, prompt and CLI tests pass (43). One test needed a 0.3 s pause between two clicks on the same button, because Textual ignores a second click within its 0.2 s press effect; a person can't click that fast.
+
+## 2026-11-06 · agent (Claude) · T-01: errors stay in the chat, chat no longer cut off, agent Markdown
+Did: from the human's INA226 screenshot, three fixes.
+- **The plan draft failed** and its only sign was a 10 s toast, so it looked stuck on "Drafting the plan…". Every error now also goes into the chat as "problem: …" (test added). The cause, inferred and not confirmed: only the shunt (25121WF100MT4E) was typed as a part number, so the planner's "INA226" was refused. The refusal now says to go Back and add it.
+- **Chat lines were cut off:** RichLog's default `min_width` of 78 is wider than the pane. It's now 20 for every log.
+- **The agent's Markdown showed raw `**`:** replies now render as Markdown, with links not clickable. Rich markup like `[b]` stays literal (the existing test).
+
+## 2026-11-06 · agent (Claude) · T-01: drag the datasheet in, and the agent gets a text copy
+Did: the human asked that dragging the datasheet in should be enough, and should give the agent something it can read.
+- **Dropping a PDF path** at the datasheet step uploads it at once, with no Upload press. That works in the path box, in the chat box, or with nothing focused (a Paste event). `dropped_path` understands Terminal's backslash-escaped paths, quoted paths and file:// URLs.
+- **On upload,** pypdf writes `<name>.txt` next to the PDF, each page headed "=== page N ===". The agent's prompt says to search it first and cite those markers, then open the PDF for tables and figures. A PDF with no text (a scan) gets no copy and a message saying the agent reads the PDF itself. The agent's system prompt is now rebuilt for every message, so a datasheet uploaded mid-chat is known.
+- **New dependency:** pypdf 6.21.1 (BSD-3, no required dependencies, released 2026-10-17; 7.0.0 came out today and is too new), in the `tui` extra.
+- **Checked with the real INA226 datasheet** (TI, 41 pages):
+  - the text copy was made in 1.0 s, at 85 KB;
+  - the shunt range line comes through clean (–81.9175 to 81.92 mV);
+  - the real agent answered "0.1 µF on VS", citing §8.3, page 31.
+  - The page markers are the PDF's page numbers, which can differ from the numbers printed on the page.
+- Failing tests came first (7 in test_tui_project, 1 in test_tui_app). They use a minimal PDF the test writes itself.
+
+## 2026-11-06 · agent (Claude) · T-01: no stray upload after a drop; Back keeps the datasheet
+Did: from the human's screenshot ("problem: . isn't a file" right after a good upload).
+- **Cause:** the datasheet box kept the cursor after its step was hidden, so Enter "uploaded" an empty path. Each step now moves the cursor to its own first field or button, and Upload does nothing outside the datasheet step.
+- **An empty Upload** keeps the datasheet already uploaded, for when you go Back. With none uploaded, it says "Drag the datasheet PDF into the window, or type its path". Going Back to that step says which file is already uploaded.
+- Failing tests came first (1 in test_tui_project, 1 in test_tui_app); the TUI tests pass (29).
+
+## 2026-11-06 · agent (Claude) · Board projects can live in boards/; reflow reinstalled after the repo moved
+Did: the human wants their `reflow tui` board project inside the repo, in `boards/`, to open it in VS Code.
+- **.gitignore** now ignores, in each `boards/<project>/`:
+  - `*.pdf`, the vendor's datasheet, which is never committed;
+  - `*.txt`, its text copy;
+  - `.reflow/`, the TUI's progress.
+
+  `spec.json`, `plan.json` and `rules.toml` still show as files to commit, and `runs/` was already ignored everywhere. Checked with a scratch folder, which showed only rules.toml; `tests/test_repo_hygiene.py` passes.
+- **Found:** the repo moved to `Desktop/reflow`, and the editable install still pointed at the old path, so `reflow` would no longer start. It was reinstalled (`pip install -e ".[test,learn,tui]"`) and now imports from `Desktop/reflow`.
+
+## 2026-11-06 · agent (Claude) · T-01: the planner is given the part numbers the user typed
+Did: in the human's INA226 run, the plan was refused with "p1: mpn 'INA226' is not in Spec.named_parts". The planner saw only the request sentence ("INA226 power monitor…"), never the typed `INA226AIDGSR`, so it copied the request's text. `draft_plan` now appends the typed part numbers to what the planner reads, with "copy these exactly… no other part numbers". The rule-5 refusal is unchanged.
+- **Checked with the real planner** (claude-code, 28 s) on the human's exact request:
+  - named_parts was `INA226AIDGSR, 25121WF100MT4E`;
+  - p1 ic `INA226AIDGSR`, p3 shunt `25121WF100MT4E`, 9 parts;
+  - nets +5V_IN, +5V_OUT, +3V3, GND, SDA, SCL, ALERT;
+  - 5 open questions (current and doubled header pins, shunt value, pull-ups, address, I2C header pitch).
+- A failing test came first; the TUI and prompt tests pass (44).
+
+## 2026-11-06 · agent (Claude) · T-01: a moved project starts a new agent chat
+Did: the human moved the board folder into `boards/` mid-session, and the agent then said it "wasn't allowed to read the file again".
+- **Cause, checked:** the resumed chat remembered `~/reflow-boards/opi-power-demo/ina226.pdf`, which is outside the new project folder, so `Read(./**)` refused it. Reading the same file by its new absolute path works; tried with the real claude.
+- **Fix:** the saved chat is tied to the folder it ran in (`chat_root`), and a moved project starts a new chat. A failing test came first; the TUI tests pass.
+
+## 2026-11-06 · agent (Claude) · T-01: the plan buttons can be scrolled to
+Did: with seven planner questions the human saw no Re-plan button.
+- **Cause, checked:** each step (a `Vertical`) was one window high, so Re-plan and Accept sat below its clipped edge, out of reach of the scrolling panel.
+- **Fix:** steps take their content's height (`#steps, #steps > Vertical { height: auto; }`). A failing test came first; the full suite passes (865).
+
+## 2026-11-06 · agent (Claude) · P-07 proposed: parts from a library the user downloads
+Did: drafted `docs/proposals/P-07-library-parts-source.md` at the human's request. Some courses require SparkFun resistors and capacitors, and today reflow only searches the JLC snapshot.
+- **Read from the SparkFun KiCad library's repository page:** CC BY 4.0; one symbol per passive; a SparkFun `PROD_ID` on each; no stock, price or LCSC numbers.
+- **Questions for the human (A–E):** ranking without stock or price; the stock and LCSC checks; no match (Unresolved, not a silent JLC fallback); fab export of self-sourced parts; v1 scope. The resolver parts are HUMAN (P-02).
+- Added a P-07 row to TASKS.md (proposed). No code changed.
+
+## 2026-11-08 · agent (Claude) · pre-share cleanup, at the human's instruction
+Did: the human asked to remove a club board and everything naming a commercial tool or the project's old name, put every risk and limit in the README, say the project grows with what they learn, and merge to main.
+- **Removed:** the two real-board fixtures, `docs/reflow-harness-plan.pdf` (unreferenced; named both). The human told the agent to; fixtures are otherwise HUMAN-only.
+- **Coverage lost:** `test_kicad_board_groups_pads_like_its_schematic` is gone. It needed a real KiCad layout and the other fixtures' `.kicad_pcb` files have 0 pads. tscircuit-exported layouts are still checked. `decoupling.series` is still covered by `bad_series_cap`. Suite: 865 → 856, the 9 being that test and the 2 boards' fixture cases.
+- **Reworded older text:** names were removed from earlier PROGRESS.md entries and NOTES.md, an exception to append-only that the human asked for. The source paths in 4 fixture `.net` files were shortened.
+- **The old package folder doesn't exist** on main, shashi or disk. It's only in git history, as are the removed boards. History wasn't rewritten.
+- **README rewritten:** limits, risks, all commands, what has really been tested. "Open-source" is gone from it and from pyproject because there's no LICENSE yet (Z-03, HUMAN).
+- **TASKS.md:** Z-01, Z-02, H-05, H-06, M-01, M-02, K-01, K-02, T-01 updated after checking the code. **Blocked list** annotated.
+- **Dead-code scan (vulture, ruff; nothing removed):** no unreferenced modules. Unused: `RouteResult` import in `reflow/cli.py:536`, 11 imports and 1 local in tests. `format_compile_errors` is used only by tests. `route.route()` is a stub for X-02. The FastAPI and Textual "unused" hits are false positives.
+Tests: `pytest -q` → 856 passed.

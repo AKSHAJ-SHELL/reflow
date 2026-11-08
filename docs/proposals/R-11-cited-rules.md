@@ -295,5 +295,5 @@ These come in through `rules.toml` per part (V-2b drafts, a person confirms), no
 ## When accepted
 
 For each rule the human writes: the bad fixture (docs/05 process), a failing test, the rule, the
-docs/05 catalog row with its source, and a check that `blinky_good`, `sensor_good`, `real_good`
+docs/05 catalog row with its source, and a check that `blinky_good`, `sensor_good`
 and the five eval boards stay as listed above.

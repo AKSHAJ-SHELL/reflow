@@ -70,24 +70,29 @@ class ClaudeCodeModel:
                                       timeout=self.timeout_s)
             except subprocess.TimeoutExpired as exc:
                 raise ModelError(f"claude -p timed out after {self.timeout_s:g} s") from exc
-        try:
-            data = json.loads(proc.stdout)
-        except ValueError:
-            tail = (proc.stderr or proc.stdout).strip()[-500:]
-            raise ModelError(f"claude -p failed (exit {proc.returncode}): {tail or 'no output'}") from None
-        if not isinstance(data, dict):
-            raise ModelError("claude -p returned something other than a JSON object")
-        if data.get("is_error") or data.get("subtype") not in (None, "success"):
-            raise ModelError(f"claude -p: {str(data.get('result') or data.get('subtype') or 'error')[:500]}")
-        text = data.get("result")
-        if not isinstance(text, str) or not text.strip():
-            raise ModelError("claude -p returned no text")
-        usage = data.get("usage") or {}
-        tokens_in = sum(int(usage.get(k) or 0) for k in
-                        ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
-        used = next(iter(data.get("modelUsage") or {}), "") or self.model or "default"
-        return Completion(text=text, model=f"{PROVIDER}/{used}", input_tokens=tokens_in,
-                          output_tokens=int(usage.get("output_tokens") or 0))
+        return parse_print_result(proc, self.model)
+
+
+def parse_print_result(proc: subprocess.CompletedProcess, model: str) -> Completion:
+    """The reply of one `claude -p --output-format json` call, or ModelError. Shared with reflow.tui.agent."""
+    try:
+        data = json.loads(proc.stdout)
+    except ValueError:
+        tail = (proc.stderr or proc.stdout).strip()[-500:]
+        raise ModelError(f"claude -p failed (exit {proc.returncode}): {tail or 'no output'}") from None
+    if not isinstance(data, dict):
+        raise ModelError("claude -p returned something other than a JSON object")
+    if data.get("is_error") or data.get("subtype") not in (None, "success"):
+        raise ModelError(f"claude -p: {str(data.get('result') or data.get('subtype') or 'error')[:500]}")
+    text = data.get("result")
+    if not isinstance(text, str) or not text.strip():
+        raise ModelError("claude -p returned no text")
+    usage = data.get("usage") or {}
+    tokens_in = sum(int(usage.get(k) or 0) for k in
+                    ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    used = next(iter(data.get("modelUsage") or {}), "") or model or "default"
+    return Completion(text=text, model=f"{PROVIDER}/{used}", input_tokens=tokens_in,
+                      output_tokens=int(usage.get("output_tokens") or 0))
 
 
 def load_model(config: dict):

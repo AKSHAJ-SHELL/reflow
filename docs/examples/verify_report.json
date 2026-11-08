@@ -1,7 +1,7 @@
 {
-  "schematic": "real_series_cap.kicad_sch",
-  "components": 13,
-  "nets": 7,
+  "schematic": "bad_series_cap.kicad_sch",
+  "components": 5,
+  "nets": 6,
   "errors": 1,
   "warnings": 0,
   "violations": [
