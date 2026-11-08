@@ -1,0 +1,63 @@
+{
+  "request": "INA226 power monitor for an Orange Pi 5 Plus supply: 5V in and 5V out on 2.54 mm headers with a shunt in series, I2C header to the MCU (3V3, GND, SDA, SCL, ALERT), 3.3V logic, 2 layers",
+  "title": "INA226 Orange Pi 5 Plus power monitor",
+  "power": "INA226 powered from 3.3V on the I2C header; monitored 5V rail enters on the 5V input header, passes through a 10 mΩ high-side shunt, and leaves on the 5V output header",
+  "interfaces": [
+    "5V input header 1x04 2.54 mm: 5V_IN, 5V_IN, GND, GND",
+    "5V output header 1x04 2.54 mm: 5V_OUT, 5V_OUT, GND, GND",
+    "I2C header 1x05 2.54 mm: 3V3, GND, SDA, SCL, ALERT"
+  ],
+  "constraints": [
+    "2 layers",
+    "3.3V logic",
+    "I2C address 0x40 (A0 and A1 tied to GND)",
+    "Max load current 4 A; 10 mΩ shunt gives 40 mV at 4 A (full scale about 8.2 A at 81.92 mV), 0.16 W in the shunt",
+    "Shunt in series on the 5V rail, high side; INA226 VBUS pin on the 5V output side",
+    "2 header pins per power rail",
+    "Pull-ups on board: 4.7k on SDA and SCL, 10k on ALERT (open-drain), all to 3V3",
+    "0603 passives"
+  ],
+  "named_parts": [
+    "INA226AIDGSR",
+    "25121WF100MT4E"
+  ],
+  "open_questions": [
+    {
+      "id": "q1",
+      "question": "Please type the exact INA226 part number you want, including the package variant, so it can be used as the IC mpn.",
+      "answer": "INA226AIDGSR"
+    },
+    {
+      "id": "q2",
+      "question": "What resistance is shunt 25121WF100MT4E, and what is the maximum load current? The Orange Pi 5 Plus can draw about 4A. The INA226 full-scale shunt voltage is 81.92mV, so the shunt value must keep the voltage across it below that.",
+      "answer": "25121WF100MT4E is 10 mΩ (2512, 1 W, 1%). Max load current 4 A. At 4 A that is 40 mV across the shunt, under the 81.92 mV full scale (full scale ≈ 8.2 A), and 0.16 W in the resistor. Put the INA226 VBUS pin on the 5V output side."
+    },
+    {
+      "id": "q3",
+      "question": "Single 2.54 mm header pins are usually rated around 3A. Can the 5V in and out headers use 2 or more pins per rail? If so, how many pins should each header have?",
+      "answer": "Yes, use 2 pins per rail. 5V in header: 1x04 (2× 5V_IN, 2× GND). 5V out header: 1x04 (2× 5V_OUT, 2× GND)."
+    },
+    {
+      "id": "q4",
+      "question": "Should SDA, SCL, and ALERT pull-ups to 3V3 go on this board, or does the MCU side already provide them?",
+      "answer": "Put them on this board: 4.7k on SDA and SCL, 10k on ALERT (it's open-drain), all to 3V3."
+    },
+    {
+      "id": "q5",
+      "question": "Which I2C address do you want? Tying A0 and A1 to GND gives 0x40.",
+      "answer": "0x40, with A0 and A1 tied to GND."
+    },
+    {
+      "id": "q6",
+      "question": "Which passive package size do you want for resistors and capacitors, for example 0402 or 0603?",
+      "answer": "0603"
+    },
+    {
+      "id": "q7",
+      "question": "What pin pitch do you want for the 1x05 I2C header? 2.54 mm is assumed.",
+      "answer": "keep it 2.54"
+    }
+  ],
+  "confirmed": true,
+  "rules_file": "rules.toml"
+}

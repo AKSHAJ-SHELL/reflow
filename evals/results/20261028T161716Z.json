@@ -1,0 +1,498 @@
+{
+  "run": {
+    "started": "20261028T161716Z",
+    "model": "claude-code/claude-sonnet-5-5",
+    "pin_binding": "reflow.pinbind.binder_for_spec",
+    "parts_db": "~/.cache/reflow/jlcparts/cache.sqlite3",
+    "parts_snapshot": {
+      "source": "https://yaqwsx.github.io/jlcparts/data",
+      "parts": [
+        "cache.zip",
+        "cache.z01",
+        "cache.z02",
+        "cache.z03",
+        "cache.z04"
+      ],
+      "crc32": "f1a12a9a",
+      "size": 1558769664,
+      "format": "source-db-v2",
+      "components": 2723372,
+      "oldest_row": "2026-09-14",
+      "newest_row": "2026-10-21",
+      "installed_at": "2026-10-22T06:17:45Z"
+    },
+    "commit": "f9bdd01",
+    "uncommitted_changes": true,
+    "tsci": "0.0.2768",
+    "prompts": {
+      "codegen.md": "5630c121948b7bd6ad492c2eb8d5683bad33a01cdb8d3385e461a88c4b83d2f6",
+      "fix.md": "640ba12c31493f7c1c24cb531e973463aa868c9f31af3256f8a52c2a436c708e",
+      "planner.md": "5e2f78d30bf52010f2738bd3cc9d2cfe6b677dbd197266e91105b517ca7cafd5"
+    },
+    "prompts_hash": "dc74edd4b92149964f73ec6c8715f9ca622855592188bb7aaa119cac932d3aa5",
+    "repeats": 3,
+    "model_retries": 2
+  },
+  "boards": [
+    {
+      "name": "ams1117_regulator",
+      "repeat": 1,
+      "status": "failed_verify",
+      "stage": "pin_binding",
+      "attempts": 3,
+      "best_attempt": 3,
+      "first_pass": false,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ]
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": false,
+      "input_tokens": 12860,
+      "output_tokens": 3097,
+      "run_dir": "runs/evals/20261028T161716Z/ams1117_regulator/run1"
+    },
+    {
+      "name": "ams1117_regulator",
+      "repeat": 2,
+      "status": "failed_verify",
+      "stage": "pin_binding",
+      "attempts": 3,
+      "best_attempt": 3,
+      "first_pass": false,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ]
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": false,
+      "input_tokens": 42342,
+      "output_tokens": 3053,
+      "run_dir": "runs/evals/20261028T161716Z/ams1117_regulator/run2"
+    },
+    {
+      "name": "ams1117_regulator",
+      "repeat": 3,
+      "status": "failed_verify",
+      "stage": "pin_binding",
+      "attempts": 3,
+      "best_attempt": 3,
+      "first_pass": false,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ],
+        [
+          "pinout.mismatch"
+        ]
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": false,
+      "input_tokens": 12784,
+      "output_tokens": 3128,
+      "run_dir": "runs/evals/20261028T161716Z/ams1117_regulator/run3"
+    },
+    {
+      "name": "at24c02_eeprom",
+      "repeat": 1,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 6796,
+      "output_tokens": 1084,
+      "run_dir": "runs/evals/20261028T161716Z/at24c02_eeprom/run1"
+    },
+    {
+      "name": "at24c02_eeprom",
+      "repeat": 2,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3407,
+      "output_tokens": 1094,
+      "run_dir": "runs/evals/20261028T161716Z/at24c02_eeprom/run2"
+    },
+    {
+      "name": "at24c02_eeprom",
+      "repeat": 3,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3408,
+      "output_tokens": 1261,
+      "run_dir": "runs/evals/20261028T161716Z/at24c02_eeprom/run3"
+    },
+    {
+      "name": "led_indicator",
+      "repeat": 1,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3058,
+      "output_tokens": 455,
+      "run_dir": "runs/evals/20261028T161716Z/led_indicator/run1"
+    },
+    {
+      "name": "led_indicator",
+      "repeat": 2,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3054,
+      "output_tokens": 455,
+      "run_dir": "runs/evals/20261028T161716Z/led_indicator/run2"
+    },
+    {
+      "name": "led_indicator",
+      "repeat": 3,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3052,
+      "output_tokens": 455,
+      "run_dir": "runs/evals/20261028T161716Z/led_indicator/run3"
+    },
+    {
+      "name": "mcp9808_breakout",
+      "repeat": 1,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3521,
+      "output_tokens": 1156,
+      "run_dir": "runs/evals/20261028T161716Z/mcp9808_breakout/run1"
+    },
+    {
+      "name": "mcp9808_breakout",
+      "repeat": 2,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3518,
+      "output_tokens": 1434,
+      "run_dir": "runs/evals/20261028T161716Z/mcp9808_breakout/run2"
+    },
+    {
+      "name": "mcp9808_breakout",
+      "repeat": 3,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3518,
+      "output_tokens": 1396,
+      "run_dir": "runs/evals/20261028T161716Z/mcp9808_breakout/run3"
+    },
+    {
+      "name": "pcf8574_expander",
+      "repeat": 1,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3605,
+      "output_tokens": 1839,
+      "run_dir": "runs/evals/20261028T161716Z/pcf8574_expander/run1"
+    },
+    {
+      "name": "pcf8574_expander",
+      "repeat": 2,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3592,
+      "output_tokens": 2159,
+      "run_dir": "runs/evals/20261028T161716Z/pcf8574_expander/run2"
+    },
+    {
+      "name": "pcf8574_expander",
+      "repeat": 3,
+      "status": "passed",
+      "stage": "none",
+      "attempts": 1,
+      "best_attempt": 1,
+      "first_pass": true,
+      "model_retries": 0,
+      "model_errors_retried": [],
+      "rule_ids_by_attempt": [
+        []
+      ],
+      "abort_reason": "",
+      "error": "",
+      "foreign_part_numbers": [],
+      "expectations": "draft",
+      "expectation_misses": [],
+      "clean": true,
+      "input_tokens": 3599,
+      "output_tokens": 1608,
+      "run_dir": "runs/evals/20261028T161716Z/pcf8574_expander/run3"
+    }
+  ],
+  "by_board": {
+    "ams1117_regulator": {
+      "runs": 3,
+      "passed": 0,
+      "first_pass": 0,
+      "clean": 0,
+      "model_errors": 0,
+      "stages": {
+        "pin_binding": 3
+      },
+      "pass_rate": 0.0,
+      "clean_rate": 0.0,
+      "clean_majority": false
+    },
+    "at24c02_eeprom": {
+      "runs": 3,
+      "passed": 3,
+      "first_pass": 3,
+      "clean": 3,
+      "model_errors": 0,
+      "stages": {
+        "none": 3
+      },
+      "pass_rate": 1.0,
+      "clean_rate": 1.0,
+      "clean_majority": true
+    },
+    "led_indicator": {
+      "runs": 3,
+      "passed": 3,
+      "first_pass": 3,
+      "clean": 3,
+      "model_errors": 0,
+      "stages": {
+        "none": 3
+      },
+      "pass_rate": 1.0,
+      "clean_rate": 1.0,
+      "clean_majority": true
+    },
+    "mcp9808_breakout": {
+      "runs": 3,
+      "passed": 3,
+      "first_pass": 3,
+      "clean": 3,
+      "model_errors": 0,
+      "stages": {
+        "none": 3
+      },
+      "pass_rate": 1.0,
+      "clean_rate": 1.0,
+      "clean_majority": true
+    },
+    "pcf8574_expander": {
+      "runs": 3,
+      "passed": 3,
+      "first_pass": 3,
+      "clean": 3,
+      "model_errors": 0,
+      "stages": {
+        "none": 3
+      },
+      "pass_rate": 1.0,
+      "clean_rate": 1.0,
+      "clean_majority": true
+    }
+  },
+  "totals": {
+    "model_errors": 0,
+    "design_failures": 3,
+    "by_stage": {
+      "none": 12,
+      "pin_binding": 3
+    },
+    "model_retries": 0,
+    "boards": 15,
+    "passed": 12,
+    "first_pass": 12,
+    "aborted": 0,
+    "errors": 0,
+    "clean": 12,
+    "pass_rate_first": 0.8,
+    "pass_rate_after_retry": 0.8,
+    "foreign_part_numbers": 0,
+    "input_tokens": 112114,
+    "output_tokens": 23674
+  },
+  "go_no_go": {
+    "decision": "undecided",
+    "reason": "5 eval(s) still draft: ams1117_regulator, at24c02_eeprom, led_indicator, mcp9808_breakout, pcf8574_expander"
+  }
+}
