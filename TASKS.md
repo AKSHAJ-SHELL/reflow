@@ -142,7 +142,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
-| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | doing (5 drafts; the 4 IC boards have a rules.toml [[part]] symbol for V-12, checked against KiCad; awaiting human check) |
+| E-02 | Eval prompt set (≥5 boards, with hand-written expectations) | — | `evals/*.toml` | each prompt has expected nets/parts | — | AGENT→HUMAN (O-1: agent drafts, human checks every expectation) | done (10-31: the human checked all 5; `status = "checked"` in each `expected.toml`) |
 | E-01 | Eval runner + metrics (first-pass vs post-retry pass rate, hallucinated-part rate, tokens) | E-02 | `evals/results/*.json` | reproducible with a fixed seed/model | H-07 | AGENT | done (10-21); records model, commit, tsci, parts snapshot; providers aren't seeded, so runs vary. 10-22: failing stage per board, model-call retries counted apart from design failures, `--repeat N` with per-board rates, prompt hashes |
 | D-02 | Demo recording (simple board end to end + honest stop on a harder one) | v1 | video | real runs, no staged failures | v1 | HUMAN | todo (10-31) |
 
