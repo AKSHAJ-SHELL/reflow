@@ -4,11 +4,7 @@ Each folder is one board the harness must design. The go/no-go (TASKS.md):
 `reflow design` produces a verifier-clean compiled board within 3 attempts on
 at least 3 of 5, with zero part numbers outside the resolver.
 
-**All five are drafts** (DECISIONS O-1): the agent wrote them, and nothing
-here counts until a person has checked every line of `expected.toml` against
-the datasheets, then set `status = "checked"` and filled `checked_by`. Lines
-marked `TO CHECK` haven't been verified by anyone; MCP9808's cite pages that
-were read (DS20005095B).
+**All five were drafted by an agent and checked by a person on 2026-10-31** (DECISIONS O-1): `status = "checked"` and `checked_by` are set in each `expected.toml`.
 
 | Folder | Named part | Tests |
 |---|---|---|

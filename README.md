@@ -33,7 +33,7 @@ Anything marked planned doesn't exist yet. If you know more than I do, correctio
 | `reflow report` | Writes up every attempt, error and sign-off | works |
 
 **What has actually been tested:**
-- **Eval, 2026-10-28:** 5 simple boards × 3 runs, on one model (Sonnet, through Claude Code). 12 of 15 runs gave a verifier-clean board on the first attempt, with 0 part numbers from outside the resolver. The AMS1117 regulator failed all 3. I wrote these boards and the agent drafted their expected results, which nobody has fully checked, so the eval's own go/no-go still says `undecided`. It's a progress check, not a benchmark. The results: [evals/results/20261028T161716Z.json](evals/results/20261028T161716Z.json).
+- **Eval, 2026-10-28:** 5 simple boards × 3 runs, on one model (Sonnet, through Claude Code). 12 of 15 runs gave a verifier-clean board on the first attempt, with 0 part numbers from outside the resolver. The AMS1117 regulator failed all 3. An AI agent drafted the boards' expected results and I checked them on 2026-10-31, after this run, so this run's file still says `undecided`. It's a progress check on simple boards I chose, not a benchmark. The results: [evals/results/20261028T161716Z.json](evals/results/20261028T161716Z.json).
 - **One real run through the TUI, 2026-11-06:** an INA226 power monitor ([boards/opi-power-demo](boards/opi-power-demo)). It went from a prompt to a verifier-clean schematic on the first attempt, with 0 KiCad ERC violations, and an electrical mentor looked over the schematic informally. It hasn't been routed, exported or built, and its `rules.toml` wasn't enforced (see Limits).
 - **No board designed by reflow has been fabricated and tested yet.**
 
