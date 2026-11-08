@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(source "/Users/akshaj/Desktop/reflow/fixtures/bad_no_pullups/bad_no_pullups.kicad_sch")
+		(source "fixtures/bad_no_pullups/bad_no_pullups.kicad_sch")
 		(date "2026-10-10T00:45:45")
 		(tool "Eeschema 10.0.5")
 		(sheet

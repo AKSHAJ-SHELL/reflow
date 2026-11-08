@@ -1285,11 +1285,11 @@ Did: drafted `docs/proposals/P-07-library-parts-source.md` at the human's reques
 - Added a P-07 row to TASKS.md (proposed). No code changed.
 
 ## 2026-11-08 · agent (Claude) · pre-share cleanup, at the human's instruction
-Did: the human asked to remove the club board and everything naming another tool, put every risk and limit in the README, say the project grows with what they learn, and merge to main.
-- **Removed:** `fixtures/real_good`, `fixtures/real_series_cap`, `docs/reflow-harness-plan.pdf` (unreferenced; named both). The human told the agent to; fixtures are otherwise HUMAN-only.
+Did: the human asked to remove a club board and everything naming a commercial tool or the project's old name, put every risk and limit in the README, say the project grows with what they learn, and merge to main.
+- **Removed:** the two real-board fixtures, `docs/reflow-harness-plan.pdf` (unreferenced; named both). The human told the agent to; fixtures are otherwise HUMAN-only.
 - **Coverage lost:** `test_kicad_board_groups_pads_like_its_schematic` is gone. It needed a real KiCad layout and the other fixtures' `.kicad_pcb` files have 0 pads. tscircuit-exported layouts are still checked. `decoupling.series` is still covered by `bad_series_cap`. Suite: 865 → 856, the 9 being that test and the 2 boards' fixture cases.
 - **Reworded older text:** names were removed from earlier PROGRESS.md entries and NOTES.md, an exception to append-only that the human asked for. The source paths in 4 fixture `.net` files were shortened.
-- **No `reflow/` folder exists** on main, shashi or disk. It's only in git history, as are the club boards. History wasn't rewritten.
+- **The old package folder doesn't exist** on main, shashi or disk. It's only in git history, as are the removed boards. History wasn't rewritten.
 - **README rewritten:** limits, risks, all commands, what has really been tested. "Open-source" is gone from it and from pyproject because there's no LICENSE yet (Z-03, HUMAN).
 - **TASKS.md:** Z-01, Z-02, H-05, H-06, M-01, M-02, K-01, K-02, T-01 updated after checking the code. **Blocked list** annotated.
 - **Dead-code scan (vulture, ruff; nothing removed):** no unreferenced modules. Unused: `RouteResult` import in `reflow/cli.py:536`, 11 imports and 1 local in tests. `format_compile_errors` is used only by tests. `route.route()` is a stub for X-02. The FastAPI and Textual "unused" hits are false positives.

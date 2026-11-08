@@ -432,7 +432,7 @@ block than to merge two.
 | 4 | The remaining entries: `decoupling.missing`, `i2c.*`, `address.floating`, `pinout.*` | HUMAN | Block 3's test passes |
 | 5 | Grounder | HUMAN | On `fixtures/bad_series_cap`: the "why" segment equals `Violation.why` byte for byte and is `verified`; a citation from `rules.toml` is `cited`; no segment is `unverified`; an entry with no citations yields the "No source cited" segment |
 | 6 | Session state machine (pure functions, no I/O) | HUMAN | The answer isn't obtainable before `answer` or `ask_for_answer`; `apply` raises without `approve`; `declined` can't become `approved` without a new proposal; every transition is recorded |
-| 7 | ViolationSource, check mode (`reflow check --json` → steps) | AGENT | `fixtures/bad_series_cap`, `bad_no_pullups`, `bad_floating_addr` each give exactly their rule's steps; `real_good` gives none |
+| 7 | ViolationSource, check mode (`reflow check --json` → steps) | AGENT | `fixtures/bad_series_cap`, `bad_no_pullups`, `bad_floating_addr` each give exactly their rule's steps; `sensor_good` gives none |
 | 8 | ViolationSource, run mode (first failed attempt, root cause first) | AGENT | A `tests/data/real_runs/` folder with a `pinout.mismatch` puts it first and marks the consequences |
 | 9 | Reasoning-note renderer | AGENT | Golden file; re-render is byte-identical; frontmatter parses with `vault._read_note`; links are path links that exist after block 10 |
 | 10 | Session, rule and source notes + concept/board links | AGENT | `Vault.graph()` has the new kinds and edges; a `../` board name is refused; a second run with the same input changes no bytes |

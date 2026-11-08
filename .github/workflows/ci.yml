@@ -95,9 +95,9 @@ jobs:
           python -m venv /tmp/wheel-env
           /tmp/wheel-env/bin/pip install dist/*.whl
           cd /tmp
-          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/real_good"
+          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/sensor_good"
           set +e
-          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/real_series_cap"
+          /tmp/wheel-env/bin/reflow check "$GITHUB_WORKSPACE/fixtures/bad_series_cap"
           code=$?
           set -e
           test "$code" -eq 1

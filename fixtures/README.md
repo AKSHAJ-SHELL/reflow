@@ -8,7 +8,7 @@ pin_net  = { "U1.4" = "GND" }           # optional hand-checked nets
 same_net = [["J1.2", "U1.1"]]           # optional
 ```
 
-Good: `blinky_good`, `sensor_good`, `real_good` (real board). Bad (one planted bug each): `bad_series_cap`, `bad_no_pullups`, `bad_floating_addr`, `real_series_cap` (real board, original bug restored).
+Good: `blinky_good`, `sensor_good`. Bad (one planted bug each): `bad_series_cap`, `bad_no_pullups`, `bad_floating_addr`.
 
 **Make one:** `tools/new_fixture.sh <src> <dst>`, open via the `.kicad_pro`, plant one bug, write `expected.toml`.
 

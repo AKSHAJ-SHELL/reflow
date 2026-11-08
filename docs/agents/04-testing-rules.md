@@ -9,4 +9,4 @@
 7. **No network in tests.** Use recorded responses (fixtures under `tests/data/`) for API clients and model adapters.
 8. **Fakes over mocks for the harness:** a fake model that returns scripted TSX and a fake compiler that returns scripted `CompileResult`s.
 9. Tests that need KiCad skip cleanly when `kicad-cli` is missing (see `tests/test_cli.py`); pure-Python tests never need it.
-10. Real-board fixtures (`club_*`) are the strongest evidence; never remove them.
+10. Real-board fixtures are the strongest evidence. Only the human removes one.

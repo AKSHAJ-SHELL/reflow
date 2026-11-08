@@ -2,29 +2,23 @@
 
 The gerbers are made from the .kicad_pcb, so V-1 (d) compares its pad nets
 with the circuit.json netlist (that comparison is V-13, HUMAN). Here the
-reader is checked three ways:
+reader is checked two ways:
 
 - tscircuit's export (tests/data/circuit_json/*.kicad_pcb, recorded in the
   same tsci 0.0.2768 run as the .circuit.json beside it) groups pads exactly
   as circuit.json groups pins. Unnamed nets carry different names in the two
   files, so groups are compared, not names.
-- A real KiCad 10 board (fixtures/real_good, read only) groups pads exactly
-  as its own schematic netlist does. Needs kicad-cli; skips without it.
 - Hand-written snippets cover both net syntaxes and the error cases.
 """
-import shutil
 from pathlib import Path
 
 import pytest
 
 from reflow.circuit_netlist import load_circuit_json
-from reflow.cli import export_netlist, find_kicad_cli
-from reflow.netlist import load_netlist
 from reflow.pcb_nets import PcbNetsError, load_pcb_pad_nets
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "tests" / "data" / "circuit_json"
-club = ROOT / "fixtures" / "real_good"
 
 
 def _pad_groups(pads: dict[tuple[str, str], str]) -> set[frozenset]:
@@ -72,15 +66,6 @@ def test_tscircuit_pcb_pad_nets_match_the_traces():
 def test_tscircuit_pcb_groups_pads_like_circuit_json(board):
     pads = load_pcb_pad_nets(DATA / f"{board}.kicad_pcb")
     nl = load_circuit_json(DATA / f"{board}.circuit.json")
-    assert _pad_groups(pads) == _netlist_groups(nl)
-
-
-@pytest.mark.skipif(find_kicad_cli() is None, reason="kicad-cli not found")
-def test_kicad_board_groups_pads_like_its_schematic(tmp_path):
-    pads = load_pcb_pad_nets(club / "real_good.kicad_pcb")
-    sch = next(club.glob("*.kicad_sch"))
-    nl = load_netlist(export_netlist(find_kicad_cli(), sch, tmp_path / "board.net"))
-    assert len(pads) == 29
     assert _pad_groups(pads) == _netlist_groups(nl)
 
 

@@ -1,7 +1,7 @@
 (export
 	(version "E")
 	(design
-		(source "/Users/akshaj/Desktop/reflow/fixtures/bad_series_cap/bad_series_cap.kicad_sch")
+		(source "fixtures/bad_series_cap/bad_series_cap.kicad_sch")
 		(date "2026-10-09T16:20:30")
 		(tool "Eeschema 10.0.5")
 		(sheet

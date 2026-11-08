@@ -59,7 +59,7 @@ Legend: **orange** = human checkpoint · **blue** = LLM · **green** = determini
 | Command | Who it's for | Flow |
 |---|---|---|
 | `reflow design "MCP9808 temp board, I²C, USB powered"` | Anyone who wants a board | Full loop above, learn mode mandatory |
-| `reflow check board.kicad_sch` | People with their own KiCad boards (incl. another tool exports) | Verifier only, plain report with `why` text |
+| `reflow check board.kicad_sch` | People with their own KiCad boards | Verifier only, plain report with `why` text |
 
 ---
 
@@ -282,7 +282,7 @@ Planned additions: `reflow/cli.py`, `reflow/harness.py`, `reflow/resolver/`, `re
 - **Labels** live in `expected.toml` (`violations = [...]`) for now. A folder-name convention (`<rule_id>__<desc>`) is an option to remove even that.
 - **Invariant tests** run on any KiCad project with no labels: every pin on exactly one net, no unannotated references.
 - **Fail-on-purpose:** every new rule is checked once by short-circuiting `check()` and confirming its fixture goes red.
-- **Real-world gate:** the actual club board must be flagged for `decoupling.series`.
+- **Real-world gate:** a real board with a series-cap bug must be flagged for `decoupling.series`.
 - **Later:** mutation-generated bad boards (labels correct by construction) to scale the benchmark to 30–50 boards; user-submitted "dead boards" become new fixtures.
 
 ---
@@ -309,9 +309,9 @@ Planned additions: `reflow/cli.py`, `reflow/harness.py`, `reflow/resolver/`, `re
 | When | Deliverable | Gate |
 |---|---|---|
 | ✅ Weekend 1 | Loop works end to end (blinky from text) | Compiles, passes checks, fixes a planted failure |
-| **Weekend 2 (now)** | Remaining rules + part resolver | All fixtures exact; club flagged; fake MPN rejected |
+| **Weekend 2 (now)** | Remaining rules + part resolver | All fixtures exact; a real series-cap board flagged; fake MPN rejected |
 | Weekend 3 | Routing, outputs, spec checkpoint, sign-off, learn mode v0.1, README, launch | A stranger gets DRC-clean fab files from one sentence |
-| Launch extras | another tool head-to-head (published as-is), one fabbed reflow board working on video | — |
+| Launch extras | one fabbed reflow board working on video | — |
 | v0.2+ | Datasheet profiles, break-it sim, vault, self-improvement, explore UI, Ornith comparison | — |
 
 ---
