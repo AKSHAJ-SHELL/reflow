@@ -40,7 +40,7 @@ were read (DS20005095B).
 reflow eval            # all boards; --only NAME to pick, --out DIR for results
 ```
 
-Needs `REFLOW_API_KEY`, a `base_url` in `reflow.toml`, and `reflow parts update` run once. Each board's run folder goes under `runs/evals/<stamp>/`, and the summary goes to `evals/results/<stamp>.json`.
+Needs a model (`REFLOW_PROVIDER=claude-code` on your login, or an API key; see [SETUP.md](../SETUP.md#3-a-model)) and `reflow parts update` run once. Each board's run folder goes under `runs/evals/<stamp>/`, and the summary goes to `evals/results/<stamp>.json`.
 
 Per board the summary has:
 - status and attempts, and whether it passed on the first attempt;
@@ -48,4 +48,4 @@ Per board the summary has:
 - expectation misses, checked on the board's netlist;
 - tokens.
 
-The go/no-go stays `undecided` while any eval is a draft. Pin binding (V-12) isn't built, so the decoupling rules don't run, and IC pin names in the expectation check are the design's own labels; the results record `pin_binding`.
+The go/no-go stays `undecided` while any eval is a draft. [results/20261028T161716Z.json](results/20261028T161716Z.json) is the run the main README quotes (12 of 15 first-pass clean); the local path to the parts database has been shortened to `~`.

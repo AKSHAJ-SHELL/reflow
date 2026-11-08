@@ -11,13 +11,18 @@
 | `pinbind.py` | V-12 pin binding: identify each IC by a resolved part number, relabel and type its pins from a trusted pin map by physical number, report `pinout.mismatch` / `.unidentified` / `.no_pin_map` | AGENT under O-1b (human review pending) | working |
 | `violation.py` | The `Violation` dataclass every rule returns | HUMAN | working |
 | `contracts.py` | Data types for every stage boundary + strict `from_dict` | AGENT (changes via DECISIONS.md) | working |
-| `cli.py` | `reflow check`, and `reflow design` wired to config (model), `compile_board`, catalog + resolver, and the design verifier | AGENT | working; pin binding waits on V-12 |
+| `cli.py` | Every `reflow` command | AGENT | working |
 | `llm.py` | One `complete(system, prompt)` interface over providers (anthropic, openai, openai-compatible); reply budget from config `max_tokens`; a cut-off reply raises | AGENT (M-01, M-03) | working |
-| `compile.py` | tscircuit TSX → KiCad via `tsci` | AGENT | stub (K-01) |
-| `route.py` | 2-layer routing + our own re-DRC | AGENT | stub (X-01) |
-| `export.py` | Gerbers, drill, pos, BOM, report | AGENT | stub (O-01) |
-| `rules/` | Verifier rules | HUMAN | 3 files, 5 rule IDs |
-| `parts/` | Part catalog + resolver | catalog AGENT, resolver HUMAN | stub |
-| `harness/` | The design loop | HUMAN core | not built |
+| `compile.py` | tscircuit TSX → circuit.json and `.kicad_pcb` via `tsci`; compile errors parsed for the fix prompt | AGENT (K-01, K-02) | working |
+| `route.py` | Checks tscircuit's routing with our own KiCad DRC | AGENT (X-01, X-04) | working |
+| `export.py` | Gerbers, drill, placement, BOM and report; refuses unless verify, routing, DRC and sign-off all pass | AGENT (O-01) | working |
+| `schematic.py` | Draws our own KiCad schematic from the verified board, for ERC and export | AGENT (O-04) | working |
+| `report.py` | `report.md` and `report.json` for a run | AGENT | working |
+| `claude_code.py` | Model calls through the `claude` CLI on your login | AGENT | working |
+| `tui/` | `reflow tui`: the guided front door | AGENT (T-01) | working; one full real run |
+| `learn/` | `reflow learn`: spot-the-bug, fix-it, simulations, sign-off | AGENT, selection and testbenches awaiting human review | working |
+| `rules/` | Verifier rules | HUMAN | 3 files, 5 rule IDs + draft `i2c.pullup_rail` |
+| `parts/` | Parts catalog (local JLCPCB snapshot), resolver, pin maps | catalog AGENT, resolver HUMAN | working; P-02b awaiting human review |
+| `harness/` | The design loop | HUMAN core | working |
 
 **Contract:** data between stages is always a `contracts.py` type. **Never:** import GPL/AGPL code; read raw KiCad files into an LLM prompt.
