@@ -186,3 +186,33 @@ def test_binder_for_spec_without_any_source_reports_no_pin_map(monkeypatch):
     circuit = REAL / "circuit.json"
     result = binder_for_spec(_spec(rules_file=""))(load_circuit_json(circuit), _parts(), _spec(), part_numbers(circuit))
     assert [v.rule_id for v in result.violations] == ["pinout.no_pin_map"]
+
+
+# ---------------------------------------------------------------------------
+# selector-safe labels (2026-11-14): the codegen prompt gives "SDO_ADDR" for
+# KiCad's "SDO/ADDR", because tscircuit can't select ".U1 > .SDO/ADDR"
+# ---------------------------------------------------------------------------
+
+def _odd_binder():
+    from reflow.contracts import CardPin, Citation
+    from reflow.parts.pinmap import PinMap
+
+    names = ["Vdd_I/O", "SDO/ADDR", "Vin+", "Vin-"]
+    pin_map = PinMap(part="X", package="X", pins=[CardPin(str(n), name, "io") for n, name in enumerate(names, 1)],
+                     source=Citation("test", "test"))
+    return PinBinder(lambda ref, part: pin_map)
+
+
+def test_the_selector_safe_label_of_the_right_pin_is_not_a_mismatch():
+    chip = _chip({"1": "Vdd_I_O", "2": "SDO_ADDR", "3": "Vin_P", "4": "Vin_N"})
+    result = _odd_binder()(chip, _parts(), _spec(), {"U1": {"mpn": "MCP9808T-E/MS", "lcsc": ["C129490"]}})
+    assert result.violations == []
+    assert result.netlist.components["U1"].pins["2"].name == "SDO/ADDR"
+
+
+def test_a_safe_label_on_the_wrong_pin_is_still_a_mismatch_and_the_hint_uses_safe_labels():
+    chip = _chip({"1": "SDO_ADDR", "3": "Vin_N"})
+    result = _odd_binder()(chip, _parts(), _spec(), {"U1": {"mpn": "MCP9808T-E/MS", "lcsc": ["C129490"]}})
+    assert [v.rule_id for v in result.violations] == ["pinout.mismatch", "pinout.mismatch"]
+    assert 'pin1: "Vdd_I_O"' in result.violations[0].fix_hint
+    assert 'pin3: "Vin_P"' in result.violations[1].fix_hint

@@ -100,6 +100,18 @@ def base_name(name: str) -> str:
     """Name used to compare sources: before the first '-', upper case."""
     return name.split("-", 1)[0].strip().upper()
 
+def pin_label(name: str) -> str:
+    """A pin name a tscircuit selector can use: letters, digits and underscores.
+
+    KiCad names like "SDO/ADDR" or "Vin+" break `.U1 > .SDO/ADDR`; tsci then can't
+    find the port and the attempt fails to compile. A trailing + or - becomes _P / _N
+    so "Vin+" and "Vin-" stay different. Pin binding (V-12) goes by pin number, so
+    the label is only for the model's selectors.
+    """
+    text = re.sub(r"\+$", "_P", re.sub(r"-$", "_N", name.strip()))
+    text = re.sub(r"_+", "_", re.sub(r"[^A-Za-z0-9_]+", "_", text)).strip("_")
+    return text or "pin"
+
 
 def import_pin_map(mpn: str, *, st_dir=None, kicad_lib_id: str | None = None,
                    symbols_dir=None) -> PinImport:
