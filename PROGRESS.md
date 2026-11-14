@@ -1310,3 +1310,11 @@ Did: a live pre-demo run of the ADXL343 breakout ended `failed_compile`.
 - **First try** fixed compiling but made attempt 1 fail `pinout.mismatch` on 3 of 3 runs, because binding didn't recognise the safe labels. The binding change fixed that.
 - Two existing asserts in `tests/test_rules_prompt.py` now expect the new rule-line format (`U1.VDD (pin8): …`); they still check the whole line.
 - **Real runs after the fix:** ADXL343 breakout 3 of 3 passed on attempt 1 (33–45 s); INA226 + ADXL343 passed on attempt 1 (82 s); ERC 0 errors each.
+
+## 2026-11-14 · agent (Claude) · T-01: several datasheets in one project
+Did: the human asked for the upload field to take more than one file, for an INA226 + ADXL343 board.
+- **Upload:** drop or type several PDFs at once: quoted, backslash-escaped, file:// URLs, one per line, or comma-separated. A later upload adds to the ones already there, and the same file again is refreshed in place. If any file is bad, none is uploaded.
+- **Saved state:** `State.datasheets` lists each `{pdf, text}`. A project saved with the old single `datasheet` still loads it.
+- **Helper:** it's told every datasheet and its text copy. `prompts/tui-agent.md` now says "datasheets", which is draft prompt text awaiting human review.
+- **Tried for real:** dropping the INA226 and ADXL343 PDFs together made both text copies (41 and 35 pages). The real helper answered from both, citing INA226 p.31 and ADXL343 p.28. The scratch folder was deleted afterwards.
+- Failing tests came first (10).

@@ -265,3 +265,29 @@ def test_the_plan_buttons_stay_reachable_with_many_questions(tmp_path):
                 assert main.region.contains_region(app.query_one(button).region), button
 
     asyncio.run(walk())
+
+
+def test_dropping_two_pdfs_uploads_both_and_the_agent_is_told_both(tmp_path):
+    pytest.importorskip("pypdf")
+    from test_tui_project import _pdf
+
+    a = _pdf(tmp_path / "ina226.pdf", ["Bypass VS with 0.1 uF"])
+    b = _pdf(tmp_path / "adxl343.pdf", ["CS high selects I2C"])
+    project = tmp_path / "board"
+    project.mkdir()
+    app = ReflowApp(project, chat=FakeChat(), planner=FakePlanner())
+    app.project.start("INA226 + ADXL343", ["INA226AIDGSR", "ADXL343BCCZ-RL7"])
+
+    async def walk():
+        async with app.run_test(size=(160, 60)) as pilot:
+            app.query_one("#datasheet-path", Input).value = f"{a} {b}"       # dropped together
+            await pilot.pause()
+            assert app.query_one("#steps", ContentSwitcher).current == "plan"
+            log = app.query_one("#chat-log", RichLog)
+            assert any("ina226.pdf" in line.text for line in log.lines)
+            assert any("adxl343.pdf" in line.text for line in log.lines)
+            system = app._chat_session().system
+            assert "./ina226.pdf" in system and "./adxl343.pdf" in system
+            assert "./ina226.txt" in system and "./adxl343.txt" in system
+
+    asyncio.run(walk())

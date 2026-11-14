@@ -105,7 +105,7 @@ mkdir -p ~/boards/my-board && cd ~/boards/my-board && reflow tui
 The screen walks you through it, with an AI helper on the right you can ask anything:
 
 1. **Say what you want,** and type the exact part number of the main chip. reflow never picks one for you.
-2. **Drag in the chip's datasheet PDF.** The helper can then search it and cite pages.
+2. **Drag in each chip's datasheet PDF.** Several at once is fine, and a later upload adds to them. The helper can then search them all and cite pages.
 3. **Draft the plan** and answer its questions. Press **Re-plan with my answers** until it's right, then **Accept plan**.
 4. **Write your `rules.toml`:** one rule for each thing the datasheet asks for. reflow gives you a template and checks it. Ask the helper if a section confuses you.
 5. **Run the design.** The AI gets up to 3 attempts.

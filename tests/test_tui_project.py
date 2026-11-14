@@ -356,3 +356,81 @@ def test_a_moved_project_starts_a_new_agent_chat(tmp_path):
     assert Project(old).saved_chat() == ("0b0c5b9e-6f47-4b52-9d62-1f0a9c9b2a11", True)
     old.rename(tmp_path / "new")
     assert Project(tmp_path / "new").saved_chat() == ("", False)
+
+
+# ---------------------------------------------------------------------------
+# several datasheets (2026-11-14: a board with an INA226 and an ADXL343 needs both)
+# ---------------------------------------------------------------------------
+
+def _two_pdfs(tmp_path):
+    folder = tmp_path / "My Datasheets"
+    folder.mkdir()
+    a = _pdf(folder / "INA226 (rev B).pdf", ["Bypass VS with 0.1 uF"])
+    b = _pdf(folder / "adxl343.pdf", ["CS high selects I2C", "1 uF on VS"])
+    return a, b
+
+
+def _esc(p):
+    return str(p).replace(" ", "\\ ").replace("(", "\\(").replace(")", "\\)")
+
+
+@pytest.mark.parametrize("how", ["quoted", "escaped", "urls", "lines", "commas"])
+def test_several_dragged_paths_are_understood(tmp_path, how):
+    pytest.importorskip("pypdf")
+    from urllib.parse import quote
+
+    from reflow.tui.project import dropped_paths
+
+    a, b = _two_pdfs(tmp_path)
+    text = {"quoted": f"'{a}' '{b}'", "escaped": f"{_esc(a)} {_esc(b)}",
+            "urls": f"file://{quote(str(a))} file://{quote(str(b))}", "lines": f"{a}\n{b}\n",
+            "commas": f"{a}, {b}"}[how]
+    assert dropped_paths(text) == [a, b]
+    assert dropped_paths(str(a)) == [a]                    # one path with spaces, typed plainly
+    assert dropped_paths("just some words") == []
+
+
+def test_several_datasheets_upload_together_each_with_a_text_copy(tmp_path):
+    pytest.importorskip("pypdf")
+    a, b = _two_pdfs(tmp_path)
+    project = _started(tmp_path / "board")
+    copied = project.add_datasheets(f"{_esc(a)} {_esc(b)}")
+    assert [p.name for p in copied] == ["INA226 (rev B).pdf", "adxl343.pdf"]
+    assert project.stage == "plan"
+    again = Project(tmp_path / "board")
+    assert again.datasheets() == [("INA226 (rev B).pdf", "INA226 (rev B).txt"), ("adxl343.pdf", "adxl343.txt")]
+    assert (tmp_path / "board" / "adxl343.txt").read_text().count("=== page ") == 2
+
+
+def test_a_later_upload_adds_to_the_datasheets_already_there(tmp_path):
+    pytest.importorskip("pypdf")
+    a, b = _two_pdfs(tmp_path)
+    project = _started(tmp_path / "board")
+    project.add_datasheet(a)
+    project.back()
+    project.add_datasheet(b)
+    assert [pdf for pdf, _ in project.datasheets()] == ["INA226 (rev B).pdf", "adxl343.pdf"]
+    project.back()
+    project.add_datasheet(a)                                # the same file again: no duplicate
+    assert [pdf for pdf, _ in project.datasheets()] == ["INA226 (rev B).pdf", "adxl343.pdf"]
+
+
+def test_one_bad_file_among_several_uploads_none(tmp_path):
+    pytest.importorskip("pypdf")
+    a, _ = _two_pdfs(tmp_path)
+    notes = tmp_path / "notes.pdf"
+    notes.write_text("not a pdf")
+    project = _started(tmp_path / "board")
+    with pytest.raises(ProjectError, match="notes.pdf isn't a PDF"):
+        project.add_datasheets(f"'{a}' '{notes}'")
+    assert project.datasheets() == [] and project.stage == "datasheet"
+    assert not (tmp_path / "board" / "INA226 (rev B).pdf").exists()
+
+
+def test_a_project_saved_with_one_datasheet_still_has_it(tmp_path):
+    board = tmp_path / "board"
+    (board / ".reflow").mkdir(parents=True)
+    (board / ".reflow" / "tui.json").write_text(
+        '{"request": "x", "part_numbers": ["INA226AIDGSR"], "datasheet": "ina226.pdf", '
+        '"datasheet_text": "ina226.txt", "stage": "plan"}')
+    assert Project(board).datasheets() == [("ina226.pdf", "ina226.txt")]

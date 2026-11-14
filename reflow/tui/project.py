@@ -71,6 +71,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 import tomllib
@@ -99,6 +100,7 @@ class State:
     part_numbers: list[str] = field(default_factory=list)
     datasheet: str = ""
     datasheet_text: str = ""
+    datasheets: list[dict] = field(default_factory=list)   # [{"pdf", "text"}], one per chip; datasheet is the first
     stage: str = "request"
     questions: list[dict] = field(default_factory=list)
     runs: list[str] = field(default_factory=list)
@@ -198,26 +200,47 @@ class Project:
         self._go(stage)
         return stage
 
+    def datasheets(self) -> list[tuple[str, str]]:
+        """Every uploaded datasheet as (pdf, text copy) names in the project folder, in upload order."""
+        if self.state.datasheets:
+            return [(d["pdf"], d.get("text", "")) for d in self.state.datasheets]
+        return [(self.state.datasheet, self.state.datasheet_text)] if self.state.datasheet else []
+
     def add_datasheet(self, pdf) -> Path:
-        if not str(pdf).strip():
-            kept = self.root / self.state.datasheet if self.state.datasheet else None
-            if kept is not None and kept.is_file():
-                self._go("plan")                  # back at this step after uploading: keep it
+        return self.add_datasheets(pdf)[0]
+
+    def add_datasheets(self, text) -> list[Path]:
+        """Upload one or more PDFs (dropped together, or typed). A later upload adds to the ones already here."""
+        if not str(text).strip():
+            kept = [self.root / pdf for pdf, _ in self.datasheets() if (self.root / pdf).is_file()]
+            if kept:
+                self._go("plan")                  # back at this step after uploading: keep them
                 return kept
             raise ProjectError("Drag the datasheet PDF into the window, or type its path")
-        source = dropped_path(str(pdf)) or Path(str(pdf).strip()).expanduser()
-        if not source.is_file():
-            raise ProjectError(f"{source} isn't a file")
-        with source.open("rb") as f:
-            if f.read(5) != b"%PDF-":
-                raise ProjectError(f"{source.name} isn't a PDF")
-        dest = self.root / source.name
-        if source.resolve() != dest.resolve():
-            shutil.copyfile(source, dest)
-        self.state.datasheet = dest.name
-        self.state.datasheet_text = _text_copy(dest)
+        sources = dropped_paths(str(text)) or [Path(str(text).strip()).expanduser()]
+        for source in sources:                    # check every file before copying any
+            if not source.is_file():
+                raise ProjectError(f"{source} isn't a file")
+            with source.open("rb") as f:
+                if f.read(5) != b"%PDF-":
+                    raise ProjectError(f"{source.name} isn't a PDF")
+        entries = [{"pdf": pdf, "text": txt} for pdf, txt in self.datasheets()]
+        copied = []
+        for source in sources:
+            dest = self.root / source.name
+            if source.resolve() != dest.resolve():
+                shutil.copyfile(source, dest)
+            entry = {"pdf": dest.name, "text": _text_copy(dest)}
+            names = [e["pdf"] for e in entries]
+            if dest.name in names:
+                entries[names.index(dest.name)] = entry   # the same file again: refresh it in place
+            else:
+                entries.append(entry)
+            copied.append(dest)
+        self.state.datasheets = entries
+        self.state.datasheet, self.state.datasheet_text = entries[0]["pdf"], entries[0]["text"]
         self._go("plan")
-        return dest
+        return copied
 
     # --- 2. plan ----------------------------------------------------------------
 
@@ -388,6 +411,29 @@ class Project:
 
     def _spec(self) -> Spec:
         return from_dict(Spec, json.loads(self.spec_path.read_text(encoding="utf-8")))
+
+
+def dropped_paths(text: str) -> list[Path]:
+    """Every file in what was dropped or typed: one path, or several (quoted, backslash-escaped,
+    file:// URLs, one per line, or comma-separated). [] unless every piece is a file."""
+    s = text.strip()
+    if not s:
+        return []
+    one = dropped_path(s)
+    if one is not None:
+        return [one]
+    splits = [re.findall(r"file://\S+", s), s.splitlines()]
+    try:
+        splits.append(shlex.split(s))
+    except ValueError:
+        pass
+    splits.append(re.split(r"\s*,\s*", s))
+    for pieces in splits:
+        pieces = [x for x in pieces if x.strip()]
+        found = [dropped_path(x) for x in pieces]
+        if len(pieces) > 1 and all(found):
+            return found
+    return []
 
 
 def dropped_path(text: str) -> Path | None:
