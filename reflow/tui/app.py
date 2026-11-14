@@ -42,7 +42,7 @@ from reflow.config import ConfigError
 from reflow.harness.feedback import fill, load_prompt
 from reflow.llm import ModelError
 from reflow.tui.agent import ClaudeChat
-from reflow.tui.project import Draft, Project, ProjectError, dropped_path
+from reflow.tui.project import Draft, Project, ProjectError, dropped_paths
 
 TITLES = {
     "request": "1 · What do you want to build?",
@@ -55,8 +55,9 @@ TITLES = {
 GUIDE = {
     "request": "Tell me what you want to build, and type the exact part number of the main chip. "
                "I never pick a part number for you.",
-    "datasheet": "Drag the chip's datasheet PDF into this window, or type its path and press Upload. "
-                 "I'll make a text copy so the agent can search it, and I'll only use this datasheet.",
+    "datasheet": "Drag each chip's datasheet PDF into this window (several at once is fine), or type their paths "
+                 "and press Upload. I'll make a text copy of each so the agent can search them, and I'll only "
+                 "use these datasheets.",
     "plan": "Press Draft the plan. Answer any questions I ask, then accept the plan. "
             "Ask me about the datasheet any time.",
     "rules": "Now write your verifier: rules.toml, one [[rule]] for each thing the datasheet asks for. "
@@ -110,7 +111,8 @@ class ReflowApp(App):
                         yield Button("Next", id="start", variant="primary")
                     with Vertical(id="datasheet"):
                         yield Static(GUIDE["datasheet"], classes="hint")
-                        yield Input(placeholder="/path/to/datasheet.pdf", id="datasheet-path")
+                        yield Input(placeholder="/path/to/datasheet.pdf (drop several PDFs at once, or separate paths with commas)",
+                                    id="datasheet-path")
                         yield Button("Upload", id="upload", variant="primary")
                     with Vertical(id="plan"):
                         yield Static("", id="plan-summary")
@@ -161,9 +163,10 @@ class ReflowApp(App):
         self.call_after_refresh(first.focus)     # a hidden step's box must not keep the cursor
         self.query_one("#stage-title", Label).update(TITLES[stage])
         self.say("reflow", GUIDE[stage])
-        if stage == "datasheet" and self.project.state.datasheet:
-            self.say("reflow", f"You've uploaded {self.project.state.datasheet} already. Press Upload to keep it, "
-                               "or drop a different PDF.")
+        if stage == "datasheet" and self.project.datasheets():
+            names = ", ".join(pdf for pdf, _ in self.project.datasheets())
+            self.say("reflow", f"You've uploaded {names} already. Press Upload to keep them, "
+                               "or drop more PDFs to add them.")
         if stage == "rules":
             self._rules_hint()
         if stage == "check" and self.project.state.runs:
@@ -236,24 +239,26 @@ class ReflowApp(App):
             self._upload(self.query_one("#datasheet-path", Input).value)
 
     def _upload(self, text: str) -> None:
-        path = self.project.add_datasheet(text)
-        copy = self.project.state.datasheet_text
-        if copy:
-            pages = (self.project.root / copy).read_text(encoding="utf-8").count("=== page ")
-            note = f"Text copy: {copy} ({pages} pages), so the agent can search all of it and cite pages."
-        else:
-            note = "It has no text layer (a scan?), so the agent will read the PDF's pages directly."
-        self.say("reflow", f"Got it: {path.name} ({path.stat().st_size // 1024} KB), copied into the project. {note}")
+        paths = self.project.add_datasheets(text)
+        copies = dict(self.project.datasheets())
+        for path in paths:
+            copy = copies.get(path.name, "")
+            if copy:
+                pages = (self.project.root / copy).read_text(encoding="utf-8").count("=== page ")
+                note = f"Text copy: {copy} ({pages} pages), so the agent can search all of it and cite pages."
+            else:
+                note = "It has no text layer (a scan?), so the agent will read the PDF's pages directly."
+            self.say("reflow", f"Got it: {path.name} ({path.stat().st_size // 1024} KB), copied into the project. {note}")
         self.query_one("#datasheet-path", Input).value = ""
         self.show("plan")
 
     def _dropped_pdf(self, text: str) -> bool:
-        """A PDF dragged in at the datasheet step uploads at once; True when it did."""
-        path = dropped_path(text) if self.project.stage == "datasheet" else None
-        if path is None or path.suffix.lower() != ".pdf":
+        """PDFs dragged in at the datasheet step upload at once; True when they did."""
+        paths = dropped_paths(text) if self.project.stage == "datasheet" else []
+        if not paths or any(path.suffix.lower() != ".pdf" for path in paths):
             return False
         try:
-            self._upload(str(path))
+            self._upload(text)
         except ProjectError as exc:
             self.error(str(exc))
         return True
@@ -508,10 +513,12 @@ class ReflowApp(App):
 
     def _chat_session(self) -> ClaudeChat:
         state = self.project.state
+        sheets = self.project.datasheets()
         system = fill(load_prompt("{datasheet}"), {
             "board_request": state.request,
-            "datasheet": f"./{state.datasheet}" if state.datasheet else "(none uploaded yet)",
-            "datasheet_text": f"./{state.datasheet_text}" if state.datasheet_text else "(none: read the PDF)",
+            "datasheet": ", ".join(f"./{pdf}" for pdf, _ in sheets) or "(none uploaded yet)",
+            "datasheet_text": ", ".join(f"./{txt}" if txt else f"(none for {pdf}: read the PDF)"
+                                        for pdf, txt in sheets) or "(none uploaded yet)",
             "part_numbers": ", ".join(state.part_numbers) or "(none yet)",
         })
         if self._chat is None:
