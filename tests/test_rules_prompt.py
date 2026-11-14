@@ -72,7 +72,7 @@ def test_no_rules_file_is_none():
 def test_a_rules_file_is_read_and_rendered(monkeypatch):
     monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(KICAD))  # the [[part]] symbol's pin table is rendered too
     block = rules_prompt_block(_spec(rules_file=str(RULES)), _plan())
-    assert "U1.VDD: capacitor to GND, 100nF..1uF" in block
+    assert "U1.VDD (pin8): capacitor to GND, 100nF..1uF" in block   # pin table known: label + number
 
 
 def test_a_missing_rules_file_is_loud(tmp_path):
@@ -114,7 +114,7 @@ def test_codegen_prompt_carries_the_rules(tmp_path, monkeypatch):
     )
     prompt = model.prompts[0]
     assert "{project_rules}" not in prompt
-    assert "U1.VDD: capacitor to GND, 100nF..1uF" in prompt
+    assert "U1.VDD (pin8): capacitor to GND, 100nF..1uF" in prompt
     assert "U1 is the MCP9808 (plan part p1). Give it reference U1." in prompt
     assert "Recommended decoupling" not in prompt and "DS20005095B" not in prompt
 
@@ -243,3 +243,49 @@ def test_the_codegen_prompt_carries_the_pin_table(monkeypatch):
     text = _codegen_text(_spec(rules_file=str(RULES)), _plan(), ResolvedParts(resolved=[], unresolved=[]))
     assert MCP9808_LABELS in text.splitlines()
     assert "copy that line exactly" in text
+
+
+# ---------------------------------------------------------------------------
+# pin names tscircuit can select (live run 2026-11-14: the ADXL343's KiCad names
+# "SDO/ADDR" and "Vdd_I/O" went into the pin table, the model wired
+# `.U1 > .SDO/ADDR`, and tsci couldn't find the port, so the run ended failed_compile)
+# ---------------------------------------------------------------------------
+
+def _odd_pin_map():
+    from reflow.contracts import CardPin, Citation
+    from reflow.parts.pinmap import PinMap
+
+    names = ["Vdd_I/O", "SDO/ADDR", "SDA/SDI/SDIO", "Vin+", "Vin-", "GND"]
+    pins = [CardPin(str(n), name, "io") for n, name in enumerate(names, 1)]
+    return PinMap(part="X", package="X", pins=pins, source=Citation("test", "test"))
+
+
+def _odd_rules(tmp_path):
+    path = tmp_path / "rules.toml"
+    path.write_text('[[part]]\nref = "U1"\nmpn = "X"\n\n'
+                    '[[rule]]\non = "U1.SDO/ADDR"\nneed = "tie"\nto = "GND"\nsource = "s"\nwhy = "w"\n\n'
+                    '[[rule]]\non = "U1.Vdd_I/O"\nneed = "cap"\nto = "GND"\nvalue = "100nF"\nsource = "s"\nwhy = "w"\n',
+                    encoding="utf-8")
+    return load_rules(path)
+
+
+def test_pin_labels_are_names_a_tscircuit_selector_can_use(tmp_path):
+    import re
+
+    text = render_rules(_odd_rules(tmp_path), None, {"U1": _odd_pin_map()})
+    table = next(line for line in text.splitlines() if line.startswith("U1 pinLabels"))
+    assert ('pinLabels={{ pin1: "Vdd_I_O", pin2: "SDO_ADDR", pin3: "SDA_SDI_SDIO", '
+            'pin4: "Vin_P", pin5: "Vin_N", pin6: "GND" }}') in table
+    for label in re.findall(r'pin\d+: "([^"]*)"', table):
+        assert re.fullmatch(r"[A-Za-z0-9_]+", label), label
+
+
+def test_a_rule_line_names_the_same_label_and_the_pin_number(tmp_path):
+    lines = render_rules(_odd_rules(tmp_path), None, {"U1": _odd_pin_map()}).splitlines()
+    assert "U1.SDO_ADDR (pin2): wire directly to GND" in lines
+    assert "U1.Vdd_I_O (pin1): capacitor to GND, 100nF" in lines
+
+
+def test_the_codegen_prompt_says_net_names_cant_carry_plus_or_minus():
+    text = (ROOT / "prompts" / "codegen.md").read_text(encoding="utf-8")
+    assert "can't contain + or -" in text

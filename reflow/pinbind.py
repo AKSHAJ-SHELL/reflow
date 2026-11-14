@@ -45,7 +45,14 @@ from dataclasses import dataclass
 
 from reflow.contracts import ResolvedPart, ResolvedParts, Spec
 from reflow.netlist import Netlist
-from reflow.parts.pinmap import PinMap, PinMapError, base_name, from_kicad_symbol, import_pin_map
+from reflow.parts.pinmap import (
+    PinMap,
+    PinMapError,
+    base_name,
+    from_kicad_symbol,
+    import_pin_map,
+    pin_label,
+)
 from reflow.violation import Violation
 
 _PINTYPE = {
@@ -147,13 +154,15 @@ def _relabel(ref: str, component, pin_map: PinMap) -> list[Violation]:
                 [ref], [pin.net],
             ))
             continue
-        if label and not _GENERIC.fullmatch(label) and base_name(label) != base_name(known.name):
+        same = (base_name(label) == base_name(known.name)
+                or pin_label(label).casefold() == pin_label(known.name).casefold())   # "SDO_ADDR" is "SDO/ADDR"
+        if label and not _GENERIC.fullmatch(label) and not same:
             found.append(Violation(
                 "pinout.mismatch", "error",
                 f"{ref} pin {number} is labelled {label}, but {where} says pin {number} is {known.name}",
                 (f"The labels in the design decide which physical pin each trace reaches. With this label, "
                  f"{pin.net} lands on {known.name}, not on {label}."),
-                (f'Set {ref} pinLabels pin{number}: "{known.name}" and re-route the traces you meant for '
+                (f'Set {ref} pinLabels pin{number}: "{pin_label(known.name)}" and re-route the traces you meant for '
                  f"{label} to the pin the pin map gives {label}."),
                 [ref], [pin.net],
             ))

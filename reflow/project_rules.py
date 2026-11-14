@@ -56,7 +56,7 @@ from pathlib import Path
 
 from reflow.contracts import RULE_NEEDS, ContractError, ProjectRules, from_dict
 from reflow.parts.catalog import CatalogError, parse_value
-from reflow.parts.pinmap import PinMap, base_name
+from reflow.parts.pinmap import PinMap, base_name, pin_label
 
 _ON = re.compile(r"([A-Za-z]+\d+)\.(\S+)")
 _NEEDS_A_NET = {"cap", "pullup", "pulldown", "tie"}
@@ -213,8 +213,17 @@ def render_rules(rules: ProjectRules, plan, pin_maps: dict[str, PinMap] | None =
     for rule in rules.rule:
         wording = _WORDING.get(rule.need, rule.need).format(to=rule.to.strip())
         value = f", {rule.value.strip()}" if rule.value.strip() else ""
-        lines.append(f"{rule.on.strip()}: {wording}{value}")
+        lines.append(f"{_rule_pin(rule.on.strip(), pin_maps or {})}: {wording}{value}")
     return "\n".join(lines)
+
+
+
+
+def _rule_pin(on: str, pin_maps: dict[str, PinMap]) -> str:
+    """A rule's "U1.SDO/ADDR" as the pin table names it, with its number: "U1.SDO_ADDR (pin12)"."""
+    ref, _, pin_text = on.partition(".")
+    pin = _find_pin(pin_maps[ref], pin_text) if ref in pin_maps and pin_text else None
+    return f"{ref}.{pin_label(pin.name)} (pin{pin.number})" if pin is not None else on
 
 
 def rules_prompt_block(spec, plan) -> str:
@@ -229,5 +238,5 @@ def _pin_table(part, pin_map: PinMap) -> str:
     where = (f"the KiCad symbol {part.symbol.strip()}" if part.symbol.strip()
              else f"{pin_map.source.doc} {pin_map.source.locator}".strip())
     pins = sorted(pin_map.pins, key=lambda p: (not p.number.isdigit(), int(p.number) if p.number.isdigit() else 0, p.number))
-    labels = ", ".join(f'pin{p.number}: "{p.name}"' for p in pins)
+    labels = ", ".join(f'pin{p.number}: "{pin_label(p.name)}"' for p in pins)
     return f"{part.ref} pinLabels, from {where}: pinLabels={{{{ {labels} }}}}"

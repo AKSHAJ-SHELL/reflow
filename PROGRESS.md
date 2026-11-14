@@ -1299,3 +1299,14 @@ Tests: `pytest -q` → 856 passed.
 Did: removed the two real-board fixtures, the harness-plan PDF and the project's old name from every commit on every branch, using git-filter-repo.
 - **Every commit hash has changed.** Hashes cited in older entries here, in REVIEW.md and in DECISIONS.md are from before the rewrite and no longer resolve.
 - GitHub's read-only `refs/pull/1/head` can't be force-pushed, so it may still point at old commits.
+
+## 2026-11-14 · agent (Claude) · V-22a / V-12: pin names tscircuit can select
+Did: a live pre-demo run of the ADXL343 breakout ended `failed_compile`.
+- **Cause, checked:** the codegen prompt's pin table gave KiCad's names (`SDO/ADDR`, `Vdd_I/O`). The model wired `.U1 > .SDO/ADDR`, which tsci can't select. The first compile try had also used `+3V3` as a net name, so both compile tries were spent. Earlier runs passed only because the model happened to wire by pin number.
+- **Fix:**
+  - `pin_label()` (in `reflow/parts/pinmap.py`) turns a name into letters, digits and `_`, with a trailing +/- becoming `_P`/`_N`. The pin table and the rule lines use it, and each rule line now carries the pin number (`U1.SDO_ADDR (pin12)`).
+  - Pin binding accepts the safe label as the same pin, and its fix hint gives the safe label. Binding still goes by pin number.
+  - `prompts/codegen.md` says net names can't contain + or -. This prompt text awaits human review (H-08).
+- **First try** fixed compiling but made attempt 1 fail `pinout.mismatch` on 3 of 3 runs, because binding didn't recognise the safe labels. The binding change fixed that.
+- Two existing asserts in `tests/test_rules_prompt.py` now expect the new rule-line format (`U1.VDD (pin8): …`); they still check the whole line.
+- **Real runs after the fix:** ADXL343 breakout 3 of 3 passed on attempt 1 (33–45 s); INA226 + ADXL343 passed on attempt 1 (82 s); ERC 0 errors each.

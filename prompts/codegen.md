@@ -68,7 +68,7 @@ export default () => (
 
 The example omits manufacturerPartNumber and supplierPartNumbers. Add those props only by the copy rules above.
 
-Selectors follow `.R1 > .pin1`, `.D1 > .anode`, `.D1 > .cathode`, and `net.GND`. Use the plan's net names. A power rail may also be declared with a net element, for example `<net name="GND" />`.
+Selectors follow `.R1 > .pin1`, `.D1 > .anode`, `.D1 > .cathode`, and `net.GND`. Use the plan's net names, except that tscircuit net names can't contain + or -: write `+3V3` as `V3_3` and `+5V_IN` as `V5_IN`, the same way every time. A power rail may also be declared with a net element, for example `<net name="GND" />`.
 
 Wiring rules for this board:
 
