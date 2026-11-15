@@ -1318,3 +1318,15 @@ Did: the human asked for the upload field to take more than one file, for an INA
 - **Helper:** it's told every datasheet and its text copy. `prompts/tui-agent.md` now says "datasheets", which is draft prompt text awaiting human review.
 - **Tried for real:** dropping the INA226 and ADXL343 PDFs together made both text copies (41 and 35 pages). The real helper answered from both, citing INA226 p.31 and ADXL343 p.28. The scratch folder was deleted afterwards.
 - Failing tests came first (10).
+
+## 2026-11-14 · agent (Claude) · T-2 proposed: a front door anyone can use, with a live build view
+Did: wrote `docs/proposals/T-2-visual-beginner-front-door.md` after the recorded demo call. The host asked for visuals of the board being built; the human wants reflow usable with no electronics experience.
+- **Pieces:**
+  - a live build view from the real run folder (3D included, no canned animation);
+  - parts chosen by the person from a catalog search by kind, offering only parts with a trusted pin map;
+  - helper-drafted rules the person confirms, which is V-2b;
+  - suggested answers to plan questions;
+  - later, the front door in the browser.
+- **Facts checked:** the catalog has 369 accelerometers (106 in stock) and 744 current-sense amplifiers (264 in stock). `@tscircuit/3d-viewer` 0.0.651 states no license in its npm metadata, so read its repository's license file before use.
+- **Questions A–F for the human,** most importantly: R-10 before beginner rules, and a DECISIONS entry on catalog picks under golden rule 5.
+- Added T-02…T-06 to TASKS.md (proposed). No code changed.

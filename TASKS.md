@@ -96,6 +96,11 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 | ID | Goal | Inputs | Outputs | Acceptance test | Deps | Owner | Status |
 |---|---|---|---|---|---|---|---|
 | T-01 | `reflow tui`: the front door. In a project folder: prompt → upload the datasheet → ask the agent for help → answer the plan questions → you write rules.toml (checked) → design loop → `reflow check` → if it fails, KiCad + learn, then tell the agent the fix → re-run | user's request, datasheet PDF, their rules.toml | spec.json, plan.json, runs/ | tests/test_tui_*.py: the flow with a fake claude; named parts only from what the user typed; no design without a confirmed spec and a rules.toml with 0 errors; the agent only reads (Read tool) | M-04, V-21, L-10 | AGENT (prompt text AGENT→HUMAN) | done (11-06: first real run by the human, INA226 board, verifier-clean schematic on attempt 1; prompt text still awaiting human review) |
+| T-02 | Live build view: each attempt's schematic, PCB and 3D view and the verifier's violations, from the real run folder; a build-up replay labelled as one | run folder, learn server | browser tab beside the TUI | a recorded run's attempts show in order; nothing shown that the run didn't produce | T-2 accepted (B, C) | AGENT | proposed (11-14) |
+| T-03 | Parts from a description: catalog search by kind, only parts with a trusted pin map, the person picks; the pick counts as typed | local catalog, pin maps | typed part numbers | "accelerometer" lists in-stock options with KiCad symbols; the model never names a part | T-2 accepted (D), DECISIONS entry | AGENT (resolver parts HUMAN) | proposed (11-14) |
+| T-04 | Helper-drafted rules with quote and page, each confirmed by the person (V-2b, via V-23/V-24) | datasheets, rules.toml | confirmed rules | no rule without a confirmation; confirmed rules fail a board (R-10) | R-10, V-23 | AGENT→HUMAN (contract) | proposed (11-14) |
+| T-05 | Suggested answer with a one-line why for every plan question | planner | questions with suggestions | each question has one; none is a part number; one click per question | T-2 accepted (E) | AGENT (prompt AGENT→HUMAN) | proposed (11-14) |
+| T-06 | The front door in the browser (the TUI stays) | T-02…T-05 | web flow | the whole flow runs in the learn web app | T-02…T-05 | AGENT | proposed (11-14) |
 
 ## Learn mode
 
