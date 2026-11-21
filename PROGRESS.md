@@ -1330,3 +1330,10 @@ Did: wrote `docs/proposals/T-2-visual-beginner-front-door.md` after the recorded
 - **Facts checked:** the catalog has 369 accelerometers (106 in stock) and 744 current-sense amplifiers (264 in stock). `@tscircuit/3d-viewer` 0.0.651 states no license in its npm metadata, so read its repository's license file before use.
 - **Questions A–F for the human,** most importantly: R-10 before beginner rules, and a DECISIONS entry on catalog picks under golden rule 5.
 - Added T-02…T-06 to TASKS.md (proposed). No code changed.
+
+## 2026-11-21 · agent (Claude) · T-01: Accept refuses parts reflow can't look up
+Did: a real HDC1080 run stopped at Run the design with "no local catalog query for other parts yet (p6)". The planner had listed 4 mounting holes as parts, and Accept took the plan.
+- **Accept now refuses** any plan part with no typed part number in a category the catalog can't search by value (`local_catalog.BY_VALUE`: resistor, capacitor, connector). It names each part and says what to do: a hole is a board feature, so remove it; anything else needs a typed part number.
+- **`prompts/planner.md`:** holes, fiducials, test points, logos and the outline are board features, not parts. Any other kind of part needs a typed part number, so ask for one in open_questions. This is draft prompt text awaiting human review.
+- **Not checked against the real planner:** the human's Claude login had expired ("reached its time limit"), so `claude auth login` is needed.
+Tests: failing tests first (3); full suite 874 passed.

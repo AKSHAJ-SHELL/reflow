@@ -296,3 +296,9 @@ def test_codegen_asks_for_vias_whose_ring_keeps_the_hole_clear_of_tracks():
     text = _read("codegen")
     assert 'minViaPadDiameter="0.4mm"' in text
     assert '<board minViaPadDiameter="0.4mm">' in text
+
+
+def test_the_planner_knows_holes_are_not_parts_and_what_reflow_can_look_up():
+    text = _read("planner")
+    assert "board features, not parts" in text
+    assert "only resistors, capacitors and pin headers" in text
