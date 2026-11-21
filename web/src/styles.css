@@ -90,3 +90,10 @@ h3 { margin: 14px 0 6px; font-size: 16px; }
 .build-log .good { color: var(--good); }
 .build-log .bad { color: var(--bad); }
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.kicad-view { display: flex; align-items: center; justify-content: center; }
+.kicad-view img { width: 100%; height: 560px; object-fit: contain; display: block; }
+.kicad-view p { padding: 16px; }
+.kicad-pcb, .kicad-3d { background: #1b1f24; }
+.kicad-schematic { background: #f5f4ef; }
+.kicad-svg { width: 100%; }
+.kicad-svg svg { display: block; }
