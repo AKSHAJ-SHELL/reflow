@@ -389,6 +389,10 @@ class Project:
         env.setdefault("REFLOW_PROVIDER", "claude-code")
         return argv, env
 
+    def watch_command(self, run_dir: Path, pid: int) -> list[str]:
+        """`reflow watch`: the live build view (T-02), finished when the design process `pid` exits."""
+        return [sys.executable, "-m", "reflow", "watch", str(run_dir), "--pid", str(pid)]
+
     def record_run(self, run_dir: Path) -> None:
         if Path(run_dir).name not in self.state.runs:
             self.state.runs.append(Path(run_dir).name)

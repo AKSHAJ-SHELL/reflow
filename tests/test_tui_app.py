@@ -291,3 +291,52 @@ def test_dropping_two_pdfs_uploads_both_and_the_agent_is_told_both(tmp_path):
             assert "./ina226.txt" in system and "./adxl343.txt" in system
 
     asyncio.run(walk())
+
+
+def test_running_the_design_opens_the_live_build_view(tmp_path, monkeypatch):
+    """T-02: with watch on (as `reflow tui` runs it), Run the design also starts `reflow watch`
+    on the new run folder, tied to the design process so it knows when the run ends."""
+    monkeypatch.setenv("REFLOW_KICAD_SYMBOL_DIR", str(SYMBOLS))
+    project = tmp_path / "board"
+    project.mkdir()
+    app = ReflowApp(project, chat=FakeChat(), planner=FakePlanner(), watch=True)
+    script = _fake_design(tmp_path)
+    app.project.design_command = lambda run_dir: ([sys.executable, str(script), "--run-dir", str(run_dir)],
+                                                  dict(**__import__("os").environ))
+    marker = tmp_path / "watch.txt"
+    seen = {}
+
+    def watch_command(run_dir, pid):
+        seen["pid"] = pid
+        return [sys.executable, "-c", "import sys; open(sys.argv[1], 'w').write(sys.argv[2])", str(marker),
+                str(run_dir)]
+
+    app.project.watch_command = watch_command
+    pdf = tmp_path / "MCP9808.pdf"
+    pdf.write_bytes(b"%PDF-1.7\n")
+    app.project.start("MCP9808 temperature sensor breakout, I2C, 3.3V", ["MCP9808"])
+    app.project.add_datasheet(pdf)
+    app.project.accept_plan(app.project.draft_plan(FakePlanner()))
+    rules = app.project.write_rules_template("Sensor_Temperature:MCP9808_MSOP")
+    rules.write_text(rules.read_text() + '\n[[rule]]\non = "U1.VDD"\nneed = "cap"\nto = "GND"\n'
+                     'source = "MCP9808 datasheet, 6.1, p.35"\nwhy = "spikes"\n')
+    app.project.confirm()
+
+    async def walk():
+        async with app.run_test(size=(160, 60)) as pilot:
+            await pilot.click("#run-design")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert app.watch_proc is not None
+            app.watch_proc.wait(timeout=10)
+            log = app.query_one("#design-log", RichLog)
+            assert any("live view" in line.text for line in log.lines)
+
+    asyncio.run(walk())
+    assert marker.read_text().endswith("01-mcp9808-breakout")
+    assert isinstance(seen["pid"], int) and seen["pid"] > 0
+
+
+def test_without_watch_no_build_view_starts(tmp_path):
+    app = ReflowApp(tmp_path, chat=FakeChat(), planner=FakePlanner())
+    assert app.watch is False and app.watch_proc is None

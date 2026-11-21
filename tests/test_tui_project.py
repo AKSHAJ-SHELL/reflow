@@ -466,3 +466,7 @@ def test_accept_takes_any_part_whose_number_was_typed(tmp_path):
     project.accept_plan(project.draft_plan(FakePlanner()))
     assert project.stage == "rules"
 
+
+def test_the_watch_command_runs_reflow_watch_on_the_run_with_the_design_pid(tmp_path):
+    argv = Project(tmp_path).watch_command(tmp_path / "runs" / "01-x", 4242)
+    assert argv[1:] == ["-m", "reflow", "watch", str(tmp_path / "runs" / "01-x"), "--pid", "4242"]

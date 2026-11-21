@@ -443,6 +443,22 @@ def build_parser() -> argparse.ArgumentParser:
     learn.add_argument("--vault", metavar="DIR", type=Path, default=None,
                        help="your learning vault (default: REFLOW_VAULT, else ~/.reflow/vault)")
     learn.set_defaults(func=cmd_learn)
+    watch = sub.add_parser(
+        "watch",
+        help="show a design run in your browser as it happens",
+        description=(
+            "Serve a live view of RUN_DIR on 127.0.0.1 and open it in your browser: each attempt as it "
+            "compiles and is checked, and the board in PCB, schematic and 3D. It shows how many problems "
+            "the verifier found, not which: learn mode is where you find them. reflow tui opens it for you. "
+            "Needs pip install 'reflow-pcb[learn]'."
+        ),
+    )
+    watch.add_argument("run_dir", metavar="RUN_DIR", help="a run folder (it may not exist yet)")
+    watch.add_argument("--pid", type=int, default=None,
+                       help="the design process; the run counts as finished when it exits")
+    watch.add_argument("--port", type=int, default=0, help="port on 127.0.0.1 (default: any free port)")
+    watch.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    watch.set_defaults(func=cmd_watch)
     tui = sub.add_parser(
         "tui",
         help="open reflow's terminal UI for a board project",
@@ -515,6 +531,17 @@ def cmd_learn(args) -> int:
               "pip install 'reflow-pcb[learn]'", file=sys.stderr)
         return 2
     serve(run_dir, port=args.port, open_browser=not args.no_browser, vault=args.vault)
+    return 0
+
+
+def cmd_watch(args) -> int:
+    try:
+        from reflow.learn.build import serve_build
+    except ModuleNotFoundError as exc:
+        print(f"reflow: the build view needs learn mode's optional extra ({exc}). Install it with: "
+              "pip install 'reflow-pcb[learn]'", file=sys.stderr)
+        return 2
+    serve_build(Path(args.run_dir), pid=args.pid, port=args.port, open_browser=not args.no_browser)
     return 0
 
 

@@ -83,3 +83,10 @@ pre.diff .del { color: var(--bad); }
 h3 { margin: 14px 0 6px; font-size: 16px; }
 .route { font-size: 13px; margin: 8px 0; }
 .route.ok strong { color: var(--good); }
+
+/* T-02 build view */
+.build-log { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; margin: 12px 0; }
+.build-log p { margin: 4px 0; display: flex; gap: 8px; align-items: center; }
+.build-log .good { color: var(--good); }
+.build-log .bad { color: var(--bad); }
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 8px 0; }

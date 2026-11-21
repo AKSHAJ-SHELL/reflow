@@ -27,7 +27,8 @@ Anything marked planned doesn't exist yet. If you know more than I do, correctio
 | `reflow check` | Checks any KiCad schematic for 5 kinds of mistake | works |
 | `reflow design` | Model → board code → compile → verify → fix, up to 3 attempts | works on simple boards |
 | Part resolver | Finds real parts in a local copy of the JLCPCB catalog | works; some of it is awaiting my review |
-| `reflow tui` | The guided way to design a board, step by step | new; one full run so far |
+| `reflow tui` | The guided way to design a board, step by step | new |
+| `reflow watch` | A live view of a design run in your browser: each attempt, the PCB, the schematic and a simplified 3D board | new; opens by itself from `reflow tui` |
 | `reflow learn` | Find the AI's bug in a local web app, run two circuit simulations, sign off | works; simulations awaiting my review |
 | `reflow export` | Runs KiCad DRC, then writes gerbers, drill, placement and BOM | works; often refuses (see Limits) |
 | `reflow report` | Writes up every attempt, error and sign-off | works |
@@ -108,7 +109,7 @@ The screen walks you through it, with an AI helper on the right you can ask anyt
 2. **Drag in each chip's datasheet PDF.** Several at once is fine, and a later upload adds to them. The helper can then search them all and cite pages.
 3. **Draft the plan** and answer its questions. Press **Re-plan with my answers** until it's right, then **Accept plan**.
 4. **Write your `rules.toml`:** one rule for each thing the datasheet asks for. reflow gives you a template and checks it. Ask the helper if a section confuses you.
-5. **Run the design.** The AI gets up to 3 attempts.
+5. **Run the design.** The AI gets up to 3 attempts. A browser tab opens with a live view: each attempt as it's checked, and the board in PCB, schematic and 3D.
 6. **Run `reflow check`.** If it fails, open it in KiCad and learn mode, work out what went wrong, type the fix and run it again.
 
 **← Back** (or Ctrl+B) goes back a step, and Ctrl+Q quits. Everything is saved in the folder, so you can close it and pick up later.
@@ -123,6 +124,7 @@ The screen walks you through it, with an AI helper on the right you can ask anyt
 | `reflow learn RUN` | Open a finished run in your browser: find the bug, simulate, sign off. Needs `[learn]`. |
 | `reflow export RUN` | Run DRC and write fab files to `RUN/out`. |
 | `reflow report RUN` | Write `report.md` and `report.json` for a run. |
+| `reflow watch RUN` | Show a run in your browser, live or finished: attempts, PCB, schematic, 3D. Needs `[learn]`. |
 | `reflow rules check FILE` | Check a `rules.toml` against its parts' pins. |
 | `reflow parts update` | Download or refresh the JLCPCB parts catalog. |
 | `reflow eval` | Run the eval boards. Add `--only NAME` for one, or `--repeat N`. |

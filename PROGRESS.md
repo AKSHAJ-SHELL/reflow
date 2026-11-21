@@ -1337,3 +1337,23 @@ Did: a real HDC1080 run stopped at Run the design with "no local catalog query f
 - **`prompts/planner.md`:** holes, fiducials, test points, logos and the outline are board features, not parts. Any other kind of part needs a typed part number, so ask for one in open_questions. This is draft prompt text awaiting human review.
 - **Not checked against the real planner:** the human's Claude login had expired ("reached its time limit"), so `claude auth login` is needed.
 Tests: failing tests first (3); full suite 874 passed.
+
+## 2026-11-21 · agent (Claude) · T-02: the live build view
+Did: the demo host asked for visuals of the board being built; the human chose the mounting-hole fix first, then this.
+- **`reflow watch RUN_DIR [--pid PID]`** (`reflow/learn/build.py`) serves `/build` on 127.0.0.1.
+  - It re-reads the run folder on every request, and the run is finished once the design process exits.
+  - It sends each attempt's compiled state and **problem count, never which problems**: spot-the-bug stays in learn mode.
+  - Same CSP as learn mode, and it writes nothing.
+- **`reflow tui`** starts it on Run the design (and Re-run) and stops it on quit.
+- **The page (`web/src/BuildView.tsx`)** polls each second and shows each attempt's line, then the verdict. Its board views:
+  - PCB and schematic, from the existing viewers;
+  - **a simplified 3D view** (`Board3D.tsx`): the board's own outline, pads, traces, vias and holes, with parts as boxes of assumed height, labelled as such;
+  - **Replay the build:** parts, then traces, labelled as a replay, since tscircuit doesn't record its order.
+- **Dependencies:**
+  - **Rejected `@tscircuit/3d-viewer` 0.0.651** (MIT): its peer `@tscircuit/core >= 0.0.2234` conflicts with the schematic viewer's pinned core 0.0.2198, and it needs react exactly 19.1.0.
+  - **Rejected `circuit-json-to-gltf`:** its package.json states no license.
+  - **Used `three` 0.179.1** (MIT), already in the tree through the schematic viewer, now a direct exact pin, with `@types/three` 0.179.0 as a dev dependency. The bundle went from 2.86 MB to 3.44 MB.
+- **Tried for real:** `reflow watch` on the INA226 run in the browser pane, where PCB, 3D and replay rendered with no console errors.
+- The human's screenshot showed the 3D view filling a third of the panel, because the canvas took its width once. It now follows the panel's width.
+- **KiCad's own 3D** (`kicad-cli pcb render`) works on these boards, but shows no part bodies: tscircuit's footprints link no KiCad 3D models (0 `(model` entries).
+Tests: failing tests first (10: server, TUI wiring, command); full suite 884 passed.
