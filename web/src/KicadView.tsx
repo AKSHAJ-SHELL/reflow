@@ -1,4 +1,4 @@
-// One view of an attempt's board, drawn by KiCad itself on the server (T-02): the PCB
+// One view of a board, drawn by KiCad itself on the server (T-02; learn mode too): the PCB
 // (kicad-cli pcb export svg), the schematic (kicad-cli sch export svg of reflow's KiCad schematic)
 // or the 3D board (kicad-cli pcb render). No other viewer draws the board on this page.
 import { useEffect, useRef, useState } from "react"
@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react"
 export type KicadViewName = "pcb" | "schematic" | "3d"
 
 const CAPTION: Record<KicadViewName, string> = {
-  pcb: "KiCad's PCB: front and back copper, silkscreen and the board outline, from this attempt's .kicad_pcb.",
-  schematic: "KiCad's schematic, from the KiCad schematic reflow writes for this attempt.",
-  "3d": "KiCad's 3D render of this attempt's .kicad_pcb. Chips and resistors show as bare pads: tscircuit's "
+  pcb: "KiCad's PCB: front and back copper, silkscreen and the board outline, from this board's .kicad_pcb.",
+  schematic: "KiCad's schematic, from the KiCad schematic reflow writes for this board.",
+  "3d": "KiCad's 3D render of this board's .kicad_pcb. Chips and resistors show as bare pads: tscircuit's "
     + "footprints carry no KiCad 3D models, so KiCad has no part bodies to draw.",
 }
 
@@ -27,7 +27,9 @@ function contentBox(svg: SVGSVGElement) {
   return x1 > x0 ? { x: x0, y: y0, width: x1 - x0, height: y1 - y0 } : page
 }
 
-export function KicadView({ attempt, view }: { attempt: number; view: KicadViewName }) {
+// `src` is the server path without the view, e.g. "/api/build/kicad/2" or "/api/kicad/fix/1";
+// `label` names the board in messages ("attempt 2", "your fix 1").
+export function KicadView({ src, label, view }: { src: string; label: string; view: KicadViewName }) {
   const [url, setUrl] = useState<string | null>(null)
   const [problem, setProblem] = useState("")
   const [svg, setSvg] = useState<string | null>(null)
@@ -39,7 +41,7 @@ export function KicadView({ attempt, view }: { attempt: number; view: KicadViewN
     setUrl(null)
     setSvg(null)
     setProblem("")
-    fetch(`/api/build/kicad/${attempt}/${view}`).then(async (response) => {
+    fetch(`${src}/${view}`).then(async (response) => {
       if (stop) return
       if (!response.ok) {
         const body = await response.json().catch(() => ({ detail: response.statusText }))
@@ -52,7 +54,7 @@ export function KicadView({ attempt, view }: { attempt: number; view: KicadViewN
       if (view !== "3d") setSvg(await blob.text())
     }, (e) => { if (!stop) setProblem(String(e)) })
     return () => { stop = true; if (made) URL.revokeObjectURL(made) }
-  }, [attempt, view])
+  }, [src, view])
 
   // KiCad's SVG is drawn inline so it can be cropped to what KiCad drew (a schematic sits on a whole
   // page). Only the viewBox changes; every line and label is KiCad's own.
@@ -78,9 +80,9 @@ export function KicadView({ attempt, view }: { attempt: number; view: KicadViewN
   return (
     <div>
       <div className={`viewer kicad-view kicad-${view}`}>
-        {url && view === "3d" && <img src={url} alt={`KiCad's 3D render of attempt ${attempt}`} />}
-        {view !== "3d" && <div ref={host} className="kicad-svg" role="img" aria-label={`KiCad's ${view} of attempt ${attempt}`} />}
-        {!url && !problem && <p className="muted">KiCad is drawing attempt {attempt}'s {view}…</p>}
+        {url && view === "3d" && <img src={url} alt={`KiCad's 3D render of ${label}`} />}
+        {view !== "3d" && <div ref={host} className="kicad-svg" role="img" aria-label={`KiCad's ${view} of ${label}`} />}
+        {!url && !problem && <p className="muted">KiCad is drawing {label}'s {view}…</p>}
         {problem && <p className="error">{problem}</p>}
       </div>
       <p className="muted">

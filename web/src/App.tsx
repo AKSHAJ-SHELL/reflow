@@ -1,7 +1,8 @@
 // reflow learn mode (DECISIONS L-2, L-2a): the board, spot-the-bug, fix it yourself, sign-off.
+// Every view of the board is drawn by KiCad (the human, 2026-11-21); you pick parts from the list.
 import { useEffect, useMemo, useRef, useState } from "react"
 import { api, type FixResult, type RunInfo } from "./api"
-import { BoardView } from "./BoardView"
+import { KicadView } from "./KicadView"
 import { partIds } from "./circuit"
 import { RouteLine } from "./RouteLine"
 import { FixPanel } from "./FixPanel"
@@ -17,14 +18,13 @@ export function App() {
   const [key, setKey] = useState<Key | null>(null)
   const [circuits, setCircuits] = useState<Record<Key, any[]>>({})
   const [fixes, setFixes] = useState<FixResult[]>([])
-  const [view, setView] = useState<"schematic" | "pcb" | "vault">("schematic")
+  const [view, setView] = useState<"schematic" | "pcb" | "3d" | "vault">("schematic")
   const [selected, setSelected] = useState<string | null>(null)
-  const [focus, setFocus] = useState<string | null>(null)
   const [learnDone, setLearnDone] = useState(false)
   const [vaultVersion, setVaultVersion] = useState(0)
   const [revealed, setRevealed] = useState<string | null>(null)
   const [locked, setLockedState] = useState(false)
-  // The viewers may keep the first click handler they're given, so it reads `locked` through a ref.
+  // Reads `locked` through a ref for handlers that outlive a render.
   const lockedRef = useRef(false)
   const setLocked = (value: boolean) => { lockedRef.current = value; setLockedState(value) }
 
@@ -67,12 +67,13 @@ export function App() {
             <div role="tablist" aria-label="View">
               <button role="tab" aria-selected={view === "schematic"} onClick={() => setView("schematic")}>Schematic</button>
               <button role="tab" aria-selected={view === "pcb"} onClick={() => setView("pcb")}>PCB</button>
+              <button role="tab" aria-selected={view === "3d"} onClick={() => setView("3d")}>3D</button>
               <button role="tab" aria-selected={view === "vault"} onClick={() => setView("vault")}>Vault</button>
             </div>
             <label>
               Board:{" "}
               <select value={key ?? ""} disabled={locked}
-                      onChange={(e) => { setKey(e.target.value); setSelected(null); setFocus(null) }}>
+                      onChange={(e) => { setKey(e.target.value); setSelected(null) }}>
                 {run.attempts.filter((a) => a.has_circuit).map((a) => (
                   <option key={a.number} value={`a${a.number}`}>
                     {a.number === run.best_attempt ? "AI's final board" : "AI's draft"} (attempt {a.number}
@@ -90,9 +91,10 @@ export function App() {
           {locked && <p className="muted">Showing the AI's draft. Its check results stay hidden until you answer.</p>}
           {view === "vault" ? (
             <VaultView key={vaultVersion} />
-          ) : circuit ? (
-            <BoardView circuit={circuit} view={view} focusRef={focus}
-                       onPartClicked={(ref) => { if (lockedRef.current) setSelected(ref) }} />
+          ) : key ? (
+            <KicadView key={`${key}-${view}`} view={view}
+                       src={key.startsWith("a") ? `/api/kicad/attempt/${key.slice(1)}` : `/api/kicad/fix/${key.slice(1)}`}
+                       label={key.startsWith("a") ? `attempt ${key.slice(1)}` : `your fix ${key.slice(1)}`} />
           ) : (
             <p>Loading the board…</p>
           )}
@@ -110,9 +112,9 @@ export function App() {
           <LearnPanel
             selectedRef={selected}
             parts={parts}
-            onSelect={(ref) => { setSelected(ref); setFocus(ref) }}
-            onReveal={(refs, concept) => { setLocked(false); setFocus(refs[0] ?? null); setVaultVersion((v) => v + 1); setRevealed(concept) }}
-            onShowDraft={(n) => { setKey(`a${n}`); setLocked(true); setSelected(null); setFocus(null); setView("schematic") }}
+            onSelect={(ref) => setSelected(ref)}
+            onReveal={(_refs, concept) => { setLocked(false); setVaultVersion((v) => v + 1); setRevealed(concept) }}
+            onShowDraft={(n) => { setKey(`a${n}`); setLocked(true); setSelected(null); setView("schematic") }}
             onFinished={() => { setLocked(false); setLearnDone(true) }}
           />
           {(revealed || learnDone) && draft !== null && circuits[`a${draft}`] && (

@@ -154,8 +154,11 @@ def test_the_shipped_bundle_does_not_fetch_parts_or_code_from_the_internet():
     from reflow.learn.server import STATIC
 
     bundle = "".join(p.read_text(encoding="utf-8") for p in (STATIC / "assets").glob("*.js"))
-    assert "reflow learn runs offline" in bundle          # the CDN importer is replaced
-    assert "reflow learn makes no network requests" in bundle  # the part-availability fetch is replaced
+    # Until 2026-11-21 the bundle carried tscircuit's viewers, whose CDN importer and part-price
+    # lookup were replaced by stubs this test looked for. The viewers are gone (every board view is
+    # KiCad's, drawn on the server), so no tscircuit host may appear at all.
+    for host in ("tscircuit.com", "jlcsearch", "jscdn"):
+        assert host not in bundle, host
 
 
 
@@ -354,3 +357,39 @@ def test_fixes_made_this_session_are_listed_for_a_reloaded_page(run, symbols):
     client.post("/api/fix", json={"edits": [{"kind": "set_label", "ref": "U1", "pin": "1", "value": "SDA"}]})
     listed = client.get("/api/fixes").json()
     assert [f["number"] for f in listed] == [1] and listed[0]["edits"][0]["kind"] == "set_label"
+
+
+# ---------------------------------------------------------------------------
+# Every board view is KiCad's (the human, 2026-11-21: "switch it too")
+# ---------------------------------------------------------------------------
+
+KICAD_PCB = ROOT / "tests" / "data" / "circuit_json" / "sensor_good.kicad_pcb"
+NO_KICAD = __import__("reflow.cli", fromlist=["x"]).find_kicad_cli() is None
+
+
+@pytest.mark.skipif(NO_KICAD, reason="kicad-cli not found")
+@pytest.mark.parametrize("view,start", [("pcb", b"<svg"), ("schematic", b"<svg"), ("3d", b"\x89PNG")])
+def test_learn_mode_shows_each_attempt_as_kicad_draws_it(run, view, start):
+    shutil.copyfile(KICAD_PCB, run / "attempts" / "01" / "build" / "board.kicad_pcb")
+    before = {p: p.stat().st_mtime_ns for p in run.rglob("*")}
+    got = _client(run).get(f"/api/kicad/attempt/1/{view}")
+    assert got.status_code == 200, got.text
+    assert start in got.content[:400]
+    assert {p: p.stat().st_mtime_ns for p in run.rglob("*")} == before
+
+
+def test_learn_mode_kicad_views_say_what_is_missing(run, monkeypatch):
+    client = _client(run)
+    assert client.get("/api/kicad/attempt/1/pcb").status_code == 404      # this recorded run has no .kicad_pcb
+    assert client.get("/api/kicad/attempt/9/pcb").status_code == 404
+    assert client.get("/api/kicad/fix/1/pcb").status_code == 404          # no fix made yet
+    shutil.copyfile(KICAD_PCB, run / "attempts" / "01" / "build" / "board.kicad_pcb")
+    monkeypatch.setattr("reflow.learn.build.find_kicad_cli", lambda: None)
+    assert client.get("/api/kicad/attempt/1/3d").status_code == 503
+
+
+def test_the_learn_page_no_longer_ships_tscircuits_board_viewers():
+    from reflow.learn.server import STATIC
+
+    bundle = "".join(p.read_text(encoding="utf-8") for p in (STATIC / "assets").glob("*.js"))
+    assert "@tscircuit/pcb-viewer" not in bundle and "PCBViewer" not in bundle

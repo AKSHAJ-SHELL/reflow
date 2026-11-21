@@ -12,7 +12,10 @@ single source of truth: the server reads it, asks the learn engine
 talks only to this server; nothing is sent anywhere else.
 
     GET  /api/run              spec, plan, parts, run result, attempts with their violations
-    GET  /api/circuit/{n}      attempt n's circuit.json (for the schematic and PCB viewers)
+    GET  /api/circuit/{n}      attempt n's circuit.json (its parts and nets, for the pick list and fix-it)
+    GET  /api/kicad/attempt/{n}/{view}, /api/kicad/fix/{n}/{view}
+                               the board drawn by KiCad itself: view pcb (SVG), schematic (SVG) or 3d (PNG);
+                               every board view on the page is KiCad's (reflow.learn.build.KicadDrawings)
     GET  /api/learn/next       the next interaction, without its answer; or done + why;
                                concepts skipped as known, with their recall
     POST /api/learn/unskip     {concept} -> ask a skipped concept anyway
@@ -209,6 +212,24 @@ def create_app(run_dir, *, vault=None, now=None) -> FastAPI:
                 for a in run.attempts
             ],
         }
+
+    from reflow.learn.build import KicadDrawings
+
+    drawings = KicadDrawings()
+
+    @app.get("/api/kicad/attempt/{number}/{view}")
+    def kicad_attempt(number: int, view: str):
+        attempt = next((a for a in session.run.attempts if a.number == number), None)
+        if attempt is None or attempt.circuit_json is None:
+            raise HTTPException(404, f"attempt {number} has no board")
+        return drawings.response(attempt.circuit_json.parent, session.run_dir, view, f"attempt {number}")
+
+    @app.get("/api/kicad/fix/{number}/{view}")
+    def kicad_fix(number: int, view: str):
+        fixed = session.fixes.get(number)
+        if fixed is None or not fixed.circuit_json:
+            raise HTTPException(404, f"fix {number} has no board")
+        return drawings.response(Path(fixed.circuit_json).parent, session.run_dir, view, f"your fix {number}")
 
     @app.get("/api/circuit/{number}")
     def circuit(number: int):

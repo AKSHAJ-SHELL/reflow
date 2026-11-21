@@ -1378,3 +1378,13 @@ Did: the human asked for "all views from kicad, no custom tscircuit or other kin
 - **Learn mode still uses tscircuit's viewers.** Its spot-the-bug needs to know which part you clicked, and a KiCad SVG doesn't say. Not changed.
 - **Tried for real** on the INA226 run: PCB, schematic and 3D from KiCad, no failed requests.
 Tests: failing tests first (5).
+
+## 2026-11-21 · agent (Claude) · learn mode's board views are KiCad's too
+Did: the human chose to switch learn mode as well, accepting that the drawing can't be clicked to pick a part.
+- **`GET /api/kicad/attempt/{n}/{view}` and `/api/kicad/fix/{n}/{view}`** serve the PCB, schematic and 3D as KiCad draws them, for the AI's attempts and the person's fixes. They share `KicadDrawings` with `reflow watch`.
+- **The page shows KiCad's views and has a 3D tab.** Spot-the-bug uses the part list that was already beside the board. Focusing the right part after an answer is gone: a KiCad drawing has nothing to focus.
+- **Removed:** `@tscircuit/pcb-viewer`, `@tscircuit/schematic-viewer`, `BoardView.tsx`, `noRemoteImport.ts` and the vite alias. The bundle went from 2.93 MB to 429 KB.
+- **Changed an existing test:** `test_the_shipped_bundle_does_not_fetch_parts_or_code_from_the_internet` looked for the two stubs that had stopped the viewers fetching. The viewers are gone, so it now asserts no tscircuit host appears in the bundle at all, which is stricter.
+- **DECISIONS L-2 still describes tscircuit's viewers.** It's the human's record to update.
+- **Tried for real** on the INA226 run: schematic, PCB and 3D from KiCad, no console errors. Opening the PCB tab still runs learn mode's existing route check, which writes `learn/route/` in the run, as before.
+Tests: failing tests first (5).

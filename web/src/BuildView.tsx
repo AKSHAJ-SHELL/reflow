@@ -86,7 +86,7 @@ export function BuildView() {
             </div>
             <span className="muted">Attempt {shown}, drawn by KiCad</span>
           </div>
-          <KicadView key={`${shown}-${view}`} attempt={shown} view={view} />
+          <KicadView key={`${shown}-${view}`} src={`/api/build/kicad/${shown}`} label={`attempt ${shown}`} view={view} />
         </section>
       )}
     </main>

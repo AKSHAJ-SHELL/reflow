@@ -85,7 +85,7 @@ export function LearnPanel({ selectedRef, parts, onSelect, onReveal, onShowDraft
       <p>{item.prompt}</p>
 
       <p className="pick">
-        Your pick: <strong data-testid="selected-part">{(finished ? submitted : selectedRef) ?? "nothing yet; click a part"}</strong>
+        Your pick: <strong data-testid="selected-part">{(finished ? submitted : selectedRef) ?? "nothing yet; pick a part below"}</strong>
       </p>
       <div className="part-buttons" aria-label="Or pick a part">
         {parts.map((ref) => (

@@ -3,6 +3,7 @@
 Contract
 --------
     build_status(run_dir, *, pid) -> dict
+    KicadDrawings().response(build_dir, run_dir, view, label) -> FileResponse   # also used by learn mode
     create_build_app(run_dir, *, pid=None) -> fastapi.FastAPI
     serve_build(run_dir, *, pid=None, port=0, open_browser=True) -> None
 
@@ -111,23 +112,12 @@ def create_build_app(run_dir, *, pid=None):
             raise HTTPException(404, f"attempt {number} has no board yet")
         return json.loads(path.read_text(encoding="utf-8"))
 
-    renders = Path(tempfile.mkdtemp(prefix="reflow-watch-"))
+    drawings = KicadDrawings()
 
     @app.get("/api/build/kicad/{number}/{view}")
     def kicad(number: int, view: str):
-        if view not in _VIEWS:
-            raise HTTPException(404, f"no {view} view; KiCad draws pcb, schematic and 3d")
-        pcb = _kicad_pcb(run_dir, number)
-        if not pcb.is_file():
-            raise HTTPException(404, f"attempt {number} has no KiCad board yet")
-        cli = find_kicad_cli()
-        if cli is None:
-            raise HTTPException(503, "KiCad isn't installed (no kicad-cli), so there's nothing to draw it with")
-        media, suffix = _VIEWS[view]
-        out = renders / f"{number:02d}-{view}-{pcb.stat().st_mtime_ns}{suffix}"
-        if not out.is_file():
-            _draw(cli, run_dir, number, view, out)
-        return FileResponse(out, media_type=media)
+        build = run_dir / "attempts" / f"{number:02d}" / "build"
+        return drawings.response(build, run_dir, view, f"attempt {number}")
 
     if (STATIC / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=STATIC / "assets"), name="assets")
@@ -171,11 +161,37 @@ def _circuit(run_dir: Path, number: int) -> Path:
 _VIEWS = {"pcb": ("image/svg+xml", ".svg"), "schematic": ("image/svg+xml", ".svg"), "3d": ("image/png", ".png")}
 
 
-def _draw(cli: str, run_dir: Path, number: int, view: str, out: Path) -> None:
-    """Have KiCad draw one view of attempt `number` into `out`, working on copies beside it."""
+class KicadDrawings:
+    """KiCad's drawings of compiled boards (a build/ folder with board.kicad_pcb and circuit.json),
+    made in a temporary folder of their own and reused until the board file changes."""
+
+    def __init__(self) -> None:
+        self.dir = Path(tempfile.mkdtemp(prefix="reflow-kicad-"))
+
+    def response(self, build: Path, run_dir: Path, view: str, label: str):
+        from fastapi import HTTPException
+        from fastapi.responses import FileResponse
+
+        if view not in _VIEWS:
+            raise HTTPException(404, f"no {view} view; KiCad draws pcb, schematic and 3d")
+        pcb = build / "board.kicad_pcb"
+        if not pcb.is_file():
+            raise HTTPException(404, f"{label} has no KiCad board yet")
+        cli = find_kicad_cli()
+        if cli is None:
+            raise HTTPException(503, "KiCad isn't installed (no kicad-cli), so there's nothing to draw it with")
+        media, suffix = _VIEWS[view]
+        key = "".join(c if c.isalnum() else "-" for c in str(build.resolve()))[-80:]
+        out = self.dir / f"{key}-{view}-{pcb.stat().st_mtime_ns}{suffix}"
+        if not out.is_file():
+            _draw(cli, run_dir, build, view, out, label)
+        return FileResponse(out, media_type=media)
+
+
+def _draw(cli: str, run_dir: Path, build: Path, view: str, out: Path, label: str) -> None:
+    """Have KiCad draw one view of the board in `build` into `out`, working on copies beside it."""
     from fastapi import HTTPException
 
-    build = run_dir / "attempts" / f"{number:02d}" / "build"
     work = out.with_suffix("")
     work.mkdir(exist_ok=True)
     board = work / "board.kicad_pcb"
@@ -205,7 +221,7 @@ def _draw(cli: str, run_dir: Path, number: int, view: str, out: Path) -> None:
             shutil.move(str(made[0]), out)
     if done.returncode != 0 or not out.is_file():
         tail = " ".join((done.stderr or done.stdout).split()[-30:])
-        raise HTTPException(502, f"KiCad couldn't draw the {view} of attempt {number}: {tail}")
+        raise HTTPException(502, f"KiCad couldn't draw the {view} of {label}: {tail}")
 
 
 def _kicad_pcb(run_dir: Path, number: int) -> Path:
