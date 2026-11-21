@@ -90,3 +90,69 @@ def test_it_reads_the_run_folder_fresh_each_time(run):
 def test_reflow_watch_is_a_command():
     out = subprocess.run([sys.executable, "-m", "reflow", "watch", "--help"], capture_output=True, text=True)
     assert out.returncode == 0 and "RUN_DIR" in out.stdout
+
+
+# ---------------------------------------------------------------------------
+# KiCad's own 3D render of an attempt's board (kicad-cli pcb render)
+# ---------------------------------------------------------------------------
+
+PCB = ROOT / "tests" / "data" / "circuit_json" / "sensor_good.kicad_pcb"
+
+
+def _with_pcb(run: Path) -> Path:
+    shutil.copyfile(PCB, run / "attempts" / "02" / "build" / "board.kicad_pcb")
+    return run
+
+
+def _files(folder: Path) -> dict:
+    return {p: p.stat().st_mtime_ns for p in folder.rglob("*")}
+
+
+def test_status_says_which_attempts_have_a_kicad_board(run):
+    _with_pcb(run)
+    assert [a["has_kicad_pcb"] for a in build_status(run, pid=None)["attempts"]] == [False, True]
+
+
+KICAD = pytest.mark.skipif(__import__("reflow.cli", fromlist=["x"]).find_kicad_cli() is None,
+                           reason="kicad-cli not found")
+VIEWS = {"pcb": ("image/svg+xml", b"<svg"), "schematic": ("image/svg+xml", b"<svg"), "3d": ("image/png", b"\x89PNG")}
+
+
+@KICAD
+@pytest.mark.parametrize("view", sorted(VIEWS))
+def test_every_view_is_kicads_own_and_the_run_is_untouched(run, view):
+    """The human, 2026-11-21: "all views from kicad, no custom tscircuit or other kind of views"."""
+    _with_pcb(run)
+    before = _files(run)
+    client = TestClient(create_build_app(run, pid=None))
+    got = client.get(f"/api/build/kicad/2/{view}")
+    kind, start = VIEWS[view]
+    assert got.status_code == 200, got.text
+    assert got.headers["content-type"].startswith(kind)
+    assert start in got.content[:400]
+    assert client.get(f"/api/build/kicad/2/{view}").content == got.content   # made once, then reused
+    assert _files(run) == before                                            # nothing written into the run
+
+
+def test_no_kicad_board_or_no_kicad_or_an_unknown_view_says_why(run, monkeypatch):
+    client = TestClient(create_build_app(run, pid=None))
+    missing = client.get("/api/build/kicad/1/pcb")
+    assert missing.status_code == 404 and "no KiCad board" in missing.json()["detail"]
+    assert client.get("/api/build/kicad/2/gerber").status_code == 404
+    _with_pcb(run)
+    monkeypatch.setattr("reflow.learn.build.find_kicad_cli", lambda: None)
+    no_kicad = client.get("/api/build/kicad/2/3d")
+    assert no_kicad.status_code == 503 and "KiCad" in no_kicad.json()["detail"]
+
+
+def test_a_schematic_reflow_cant_draw_honestly_says_why(run, monkeypatch):
+    from reflow.schematic import SchematicError
+
+    _with_pcb(run)
+
+    def refuse(*args, **kwargs):
+        raise SchematicError("D1 is an LED, and tscircuit and KiCad number its pins differently")
+
+    monkeypatch.setattr("reflow.learn.build.write_schematic", refuse)
+    got = TestClient(create_build_app(run, pid=None)).get("/api/build/kicad/2/schematic")
+    assert got.status_code == 422 and "LED" in got.json()["detail"]

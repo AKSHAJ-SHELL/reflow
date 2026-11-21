@@ -1357,3 +1357,24 @@ Did: the demo host asked for visuals of the board being built; the human chose t
 - The human's screenshot showed the 3D view filling a third of the panel, because the canvas took its width once. It now follows the panel's width.
 - **KiCad's own 3D** (`kicad-cli pcb render`) works on these boards, but shows no part bodies: tscircuit's footprints link no KiCad 3D models (0 `(model` entries).
 Tests: failing tests first (10: server, TUI wiring, command); full suite 884 passed.
+
+## 2026-11-21 · agent (Claude) · T-02: KiCad's own 3D render in the build view
+Did: the human asked for KiCad's renderer after seeing reflow's simplified 3D.
+- **`GET /api/build/kicad3d/{n}`** runs `kicad-cli pcb render` on a copy of attempt n's `board.kicad_pcb`, in a temporary folder, and serves the PNG.
+  - The image is reused until the board file changes, and nothing is written into the run folder.
+  - 404 when there's no board; 503 when KiCad isn't installed, saying so.
+- **The page has a "KiCad 3D" tab.** It shows the real solder mask, silkscreen, pads and copper, and says plainly that parts are bare pads: tscircuit's footprints carry no KiCad 3D models.
+- **Tried for real** on the INA226 run in the browser pane, with no console errors.
+Tests: failing tests first (3).
+
+## 2026-11-21 · agent (Claude) · T-02: every view in the build page is KiCad's
+Did: the human asked for "all views from kicad, no custom tscircuit or other kind of views".
+- **`GET /api/build/kicad/{n}/{view}`** replaces `kicad3d`. KiCad draws all three on a copy of the attempt's board, in a temporary folder:
+  - `pcb`: `kicad-cli pcb export svg` with F.Cu, B.Cu, F.Silkscreen and Edge.Cuts, cropped to the board area;
+  - `schematic`: `kicad-cli sch export svg` of reflow's KiCad schematic for that attempt (`write_schematic`). 422 with the reason when reflow refuses to draw a part;
+  - `3d`: `kicad-cli pcb render`.
+- **Removed from the page:** tscircuit's PCB and schematic viewers, reflow's three.js 3D and the replay. The replay was built from circuit.json, so it wasn't KiCad's. `three` and `@types/three` are no longer dependencies.
+- **Display:** the page crops KiCad's SVG to what KiCad drew (a schematic sits on a whole page), changing only the viewBox, and links the full-size file.
+- **Learn mode still uses tscircuit's viewers.** Its spot-the-bug needs to know which part you clicked, and a KiCad SVG doesn't say. Not changed.
+- **Tried for real** on the INA226 run: PCB, schematic and 3D from KiCad, no failed requests.
+Tests: failing tests first (5).
