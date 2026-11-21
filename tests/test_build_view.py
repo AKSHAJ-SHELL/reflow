@@ -154,5 +154,6 @@ def test_a_schematic_reflow_cant_draw_honestly_says_why(run, monkeypatch):
         raise SchematicError("D1 is an LED, and tscircuit and KiCad number its pins differently")
 
     monkeypatch.setattr("reflow.learn.build.write_schematic", refuse)
+    monkeypatch.setattr("reflow.learn.build.find_kicad_cli", lambda: "/kicad-cli")  # refused before KiCad runs
     got = TestClient(create_build_app(run, pid=None)).get("/api/build/kicad/2/schematic")
     assert got.status_code == 422 and "LED" in got.json()["detail"]
