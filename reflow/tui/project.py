@@ -272,6 +272,16 @@ class Project:
         return Draft(spec, plan)
 
     def accept_plan(self, draft: Draft) -> None:
+        from reflow.parts.local_catalog import BY_VALUE
+
+        stuck = [p for p in draft.plan.parts if not p.mpn.strip() and p.category not in BY_VALUE]
+        if stuck:
+            listed = "; ".join(f"{p.id} {p.role} ({p.category})" for p in stuck)
+            raise ProjectError(
+                f"reflow can't find these parts: {listed}. It looks up only resistors, capacitors and pin "
+                "headers by value. A mounting hole or fiducial is a board feature, not a part: answer a plan "
+                "question with \"remove it\" and re-plan. Any other part needs its exact part number: go Back "
+                "and type it.")
         _write_json(self.spec_path, to_dict(replace(draft.spec, confirmed=False)))
         _write_json(self.plan_path, to_dict(draft.plan))
         self._go("rules")
@@ -378,6 +388,10 @@ class Project:
         env = dict(os.environ)
         env.setdefault("REFLOW_PROVIDER", "claude-code")
         return argv, env
+
+    def watch_command(self, run_dir: Path, pid: int) -> list[str]:
+        """`reflow watch`: the live build view (T-02), finished when the design process `pid` exits."""
+        return [sys.executable, "-m", "reflow", "watch", str(run_dir), "--pid", str(pid)]
 
     def record_run(self, run_dir: Path) -> None:
         if Path(run_dir).name not in self.state.runs:

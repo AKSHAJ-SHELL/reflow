@@ -434,3 +434,39 @@ def test_a_project_saved_with_one_datasheet_still_has_it(tmp_path):
         '{"request": "x", "part_numbers": ["INA226AIDGSR"], "datasheet": "ina226.pdf", '
         '"datasheet_text": "ina226.txt", "stage": "plan"}')
     assert Project(board).datasheets() == [("ina226.pdf", "ina226.txt")]
+
+
+# ---------------------------------------------------------------------------
+# parts reflow can't look up (2026-11-16: a real HDC1080 plan had 4 mounting holes as
+# "other" parts; Accept took it and Run the design stopped at "no local catalog query")
+# ---------------------------------------------------------------------------
+
+def _plan_with(*extra):
+    return dict(PLAN, parts=PLAN["parts"] + list(extra))
+
+
+def test_accept_refuses_a_part_reflow_cant_look_up_and_says_why(tmp_path):
+    hole = {"id": "p9", "role": "mounting hole 1", "category": "other", "value": "M2.5", "package": "",
+            "tolerance": "", "voltage": "", "mpn": "", "notes": ""}
+    project = _started(tmp_path)
+    draft = project.draft_plan(FakePlanner(plan=_plan_with(hole)))
+    stage = project.stage
+    with pytest.raises(ProjectError) as exc:
+        project.accept_plan(draft)
+    message = str(exc.value)
+    assert "p9" in message and "mounting hole 1" in message
+    assert "board feature" in message
+    assert project.stage == stage and not project.plan_path.exists()   # nothing accepted, nothing written
+
+
+def test_accept_takes_any_part_whose_number_was_typed(tmp_path):
+    project = _started(tmp_path)
+    plan = PLAN if any(p["category"] == "ic" and p["mpn"] for p in PLAN["parts"]) else None
+    assert plan is not None                                   # the IC has a typed part number
+    project.accept_plan(project.draft_plan(FakePlanner()))
+    assert project.stage == "rules"
+
+
+def test_the_watch_command_runs_reflow_watch_on_the_run_with_the_design_pid(tmp_path):
+    argv = Project(tmp_path).watch_command(tmp_path / "runs" / "01-x", 4242)
+    assert argv[1:] == ["-m", "reflow", "watch", str(tmp_path / "runs" / "01-x"), "--pid", "4242"]

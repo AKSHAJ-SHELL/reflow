@@ -42,6 +42,8 @@ Each part request uses these fields and no others:
 - id: p1, p2, and so on, stable inside the run
 - role: what the part does on the board
 - category: one of resistor, capacitor, inductor, led, diode, transistor, ic, regulator, connector, crystal, switch, other
+  - Mounting holes, fiducials, test points, logos and the board outline are board features, not parts: never list them.
+  - reflow looks up only resistors, capacitors and pin headers by value. Any other part (an LED, diode, crystal, switch, regulator or chip) needs an exact part number the user typed. If one is needed and the user typed none, don't list it; ask for its part number in open_questions.
 - value: such as 100nF or 4.7k. Empty string for an IC. For a connector: rows x pins per row, such as 1x4
 - package: such as 0402. Empty string if the request does not state one. For a connector: the pin pitch, such as 2.54mm
 - tolerance: such as 1%. Empty string if unstated

@@ -86,13 +86,15 @@ class ReflowApp(App):
     CSS = CSS
     BINDINGS = [("ctrl+q", "quit", "Quit"), ("ctrl+b", "back", "Back")]
 
-    def __init__(self, project_dir, *, chat=None, planner=None) -> None:
+    def __init__(self, project_dir, *, chat=None, planner=None, watch=False) -> None:
         super().__init__()
         self.project = Project(project_dir)
         self.sub_title = str(self.project.root)
         self._chat, self._planner = chat, planner
         self.draft: Draft | None = None
         self.learn_proc: subprocess.Popen | None = None
+        self.watch = watch                        # open the live build view on each design run (T-02)
+        self.watch_proc: subprocess.Popen | None = None
 
     # --- layout -----------------------------------------------------------------
 
@@ -410,12 +412,26 @@ class ReflowApp(App):
         seen = 0
         with log_path.open("w", encoding="utf-8") as out:
             proc = subprocess.Popen(argv, env=env, cwd=self.project.root, stdout=out, stderr=subprocess.STDOUT)
+            if self.watch:
+                self._start_watch(run_dir, proc.pid)
             while proc.poll() is None:
                 time.sleep(1)
                 seen = self._report_attempts(run_dir, seen)
         seen = self._report_attempts(run_dir, seen)
         tail = log_path.read_text(encoding="utf-8").strip().splitlines()[-6:]
         self.call_from_thread(self._design_done, run_dir, proc.returncode, tail)
+
+    def _start_watch(self, run_dir: Path, pid: int) -> None:
+        if self.watch_proc is not None and self.watch_proc.poll() is None:
+            self.watch_proc.terminate()
+        try:
+            self.watch_proc = subprocess.Popen(self.project.watch_command(run_dir, pid), cwd=self.project.root,
+                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            return
+        self.call_from_thread(self._log, "design-log",
+                              "A live view of the build is opening in your browser: each attempt, the PCB, "
+                              "the schematic and a 3D board.", "")
 
     def _design_started(self, run_dir: Path) -> None:
         self.query_one("#run-design", Button).disabled = True
@@ -538,8 +554,9 @@ class ReflowApp(App):
         return self._planner
 
     def on_unmount(self) -> None:
-        if self.learn_proc is not None and self.learn_proc.poll() is None:
-            self.learn_proc.terminate()
+        for proc in (self.learn_proc, self.watch_proc):
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
 
 
 def _open_file(path: Path) -> None:
@@ -551,7 +568,7 @@ def _open_file(path: Path) -> None:
 
 def run(project_dir) -> int:
     os.environ.setdefault("REFLOW_PROVIDER", "claude-code")
-    ReflowApp(project_dir).run()
+    ReflowApp(project_dir, watch=True).run()
     return 0
 
 

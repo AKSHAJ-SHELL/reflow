@@ -113,6 +113,10 @@ def reflow_category(jlc_category: str, jlc_subcategory: str) -> str:
     return "other"
 
 
+# Categories search() finds by value and package. Any other part needs a typed part number (mpn).
+BY_VALUE = frozenset({"resistor", "capacitor", "connector"})
+
+
 def search(request: PartRequest, *, db_path=None) -> list[CatalogPart]:
     path = Path(db_path) if db_path is not None else default_db_path()
     with _open(path) as db:
