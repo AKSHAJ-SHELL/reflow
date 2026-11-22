@@ -29,7 +29,7 @@ Anything marked planned doesn't exist yet. If you know more than I do, correctio
 | Part resolver | Finds real parts in a local copy of the JLCPCB catalog | works; some of it is awaiting my review |
 | `reflow tui` | The guided way to design a board, step by step | new |
 | `reflow watch` | A live view of a design run in your browser: each attempt, and the board's PCB, schematic and 3D view, all drawn by KiCad (the 3D has no part bodies yet) | new; opens by itself from `reflow tui` |
-| `reflow learn` | Find the AI's bug in a local web app (the board drawn by KiCad), run two circuit simulations, sign off | works; simulations awaiting my review |
+| `reflow learn` | Find the AI's bug in a local web app (the board drawn by KiCad), run two circuit simulations, sign off | works; simulations awaiting my review; the vault comes later (see Limits) |
 | `reflow export` | Runs KiCad DRC, then writes gerbers, drill, placement and BOM | works; often refuses (see Limits) |
 | `reflow report` | Writes up every attempt, error and sign-off | works |
 
@@ -162,6 +162,9 @@ To use an API instead of Claude Code, see [SETUP.md](SETUP.md#3-a-model).
 - **No SPI or UART checks.**
 - **No current, heat or analog layout checks.** Trace width and Kelvin connections aren't checked. Check them in KiCad.
 - **Only two simulations exist** (decoupling and I²C rise time). They use assumed values, shown next to each graph.
+
+**Learn mode**
+- **The learning vault and everything around it will be made later.** Today there's a rough first version: concept cards, notes in `~/.reflow/vault/` and a vault graph. I'll build it out properly as I learn, along with think-with-me mode (task L-20), which is only a design so far.
 
 **Parts**
 - **JLCPCB catalog only.** You can't use another vendor's library yet.

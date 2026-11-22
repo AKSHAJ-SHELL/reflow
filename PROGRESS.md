@@ -1388,3 +1388,7 @@ Did: the human chose to switch learn mode as well, accepting that the drawing ca
 - **DECISIONS L-2 still describes tscircuit's viewers.** It's the human's record to update.
 - **Tried for real** on the INA226 run: schematic, PCB and 3D from KiCad, no console errors. Opening the PCB tab still runs learn mode's existing route check, which writes `learn/route/` in the run, as before.
 Tests: failing tests first (5).
+
+## 2026-11-21 · agent (Claude) · README: the vault comes later
+Did: at the human's request, the README now says the learning vault and everything around it will be made later. The `reflow learn` row points to a new **Learn mode** section under Limits. That section says today's concept cards, notes and vault graph are a rough first version, and that think-with-me (L-20) is only a design.
+Tests: docs only.
