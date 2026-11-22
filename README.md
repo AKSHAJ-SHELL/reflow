@@ -218,6 +218,12 @@ More detail: [docs/02-architecture.md](docs/02-architecture.md).
 
 ## License
 
-**reflow doesn't have a license yet,** so for now no one else has permission to reuse the code. I plan to open-source it and will add a `LICENSE` file when I've chosen one.
+reflow is released under the [MIT License](LICENSE). In plain terms:
+
+- **You can** use, copy, change and share reflow, including in commercial or closed-source work.
+- **You must** keep the copyright notice and the license text in any copy you share.
+- **No warranty.** reflow comes "as is". A board it helped design can still be wrong, so check every board yourself before you order it.
+
+KiCad and freerouting are GPL programs that reflow runs separately. They aren't part of reflow and keep their own licenses.
 
 reflow is an independent project, not affiliated with any commercial PCB tool.

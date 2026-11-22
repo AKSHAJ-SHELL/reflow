@@ -11,7 +11,7 @@ Status: `todo` · `doing` · `done` · `blocked`. Dates are targets (see 03-v1-s
 |---|---|---|---|---|---|---|---|
 | Z-01 | Finish the rename | working tree | committed imports; old package folder deleted; pyproject `name = "reflow-pcb"` | old package name gone from all `.py` files; `pytest -q` green; `reflow check fixtures/sensor_good` exit 0 | — | HUMAN | done (checked 11-08: package and pyproject renamed, old name gone) |
 | Z-02 | Untrack `scratch/` | git index | `git rm -r --cached scratch` committed | `git ls-files scratch` empty | Z-01 | HUMAN | done (checked 11-08: nothing under `scratch/` is tracked) |
-| Z-03 | Choose a license and add `LICENSE` | README says none yet | `LICENSE`, pyproject `license` | file present; README's License section updated | — | HUMAN | todo (needed before the repo goes public) |
+| Z-03 | Choose a license and add `LICENSE` | README says none yet | `LICENSE`, pyproject `license` | file present; README's License section updated | — | HUMAN | done (MIT, 2026-11-21) |
 | D-01 | Launch post for `reflow check` | 01-current-state real-board result | README hook + screenshot + post | Stranger can install and run `reflow check` from README in ≤ 5 min | Z-01 | HUMAN | todo (Sun 10-18) |
 
 ## Verifier (rules are HUMAN)
